@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0b1220">
 <title>VendorTracker — Inventory, Sales & Profit</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
   --bg:#f6f8fb;--panel:#ffffff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;
@@ -57,6 +58,302 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .cardPick img{width:100%;aspect-ratio:2.5/3.5;object-fit:contain;background:#f8fafc;border-radius:10px}.cardPick h4{margin:10px 0 3px}.cardPick .meta{font-size:12px;color:var(--muted);line-height:1.45}
 .priceBox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px}.priceBox strong{display:block;font-size:18px;margin-top:3px}.apiStatus{font-size:12px;color:var(--muted);margin-top:8px}
 .marketGood{color:#166534;font-weight:850}.marketNone{color:#94a3b8}
+
+
+.scanQueue{display:grid;gap:10px;margin-top:12px}.scanItem{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
+.scanItem img{width:76px;height:100px;object-fit:cover;border-radius:8px;background:#f8fafc}.scanStatus{font-size:12px;color:var(--muted);margin-top:4px}.scanGood{color:#166534;font-weight:800}.scanBad{color:#991b1b;font-weight:800}
+
+
+/* ===== Mobile usability improvements ===== */
+.mobileOnly{display:none}
+@media(max-width:820px){
+  body{background:#f8fafc}
+  .appTop{
+    height:58px;
+    padding:0 10px;
+    gap:8px;
+  }
+  .appTop .brand span:last-child{font-size:15px}
+  .brandMark{width:30px;height:30px;border-radius:9px}
+  #accountEmail{display:none}
+  .appTop .btn{padding:8px 10px;font-size:12px}
+  .syncPill{font-size:11px;padding:5px 8px}
+  .main{
+    padding:12px 10px 92px;
+  }
+  .pageHeader{
+    margin-bottom:14px;
+    gap:6px;
+  }
+  .pageHeader h1{
+    font-size:24px;
+  }
+  .pageHeader p{
+    font-size:13px;
+    line-height:1.4;
+  }
+  .panel{
+    padding:12px;
+    border-radius:14px;
+    margin-top:10px;
+  }
+  .panelHead{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:6px;
+  }
+  .cards{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px;
+  }
+  .metric{
+    padding:12px;
+    border-radius:12px;
+  }
+  .metricLabel{font-size:11px}
+  .metricValue{font-size:20px}
+  .grid{
+    grid-template-columns:1fr !important;
+    gap:8px;
+  }
+  .input{
+    min-height:46px;
+    font-size:16px;
+    padding:11px 12px;
+  }
+  select.input{
+    background-color:#fff;
+  }
+  .btn{
+    min-height:44px;
+    padding:11px 14px;
+    font-size:14px;
+  }
+  .lookupRow{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .lookupRow .btn{
+    width:100%;
+  }
+  #pPhotoPreview{
+    width:100%;
+    max-width:220px;
+    height:auto;
+    aspect-ratio:1/1;
+    object-fit:contain;
+    justify-self:center;
+  }
+  .productGrid{
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+  .productCard{
+    border-radius:14px;
+    padding:12px;
+  }
+  .productCard img{
+    max-height:260px !important;
+  }
+  .paymentBtns{
+    grid-template-columns:repeat(3,1fr);
+    gap:7px;
+  }
+  .paymentBtns button{
+    min-height:46px;
+    padding:10px 4px;
+    font-size:13px;
+  }
+
+  /* Tables become card lists on phones */
+  .tableWrap{
+    border:0;
+    overflow:visible;
+  }
+  .tableWrap table,
+  .tableWrap thead,
+  .tableWrap tbody,
+  .tableWrap tr,
+  .tableWrap th,
+  .tableWrap td{
+    display:block;
+    width:100%;
+    min-width:0;
+  }
+  .tableWrap table{
+    min-width:0 !important;
+  }
+  .tableWrap tr{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:13px;
+    padding:10px;
+    margin-bottom:10px;
+  }
+  .tableWrap th{
+    display:none;
+  }
+  .tableWrap td{
+    border:0;
+    padding:5px 0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    text-align:right;
+  }
+  .tableWrap td::before{
+    content:attr(data-label);
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    text-align:left;
+    flex:0 0 38%;
+  }
+  .tableWrap td > *{
+    max-width:62%;
+  }
+  .tableWrap td .input{
+    width:100% !important;
+    min-width:0 !important;
+  }
+  .actions{
+    width:100%;
+    justify-content:flex-end;
+  }
+  .miniBtn{
+    min-height:38px;
+    padding:8px 10px;
+  }
+  .thumb{
+    width:64px;
+    height:88px;
+    object-fit:contain;
+  }
+
+  /* Bottom navigation becomes the primary nav */
+  .bottomNav{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    padding-bottom:env(safe-area-inset-bottom);
+    box-shadow:0 -8px 30px rgba(15,23,42,.08);
+  }
+  .bottomNav button{
+    min-height:58px;
+    padding:8px 2px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    font-size:10px;
+  }
+  .bottomNav button::before{
+    font-size:18px;
+    line-height:1;
+  }
+  .bottomNav button[data-page="dashboard"]::before{content:"⌂"}
+  .bottomNav button[data-page="sell"]::before{content:"$"}
+  .bottomNav button[data-page="inventory"]::before{content:"▣"}
+  .bottomNav button[data-page="purchases"]::before{content:"+"}
+  .bottomNav button[data-page="shows"]::before{content:"★"}
+
+  /* Modal picker */
+  .modalBack{
+    padding:0;
+    align-items:end;
+  }
+  .modal{
+    width:100%;
+    max-height:92vh;
+    border-radius:20px 20px 0 0;
+  }
+  .modalHead{
+    padding:14px;
+  }
+  .modalHead h2{font-size:19px}
+  .modalBody{padding:12px}
+  .cardPickGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+  }
+  .cardPick{
+    padding:8px;
+  }
+  .cardPick h4{
+    font-size:13px;
+    line-height:1.25;
+  }
+  .cardPick .meta{
+    font-size:10px;
+  }
+
+  /* Scan queue */
+  .scanItem{
+    grid-template-columns:64px 1fr;
+    gap:10px;
+    align-items:start;
+  }
+  .scanItem img{
+    width:64px;
+    height:86px;
+  }
+  .scanItem > div:last-child{
+    grid-column:1 / -1;
+    display:flex;
+    justify-content:flex-end;
+    gap:6px;
+  }
+
+  /* Shows */
+  .showActions{
+    width:100%;
+  }
+  .showActions .miniBtn{
+    flex:1;
+  }
+  .detailsBox{
+    padding:10px;
+  }
+
+  /* Undo bar */
+  .undoBar{
+    left:10px;
+    right:10px;
+    bottom:74px;
+    transform:none;
+    max-width:none;
+    justify-content:space-between;
+    padding:10px;
+  }
+  .undoBar span{
+    font-size:12px;
+    line-height:1.3;
+  }
+
+  /* Public site */
+  .publicNav{height:60px}
+  .navActions .btnGhost{display:none}
+  .navActions .btnPrimary{padding:9px 12px;font-size:12px}
+  .hero{padding:42px 0 34px}
+  .hero h1{font-size:39px}
+  .hero p{font-size:15px}
+  .heroButtons .btn{width:100%}
+  .feature{padding:18px}
+  .section{padding:48px 0}
+  .sectionTitle h2{font-size:29px}
+  .cta{margin-bottom:50px;padding:26px 20px}
+  .cta h2{font-size:27px}
+}
+@media(max-width:430px){
+  .cards{grid-template-columns:1fr 1fr !important}
+  .cardPickGrid{grid-template-columns:1fr 1fr}
+  .paymentBtns{grid-template-columns:1fr}
+  .bottomNav button{font-size:9px}
+}
 
 </style>
 </head>
@@ -283,6 +580,14 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
                 <button class="btn btnSoft" type="button" onclick="searchPokemonCards()">Find card</button>
               </div>
               <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <label class="btn btnGhost">
+                  📸 Scan card photo(s)
+                  <input id="scanPhotos" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)">
+                </label>
+                <span class="small" style="align-self:center">Best results: one card per photo. You can select multiple photos at once.</span>
+              </div>
+              <div id="scanQueue" class="scanQueue"></div>
             </div>
             <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
             <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
@@ -424,7 +729,7 @@ function pushUndo(label){
 }
 function dismissUndo(){
   const bar=document.getElementById("undoBar");
-  if(bar)bar.classList.remove("show");
+  if(bar)bar.classList.add("hidden");
 }
 function undoLast(){
   const item=undoStack.pop();
@@ -555,6 +860,11 @@ function scoreCardResult(card,parsed){
     if(num===wantedNum)score+=100;
     else if(num.replace(/^0+/,"")===wantedNum.replace(/^0+/,""))score+=90;
   }
+  if(parsed.denominator){
+    const denom=Number(parsed.denominator);
+    if(Number(card?.set?.printedTotal)===denom)score+=120;
+    else if(Number(card?.set?.total)===denom)score+=40;
+  }
 
   const release=Date.parse(card?.set?.releaseDate||"");
   if(Number.isFinite(release))score+=Math.min(8,Math.max(0,(release-Date.parse("2000-01-01"))/(1000*60*60*24*365*5)));
@@ -582,8 +892,14 @@ async function searchPokemonCards(){
   status.textContent="Searching card database…";
   const queries=[];
 
+  if(parsed.name && parsed.apiNumber && parsed.denominator){
+    queries.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
+  }
   if(parsed.name && parsed.apiNumber){
     queries.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber}`);
+  }
+  if(parsed.apiNumber && parsed.denominator){
+    queries.push(`number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
   }
   if(parsed.name){
     queries.push(`name:"${escapeQueryPhrase(parsed.name)}"`);
@@ -634,13 +950,147 @@ async function searchPokemonCards(){
     if(!successfulRequests && lastError){
       status.textContent="Card service is temporarily unavailable. Try again in a moment, or add the item manually.";
     }else{
-      status.textContent="No match found. Try just the Pokémon name, or use a collector number like 032/182.";
+      status.textContent="No match found. Try the Pokémon name, or a full collector number like 032/182. Number-only searches now also match the set total.";
     }
     return;
   }
 
   status.textContent=`Found ${cards.length} likely match${cards.length===1?"":"es"}. Best matches are shown first.`;
   renderCardLookup(cards);
+  document.getElementById("cardLookupModal").classList.remove("hidden");
+}
+
+
+async function resolveCardText(raw, limit=8){
+  const parsed=parseCardSearch(raw);
+  const queries=[];
+  if(parsed.name && parsed.apiNumber && parsed.denominator)
+    queries.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
+  if(parsed.apiNumber && parsed.denominator)
+    queries.push(`number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
+  if(parsed.name && parsed.apiNumber)
+    queries.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber}`);
+  if(parsed.apiNumber)queries.push(`number:${parsed.apiNumber}`);
+  if(parsed.name)queries.push(`name:"${escapeQueryPhrase(parsed.name)}"`);
+
+  const useful=(parsed.tokens||[]).filter(t=>t.length>=3);
+  if(useful.length)queries.push(`name:${escapeQueryPhrase(useful[0])}*`);
+
+  let all=[];
+  for(const q of queries){
+    try{
+      all.push(...await fetchCardQuery(q,80));
+      if(uniqueCards(all).length>=20)break;
+    }catch(e){}
+  }
+  let cards=uniqueCards(all);
+  cards.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));
+  return cards.slice(0,limit);
+}
+function extractLikelyCardText(ocrText){
+  const lines=String(ocrText||"").split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  let number="";
+  for(const line of lines){
+    const m=line.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)\s*\/\s*([A-Za-z]*\d+[A-Za-z]*)/);
+    if(m){number=`${m[1]}/${m[2]}`;break}
+  }
+  if(!number){
+    for(const line of lines){
+      const m=line.match(/\b(?:#\s*)?(\d{1,3})\b/);
+      if(m){number=m[1];break}
+    }
+  }
+  const reject=/^(basic|stage|hp|trainer|energy|ability|weakness|resistance|retreat|illus|©|pokemon|pokémon)$/i;
+  let name=lines.find(line=>{
+    const cleaned=line.replace(/[^A-Za-z0-9'’ -]/g," ").replace(/\s+/g," ").trim();
+    return cleaned.length>=3 && cleaned.length<=35 && /[A-Za-z]/.test(cleaned) && !reject.test(cleaned) && !/\b\d{2,3}\s*HP\b/i.test(cleaned);
+  })||"";
+  name=name.replace(/[^A-Za-z0-9'’ -]/g," ").replace(/\s+/g," ").trim();
+  return [name,number].filter(Boolean).join(" ").trim();
+}
+async function scanCardPhotos(fileList){
+  const files=Array.from(fileList||[]);
+  const queue=document.getElementById("scanQueue");
+  if(!files.length)return;
+  queue.innerHTML="";
+  if(!window.Tesseract){
+    queue.innerHTML='<div class="scanBad">Card scanner failed to load. Refresh the page and try again.</div>';
+    return;
+  }
+  for(let i=0;i<files.length;i++){
+    const file=files[i];
+    const id="scan_"+Date.now()+"_"+i;
+    const preview=URL.createObjectURL(file);
+    queue.insertAdjacentHTML("beforeend",`<div class="scanItem" id="${id}">
+      <img src="${preview}" alt="">
+      <div><strong>${esc(file.name||("Card "+(i+1)))}</strong><div class="scanStatus">Reading card text…</div></div>
+      <div></div>
+    </div>`);
+    const row=document.getElementById(id);
+    try{
+      const result=await Tesseract.recognize(file,"eng",{
+        logger:m=>{
+          if(m.status==="recognizing text"){
+            const pct=Math.round((m.progress||0)*100);
+            const st=row.querySelector(".scanStatus");if(st)st.textContent=`Reading card text… ${pct}%`;
+          }
+        }
+      });
+      const guessed=extractLikelyCardText(result?.data?.text||"");
+      if(!guessed)throw new Error("Could not read card name/number");
+      row.querySelector(".scanStatus").textContent=`Detected: ${guessed}. Matching card…`;
+
+      const matches=await resolveCardText(guessed,6);
+      if(!matches.length){
+        row.querySelector(".scanStatus").innerHTML=`<span class="scanBad">No database match for "${esc(guessed)}".</span>`;
+        continue;
+      }
+
+      const best=matches[0];
+      row.querySelector(".scanStatus").innerHTML=`<span class="scanGood">Best match: ${esc(best.name)} — ${esc(best.set?.name||"")} #${esc(fullCardNumber(best))}</span>`;
+      row.lastElementChild.innerHTML=`<button class="miniBtn btnSuccess" onclick="autoAddScannedCard('${best.id}')">Add card</button>${matches.length>1?`<button class="miniBtn btnSoft" style="margin-left:5px" onclick='reviewScanMatches(${JSON.stringify(matches.map(c=>c.id))})'>Review</button>`:""}`;
+    }catch(e){
+      row.querySelector(".scanStatus").innerHTML='<span class="scanBad">Could not identify this photo. Try a closer, straight-on photo with the card filling most of the frame.</span>';
+    }
+  }
+}
+async function fetchCardById(id){
+  try{
+    const r=await fetch("https://api.pokemontcg.io/v2/cards/"+encodeURIComponent(id));
+    if(!r.ok)return null;
+    const j=await r.json();return j.data||null;
+  }catch(e){return null}
+}
+async function autoAddScannedCard(id){
+  const c=await fetchCardById(id);if(!c)return toast("Could not load card details");
+  const prices=c.tcgplayer?.prices||{};
+  const finishes=Object.keys(prices);
+  const finish=finishes.includes("holofoil")?"holofoil":(finishes[0]||"");
+  const market=currentMarketFromPrices(prices,finish);
+  pushUndo("Add scanned card");
+  db.products.push({
+    id:uid(),
+    name:`${c.name} — ${c.set?.name||""} #${fullCardNumber(c)}`.trim(),
+    qty:1,cost:0,price:market||0,
+    photo:c.images?.large||c.images?.small||"",
+    condition:"Near Mint",finish,
+    pokemonCardId:c.id,
+    setName:c.set?.name||"",setId:c.set?.id||"",
+    cardNumber:fullCardNumber(c),rarity:c.rarity||"",
+    tcgUrl:c.tcgplayer?.url||"",
+    tcgUpdatedAt:c.tcgplayer?.updatedAt||"",
+    tcgPrices:prices,tcgMarket:market
+  });
+  save();toast("Scanned card added");
+}
+async function reviewScanMatches(ids){
+  const cards=[];
+  for(const id of ids){
+    const c=await fetchCardById(id);if(c)cards.push(c);
+  }
+  currentLookupResults=cards;
+  renderCardLookup(cards);
+  document.getElementById("lookupSummary").textContent="Scanner found multiple possibilities. Choose the correct card.";
   document.getElementById("cardLookupModal").classList.remove("hidden");
 }
 
@@ -1105,11 +1555,11 @@ function renderDashboard(){
  document.getElementById("showName").value=db.currentShow?.name||"";
 
  document.getElementById("recentSales").innerHTML=db.sales.length?`<div class="tableWrap"><table><tr><th>Time</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th>Actions</th></tr>${db.sales.slice(0,20).map(x=>`<tr>
-   <td>${new Date(x.time).toLocaleString()}</td><td><strong>${esc(x.name)}</strong></td>
-   <td><input class="input" style="width:80px;padding:7px" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}"></td>
-   <td><input class="input" style="width:100px;padding:7px" id="sale_total_${x.id}" type="number" min="0" step=".01" value="${Number(x.total).toFixed(2)}"></td>
-   <td><select class="input" style="min-width:110px;padding:7px" id="sale_payment_${x.id}"><option ${x.payment==="Cash"?"selected":""}>Cash</option><option ${x.payment==="Cash App"?"selected":""}>Cash App</option><option ${x.payment==="Zelle"?"selected":""}>Zelle</option></select></td>
-   <td><div class="actions"><button class="miniBtn btnSuccess" onclick="updateRecentSale('${x.id}')">Save</button><button class="miniBtn btnDanger" onclick="deleteRecentSale('${x.id}')">Delete</button></div></td>
+   <td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td>
+   <td data-label="Qty"><input class="input" style="width:80px;padding:7px" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}"></td>
+   <td data-label="Total"><input class="input" style="width:100px;padding:7px" id="sale_total_${x.id}" type="number" min="0" step=".01" value="${Number(x.total).toFixed(2)}"></td>
+   <td data-label="Payment"><select class="input" style="min-width:110px;padding:7px" id="sale_payment_${x.id}"><option ${x.payment==="Cash"?"selected":""}>Cash</option><option ${x.payment==="Cash App"?"selected":""}>Cash App</option><option ${x.payment==="Zelle"?"selected":""}>Zelle</option></select></td>
+   <td data-label="Actions"><div class="actions"><button class="miniBtn btnSuccess" onclick="updateRecentSale('${x.id}')">Save</button><button class="miniBtn btnDanger" onclick="deleteRecentSale('${x.id}')">Delete</button></div></td>
  </tr>`).join("")}</table></div>`:`<div class="empty">No sales yet.</div>`;
 }
 
@@ -1136,19 +1586,19 @@ function renderInventory(){
    const market=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
    p.tcgMarket=market;
    return `<tr>
-   <td>${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
-   <td><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} #${esc(p.cardNumber||"")}</div>`:""}</td>
-   <td><select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
+   <td data-label="Photo">${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
+   <td data-label="Product"><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} #${esc(p.cardNumber||"")}</div>`:""}</td>
+   <td data-label="Condition"><select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
      ${["Near Mint","Lightly Played","Moderately Played","Heavily Played","Damaged"].map(c=>`<option ${c===(p.condition||"Near Mint")?"selected":""}>${c}</option>`).join("")}
    </select></td>
-   <td>${priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}" onchange="updateInventoryCondition('${p.id}')">
+   <td data-label="Printing">${priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}" onchange="updateInventoryCondition('${p.id}')">
      ${priceKeys.map(k=>`<option value="${k}" ${k===p.finish?"selected":""}>${prettyFinish(k)}</option>`).join("")}
    </select>`:`<span class="small">${esc(prettyFinish(p.finish||"—"))}</span>`}</td>
-   <td class="${p.qty<3?"stockLow":""}">${p.qty}</td>
-   <td>${money(p.cost)}</td>
-   <td>${money(p.price)}</td>
-   <td>${market!=null?`<span class="marketGood">${money(market)}</span>${p.tcgUpdatedAt?`<div class="small">${esc(p.tcgUpdatedAt)}</div>`:""}`:`<span class="marketNone">—</span>`}</td>
-   <td><div class="actions">
+   <td data-label="Qty" class="${p.qty<3?"stockLow":""}">${p.qty}</td>
+   <td data-label="Cost">${money(p.cost)}</td>
+   <td data-label="Your price">${money(p.price)}</td>
+   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span>${p.tcgUpdatedAt?`<div class="small">${esc(p.tcgUpdatedAt)}</div>`:""}`:`<span class="marketNone">—</span>`}</td>
+   <td data-label="Actions"><div class="actions">
      <button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
      ${p.tcgUrl?`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl)})'>TCGplayer ↗</button>`:`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button>`}
@@ -1162,11 +1612,11 @@ function renderInventory(){
 
 function renderPurchases(){
  document.getElementById("buyProduct").innerHTML='<option value="">— New product —</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
- document.getElementById("purchaseTable").innerHTML=db.purchases.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Source</th><th>Payment</th><th></th></tr>${db.purchases.slice(0,100).map(x=>`<tr><td>${new Date(x.time).toLocaleString()}</td><td><strong>${esc(x.name)}</strong></td><td>${x.qty}</td><td>${money(x.total)}</td><td>${esc(x.source)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No purchases yet.</div>`;
+ document.getElementById("purchaseTable").innerHTML=db.purchases.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Source</th><th>Payment</th><th></th></tr>${db.purchases.slice(0,100).map(x=>`<tr><td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td><td>${x.qty}</td><td>${money(x.total)}</td><td>${esc(x.source)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No purchases yet.</div>`;
 }
 
 function renderExpenses(){
- document.getElementById("expenseTable").innerHTML=db.expenses.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Payment</th><th></th></tr>${db.expenses.slice(0,100).map(x=>`<tr><td>${new Date(x.time).toLocaleString()}</td><td><strong>${esc(x.name)}</strong></td><td>${money(x.amount)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No expenses yet.</div>`;
+ document.getElementById("expenseTable").innerHTML=db.expenses.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Payment</th><th></th></tr>${db.expenses.slice(0,100).map(x=>`<tr><td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td><td>${money(x.amount)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No expenses yet.</div>`;
 }
 
 function renderShows(){
