@@ -279,10 +279,10 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
           <div class="grid">
             <div style="grid-column:span 2">
               <div class="lookupRow">
-                <input id="pName" class="input" placeholder="Product / card name">
+                <input id="pName" class="input" placeholder="Product / card name" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPokemonCards()}">
                 <button class="btn btnSoft" type="button" onclick="searchPokemonCards()">Find card</button>
               </div>
-              <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, type a name/card number and click Find card to pull artwork and TCGplayer pricing.</div>
+              <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card.</div>
             </div>
             <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
             <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
@@ -388,7 +388,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
   </div>
 </div>
 
-<div id="undoBar" class="undoBar hidden"><span id="undoText">Change saved</span><button onclick="undoLast()">Undo</button></div>
+<div id="undoBar" class="undoBar hidden"><span id="undoText">Change saved</span><button onclick="undoLast()">Undo</button> <button class="miniBtn btnGhost" onclick="dismissUndo()">Dismiss</button></div>
 <div id="toast" class="toast hidden"></div>
 
 <script>
@@ -422,6 +422,10 @@ function pushUndo(label){
   document.getElementById("undoText").textContent=label;
   bar.classList.remove("hidden");
 }
+function dismissUndo(){
+  const bar=document.getElementById("undoBar");
+  if(bar)bar.classList.remove("show");
+}
 function undoLast(){
   const item=undoStack.pop();
   if(!item){document.getElementById("undoBar").classList.add("hidden");return}
@@ -432,7 +436,19 @@ function undoLast(){
   else document.getElementById("undoText").textContent=undoStack[undoStack.length-1].label;
 }
 function clearUndo(){undoStack=[];const b=document.getElementById("undoBar");if(b)b.classList.add("hidden")}
-function tcgLookup(name){
+function tcgLookup(name, directUrl=""){
+  // Only allow direct links that are actually on tcgplayer.com.
+  try{
+    if(directUrl){
+      const u=new URL(directUrl);
+      const host=u.hostname.toLowerCase();
+      if(host==="tcgplayer.com" || host==="www.tcgplayer.com" || host.endsWith(".tcgplayer.com")){
+        window.open(u.href,"_blank","noopener");
+        return;
+      }
+    }
+  }catch(e){}
+  // Safe fallback: search directly on TCGplayer.
   const q=encodeURIComponent(name);
   window.open("https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid","_blank","noopener");
 }
@@ -457,6 +473,15 @@ async function fileToCompressedDataURL(file,maxSize=720,quality=.78){
   });
 }
 
+function fullCardNumber(card){
+  const raw=String(card?.number||"").trim();
+  const total=card?.set?.printedTotal||card?.set?.total||"";
+  if(!raw)return "—";
+  if(!total)return raw;
+  // Pad purely numeric collector numbers to the width of the set total (32 -> 032/182).
+  const shown=/^\d+$/.test(raw)?raw.padStart(String(total).length,"0"):raw;
+  return `${shown}/${total}`;
+}
 function prettyFinish(k){
   return ({normal:"Normal",holofoil:"Holofoil",reverseHolofoil:"Reverse Holofoil","1stEditionHolofoil":"1st Edition Holofoil","1stEditionNormal":"1st Edition Normal"})[k]||k;
 }
@@ -471,53 +496,154 @@ function resetCardMetadata(){
   const d=document.getElementById("pMarketDisplay");if(d)d.textContent="—";
   const u=document.getElementById("pMarketUpdated");if(u)u.textContent="";
 }
-function buildPokemonQuery(raw){
-  raw=(raw||"").trim();
-  if(!raw)return "";
-  // Pull a collector number from inputs such as "Charizard ex 199/165" or "#199".
-  const numMatch=raw.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)(?:\/\d+)?\s*$/);
-  let number="", name=raw;
-  if(numMatch){
-    number=numMatch[1];
-    name=raw.slice(0,numMatch.index).trim();
+
+function normalizeCardText(v){
+  return String(v||"")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[’‘`]/g,"'")
+    .replace(/[^a-z0-9]+/g," ")
+    .trim()
+    .replace(/\s+/g," ");
+}
+function parseCardSearch(raw){
+  raw=String(raw||"").trim();
+  const normalizedRaw=raw.replace(/[–—]/g,"-").replace(/[’‘`]/g,"'");
+  let number="";
+  let denominator="";
+  let name=normalizedRaw;
+  const fullNum=normalizedRaw.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)(?:\/([A-Za-z]*\d+[A-Za-z]*))?\s*$/);
+  if(fullNum){
+    number=fullNum[1]||"";
+    denominator=fullNum[2]||"";
+    name=normalizedRaw.slice(0,fullNum.index).trim();
   }
-  name=name.replace(/[:"()]/g," ").replace(/\s+/g," ").trim();
-  const parts=[];
-  if(name)parts.push(`name:"${name}"`);
-  if(number)parts.push(`number:${number}`);
-  return parts.join(" ");
+  name=name.replace(/\b(card|pokemon|pokémon)\b/gi," ").replace(/\s+/g," ").trim();
+  const apiNumber=/^\d+$/.test(number)?String(parseInt(number,10)):number;
+  const tokens=normalizeCardText(name).split(" ").filter(Boolean);
+  return {raw:normalizedRaw,name,number,apiNumber,denominator,tokens};
+}
+function escapeQueryPhrase(v){
+  return String(v||"").replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+}
+function uniqueCards(cards){
+  const seen=new Set();
+  return cards.filter(c=>{
+    if(!c?.id||seen.has(c.id))return false;
+    seen.add(c.id);return true;
+  });
+}
+function scoreCardResult(card,parsed){
+  let score=0;
+  const target=normalizeCardText(parsed.name||parsed.raw);
+  const cardName=normalizeCardText(card?.name);
+  const setName=normalizeCardText(card?.set?.name);
+  const num=String(card?.number||"").toLowerCase();
+  const wantedNum=String(parsed.apiNumber||"").toLowerCase();
+
+  if(target && cardName===target)score+=120;
+  else if(target && cardName.startsWith(target))score+=85;
+  else if(target && cardName.includes(target))score+=65;
+
+  for(const t of (parsed.tokens||[])){
+    if(cardName.split(" ").includes(t))score+=14;
+    else if(cardName.includes(t))score+=7;
+    if(setName.includes(t))score+=2;
+  }
+
+  if(wantedNum){
+    if(num===wantedNum)score+=100;
+    else if(num.replace(/^0+/,"")===wantedNum.replace(/^0+/,""))score+=90;
+  }
+
+  const release=Date.parse(card?.set?.releaseDate||"");
+  if(Number.isFinite(release))score+=Math.min(8,Math.max(0,(release-Date.parse("2000-01-01"))/(1000*60*60*24*365*5)));
+  return score;
+}
+async function fetchCardQuery(q,pageSize=80){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),8000);
+  try{
+    const url="https://api.pokemontcg.io/v2/cards?pageSize="+pageSize+"&orderBy=-set.releaseDate&q="+encodeURIComponent(q);
+    const r=await fetch(url,{signal:controller.signal});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    return j.data||[];
+  }finally{
+    clearTimeout(timeout);
+  }
 }
 async function searchPokemonCards(){
   const raw=document.getElementById("pName").value.trim();
   const status=document.getElementById("cardLookupStatus");
   if(!raw){status.textContent="Enter a card name first.";return}
-  status.textContent="Searching Pokémon card database…";
-  try{
-    let query=buildPokemonQuery(raw);
-    let url="https://api.pokemontcg.io/v2/cards?pageSize=40&orderBy=-set.releaseDate&q="+encodeURIComponent(query);
-    let r=await fetch(url);
-    if(!r.ok)throw new Error("Lookup returned "+r.status);
-    let j=await r.json();
-    let cards=j.data||[];
 
-    // If name+number was too strict, fall back to name-only.
-    if(!cards.length){
-      const loose=raw.replace(/\s+\S+\/\S+\s*$/,"").replace(/\s+#?\d+\s*$/,"").trim();
-      if(loose){
-        r=await fetch("https://api.pokemontcg.io/v2/cards?pageSize=40&orderBy=-set.releaseDate&q="+encodeURIComponent(`name:"${loose.replace(/"/g,"")}"`));
-        if(r.ok){j=await r.json();cards=j.data||[]}
-      }
-    }
+  const parsed=parseCardSearch(raw);
+  status.textContent="Searching card database…";
+  const queries=[];
 
-    currentLookupResults=cards;
-    if(!cards.length){status.textContent="No Pokémon cards found. Try just the card name or add the card number.";return}
-    status.textContent=`Found ${cards.length} possible match${cards.length===1?"":"es"}.`;
-    renderCardLookup(cards);
-    document.getElementById("cardLookupModal").classList.remove("hidden");
-  }catch(e){
-    status.textContent="Card lookup failed. You can still add the item manually or use your own photo.";
+  if(parsed.name && parsed.apiNumber){
+    queries.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber}`);
   }
+  if(parsed.name){
+    queries.push(`name:"${escapeQueryPhrase(parsed.name)}"`);
+  }
+
+  const usefulTokens=(parsed.tokens||[]).filter(t=>t.length>=3);
+  if(usefulTokens.length && parsed.apiNumber){
+    queries.push(`name:${escapeQueryPhrase(usefulTokens[0])}* number:${parsed.apiNumber}`);
+  }
+  if(parsed.apiNumber){
+    queries.push(`number:${parsed.apiNumber}`);
+  }
+  if(usefulTokens.length>=2){
+    queries.push(`name:${escapeQueryPhrase(usefulTokens[0])}* name:${escapeQueryPhrase(usefulTokens[1])}*`);
+  }
+  if(usefulTokens.length){
+    queries.push(`name:${escapeQueryPhrase(usefulTokens[0])}*`);
+  }
+
+  const cleanRaw=normalizeCardText(raw);
+  if(cleanRaw){
+    queries.push(`name:"${escapeQueryPhrase(cleanRaw)}"`);
+  }
+
+  const all=[];
+  let successfulRequests=0;
+  let lastError=null;
+
+  for(let i=0;i<queries.length;i++){
+    try{
+      const cards=await fetchCardQuery(queries[i],i<2?100:60);
+      successfulRequests++;
+      all.push(...cards);
+      const count=uniqueCards(all).length;
+      if(count>=30 && i>=1)break;
+      if(count>=12 && parsed.apiNumber && i>=2)break;
+    }catch(e){
+      lastError=e;
+    }
+  }
+
+  let cards=uniqueCards(all);
+  cards.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));
+  cards=cards.slice(0,60);
+  currentLookupResults=cards;
+
+  if(!cards.length){
+    if(!successfulRequests && lastError){
+      status.textContent="Card service is temporarily unavailable. Try again in a moment, or add the item manually.";
+    }else{
+      status.textContent="No match found. Try just the Pokémon name, or use a collector number like 032/182.";
+    }
+    return;
+  }
+
+  status.textContent=`Found ${cards.length} likely match${cards.length===1?"":"es"}. Best matches are shown first.`;
+  renderCardLookup(cards);
+  document.getElementById("cardLookupModal").classList.remove("hidden");
 }
+
 function renderCardLookup(cards){
   document.getElementById("lookupSummary").textContent=`${cards.length} result${cards.length===1?"":"s"} — compare artwork, set and card number.`;
   document.getElementById("cardLookupResults").innerHTML=cards.map((c,i)=>{
@@ -526,7 +652,7 @@ function renderCardLookup(cards){
     return `<button class="cardPick" onclick="selectPokemonCard(${i})" style="text-align:left;cursor:pointer">
       <img src="${esc(c.images?.small||c.images?.large||"")}" alt="${esc(c.name)}">
       <h4>${esc(c.name)}</h4>
-      <div class="meta">${esc(c.set?.name||"Unknown set")} • #${esc(c.number||"—")}<br>${esc(c.rarity||"")}</div>
+      <div class="meta">${esc(c.set?.name||"Unknown set")} • #${esc(fullCardNumber(c))}<br>${esc(c.rarity||"")}</div>
       <div class="meta" style="margin-top:7px">${priceParts||"No TCGplayer price available"}</div>
     </button>`;
   }).join("");
@@ -538,14 +664,14 @@ function selectPokemonCard(i){
     pokemonCardId:c.id,
     setName:c.set?.name||"",
     setId:c.set?.id||"",
-    cardNumber:c.number||"",
+    cardNumber:fullCardNumber(c),
     rarity:c.rarity||"",
     image:c.images?.large||c.images?.small||"",
     tcgUrl:c.tcgplayer?.url||"",
     tcgUpdatedAt:c.tcgplayer?.updatedAt||"",
     tcgPrices:c.tcgplayer?.prices||{}
   };
-  document.getElementById("pName").value=`${c.name} — ${c.set?.name||""} #${c.number||""}`.trim();
+  document.getElementById("pName").value=`${c.name} — ${c.set?.name||""} #${fullCardNumber(c)}`.trim();
   pendingPhotoData=pendingCardData.image||"";
   const img=document.getElementById("pPhotoPreview");
   if(pendingPhotoData){img.src=pendingPhotoData;img.style.display="block"}
@@ -554,7 +680,7 @@ function selectPokemonCard(i){
   f.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No TCGplayer printing price</option>';
   if(keys.length)f.value=keys.includes("holofoil")?"holofoil":keys[0];
   updatePendingMarketFromFinish();
-  document.getElementById("cardLookupStatus").textContent=`Selected ${c.set?.name||""} #${c.number||""}. Artwork and TCGplayer pricing loaded.`;
+  document.getElementById("cardLookupStatus").textContent=`Selected ${c.set?.name||""} #${fullCardNumber(c)}. Artwork and TCGplayer pricing loaded.`;
   closeCardLookup();
 }
 function updatePendingMarketFromFinish(){
@@ -1025,7 +1151,7 @@ function renderInventory(){
    <td><div class="actions">
      <button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
-     ${p.tcgUrl?`<button class="miniBtn btnSoft" onclick="window.open('${esc(p.tcgUrl)}','_blank','noopener')">TCGplayer ↗</button>`:`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button>`}
+     ${p.tcgUrl?`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl)})'>TCGplayer ↗</button>`:`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button>`}
      <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
    </div></td>
    </tr>`;
