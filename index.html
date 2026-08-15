@@ -713,7 +713,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.25</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.26</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -821,7 +821,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.25";
+const APP_VERSION="v11.26";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1968,6 +1968,26 @@ function renderSaleProducts(){
 }
 
 
+function saveInventoryChanges(id){
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  const qty=Math.max(0,Number(document.getElementById("inv_qty_"+id)?.value||0));
+  const cost=Math.max(0,Number(document.getElementById("inv_cost_"+id)?.value||0));
+  const price=Math.max(0,Number(document.getElementById("inv_price_"+id)?.value||0));
+  pushUndo("Update inventory item");
+  p.qty=qty;
+  p.cost=cost;
+  p.price=price;
+  if((p.itemType||"card")!=="sealed"){
+    const conditionEl=document.getElementById("inv_condition_"+id);
+    const finishEl=document.getElementById("inv_finish_"+id);
+    if(conditionEl)p.condition=conditionEl.value||"Near Mint";
+    if(finishEl)p.finish=finishEl.value||p.finish||"";
+    const market=currentMarketFromPrices(p.tcgPrices,p.finish);
+    if(market!=null)p.tcgMarket=market;
+  }
+  save();toast("Changes saved");
+}
+
 function saveInventoryMoney(id){
   const p=db.products.find(x=>x.id===id);if(!p)return;
   const costEl=document.getElementById("inv_cost_"+id);
@@ -2012,13 +2032,12 @@ function renderInventory(){
    <td data-label="Condition">${sealed?`<span class="sealedBadge">Sealed</span>`:`<select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
      ${["Near Mint","Lightly Played","Moderately Played","Heavily Played","Damaged"].map(c=>`<option ${c===(p.condition||"Near Mint")?"selected":""}>${c}</option>`).join("")}
    </select>`}</td>
-   <td data-label="Printing">${sealed?`<span class="small">Sealed</span>`:priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}" onchange="updateInventoryCondition('${p.id}')">
+   <td data-label="Printing">${sealed?`<span class="small">Sealed</span>`:priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}">
      ${priceKeys.map(k=>`<option value="${k}" ${k===p.finish?"selected":""}>${prettyFinish(k)}</option>`).join("")}
    </select>`:`<span class="small">${esc(prettyFinish(p.finish||"—"))}</span>`}</td>
    <td data-label="Qty">
      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
        <input id="inv_qty_${p.id}" class="input" type="number" min="0" value="${p.qty}" style="width:82px;padding:7px">
-       <button class="miniBtn btnSuccess" onclick="setInventoryQty('${p.id}')">Set</button>
      </div>
 
    </td>
@@ -2030,12 +2049,11 @@ function renderInventory(){
    <td data-label="Your price">
      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
        <input id="inv_price_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.price||0).toFixed(2)}" style="width:92px;padding:7px">
-       <button class="miniBtn btnSuccess" onclick="saveInventoryMoney('${p.id}')">Save</button>
      </div>
    </td>
    <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}</td>
    <td data-label="Actions"><div class="actions">
-     ${sealed?"":`<button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>`}
+     <button class="miniBtn btnSuccess" onclick="saveInventoryChanges('${p.id}')">Save changes</button>
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
      <button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button>
      <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
