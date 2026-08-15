@@ -1,0 +1,64 @@
+name: Apply purchase history grouping
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-purchase-history-grouping.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guarantee standalone singles and grouped multi-item purchases
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          css='''
+.purchaseHistoryGroup{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;background:#fff}.purchaseHistoryHead{display:grid;grid-template-columns:1.1fr 1.3fr .7fr .8fr auto;gap:10px;align-items:center;padding:12px}.purchaseHistoryItems{border-top:1px solid var(--line);background:#f8fafc;padding:8px 12px}.purchaseHistoryLine{display:grid;grid-template-columns:46px minmax(0,1fr) 70px 90px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.purchaseHistoryLine:last-child{border-bottom:0}.purchaseHistoryLine img{width:42px;height:56px;object-fit:contain;border-radius:6px;background:#fff}@media(max-width:820px){.purchaseHistoryHead{grid-template-columns:1fr auto}.purchaseHistoryHead>div:nth-child(2),.purchaseHistoryHead>div:nth-child(3),.purchaseHistoryHead>div:nth-child(4){grid-column:1}.purchaseHistoryLine{grid-template-columns:42px 1fr}.purchaseHistoryLine>div:nth-child(n+3){grid-column:2}}
+'''
+          if '.purchaseHistoryGroup{' not in s:s=s.replace('</style>',css+'\n</style>',1)
+          fn=r'''function renderPurchases(){
+ const sel=document.getElementById("buyProduct");
+ if(sel)sel.innerHTML='<option value="">Select existing product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+ const box=document.getElementById("purchaseTable");if(!box)return;
+ const purchases=(db.purchases||[]).slice(0,100);
+ if(!purchases.length){box.innerHTML='<div class="empty">No purchases yet.</div>';return}
+ const groups=[];
+ const seen=new Set();
+ purchases.forEach(x=>{
+   const bid=x.batchId||x.purchaseBatchId||null;
+   if(!bid){groups.push({key:x.id,items:[x]});return}
+   if(seen.has(bid))return;seen.add(bid);
+   groups.push({key:bid,items:purchases.filter(y=>(y.batchId||y.purchaseBatchId)===bid)});
+ });
+ box.innerHTML=groups.map(g=>{
+   const items=g.items,total=items.reduce((a,x)=>a+Number(x.total||0),0),units=items.reduce((a,x)=>a+Number(x.qty||0),0),first=items[0]||{},multi=items.length>1;
+   if(!multi){
+     const x=first,p=db.products.find(z=>z.id===x.productId),photo=x.photo||p?.photo||'';
+     return `<div class="purchaseHistoryGroup"><div class="purchaseHistoryHead">`+
+       `<div style="display:flex;gap:9px;align-items:center">${photo?`<img src="${esc(photo)}" style="width:42px;height:56px;object-fit:contain;border-radius:6px">`:''}<div><strong>${esc(x.name)}</strong><div class="small">${new Date(x.time).toLocaleString()}</div></div></div>`+
+       `<div><span class="small">Seller/source</span><br>${esc(x.source||'—')}</div><div>Qty <strong>${x.qty}</strong></div><div><strong>${money(x.total)}</strong><div class="small">${esc(x.payment||'')}</div></div>`+
+       `<button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></div></div>`;
+   }
+   const rows=items.map(x=>{const p=db.products.find(z=>z.id===x.productId),photo=x.photo||p?.photo||'';return `<div class="purchaseHistoryLine">${photo?`<img src="${esc(photo)}">`:'<div></div>'}<div><strong>${esc(x.name)}</strong></div><div>×${x.qty}</div><div>${money(x.total)}</div></div>`}).join('');
+   return `<details class="purchaseHistoryGroup"><summary class="purchaseHistoryHead" style="cursor:pointer;list-style:none"><div><strong>${items.length} item purchase</strong><div class="small">${new Date(first.time).toLocaleString()}</div></div><div><span class="small">Seller/source</span><br><strong>${esc(first.source||'—')}</strong></div><div>${units} units</div><div><strong>${money(total)}</strong><div class="small">${esc(first.payment||'')}</div></div><div>Expand ▾</div></summary><div class="purchaseHistoryItems">${rows}${first.batchNote?`<div class="small" style="padding:8px 0"><strong>Note:</strong> ${esc(first.batchNote)}</div>`:''}</div></details>`;
+ }).join('');
+}'''
+          pattern=r'function renderPurchases\(\)\{.*?\n\}\nfunction renderExpenses'
+          if re.search(pattern,s,flags=re.S):s=re.sub(pattern,fn+'\nfunction renderExpenses',s,count=1,flags=re.S)
+          else: raise SystemExit('renderPurchases not found')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if ! git diff --quiet -- index.html; then
+            git add index.html
+            git commit -m "Show single purchases separately and group multi-item batches"
+            git push
+          fi
