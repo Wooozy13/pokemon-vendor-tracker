@@ -1635,6 +1635,17 @@ function renderSaleProducts(){
 }
 
 
+function saveInventoryMoney(id){
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  const costEl=document.getElementById("inv_cost_"+id);
+  const priceEl=document.getElementById("inv_price_"+id);
+  const cost=Math.max(0,Number(costEl?.value||0));
+  const price=Math.max(0,Number(priceEl?.value||0));
+  pushUndo("Update inventory cost and price");
+  p.cost=cost;
+  p.price=price;
+  save();toast("Cost and price updated");
+}
 function setInventoryQty(id){
   const p=db.products.find(x=>x.id===id);if(!p)return;
   const el=document.getElementById("inv_qty_"+id);
@@ -1678,8 +1689,17 @@ function renderInventory(){
      </div>
 
    </td>
-   <td data-label="Cost">${money(p.cost)}</td>
-   <td data-label="Your price">${money(p.price)}</td>
+   <td data-label="Cost">
+     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+       <input id="inv_cost_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.cost||0).toFixed(2)}" style="width:92px;padding:7px">
+     </div>
+   </td>
+   <td data-label="Your price">
+     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+       <input id="inv_price_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.price||0).toFixed(2)}" style="width:92px;padding:7px">
+       <button class="miniBtn btnSuccess" onclick="saveInventoryMoney('${p.id}')">Save</button>
+     </div>
+   </td>
    <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}</td>
    <td data-label="Actions"><div class="actions">
      ${sealed?"":`<button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>`}
