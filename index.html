@@ -33,7 +33,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 
 /* App shell */
 #app{min-height:100vh}.appTop{height:66px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:40}.appLeft{display:flex;align-items:center;gap:12px}.menuBtn{display:none}.syncPill{font-size:12px;font-weight:800;border-radius:999px;padding:7px 10px;background:#ecfdf5;color:#166534}.syncPill.bad{background:#fef2f2;color:#991b1b}.appLayout{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 66px)}.sidebar{background:#0f172a;color:#cbd5e1;padding:18px 14px;position:sticky;top:66px;height:calc(100vh - 66px)}.sideNav{display:flex;flex-direction:column;gap:4px}.sideBtn{border:0;background:transparent;color:#cbd5e1;text-align:left;padding:11px 12px;border-radius:9px;font-weight:700}.sideBtn:hover{background:#1e293b}.sideBtn.active{background:#1e3a8a;color:#fff}.sideBottom{position:absolute;bottom:18px;left:14px;right:14px}.main{padding:28px;max-width:1400px;width:100%}.page{display:none}.page.active{display:block}.pageHeader{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:22px}.pageHeader h1{font-size:30px;letter-spacing:-.04em;margin:0}.pageHeader p{margin:5px 0 0;color:#64748b}
-.cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.metric{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.metricLabel{font-size:12px;color:#64748b;font-weight:700}.metricValue{font-size:24px;font-weight:850;margin-top:5px;letter-spacing:-.03em}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px}.panelHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.panelHead h3{margin:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:720px;font-size:13px}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #edf2f7}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}tr:last-child td{border-bottom:0}.stockLow{color:#b45309;font-weight:800}.actions{display:flex;gap:6px;flex-wrap:wrap}.miniBtn{border:0;border-radius:8px;padding:7px 9px;font-size:12px;font-weight:800}.productGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}.productCard{border:1px solid var(--line);background:#fff;border-radius:14px;padding:15px}.productCard h4{margin:0 0 5px}.paymentBtns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.paymentBtns button{border:0;border-radius:8px;padding:10px 5px;font-weight:800}.cash{background:#dcfce7;color:#166534}.cashapp{background:#ecfccb;color:#3f6212}.zelle{background:#ede9fe;color:#5b21b6}.empty{padding:28px;text-align:center;color:#64748b}.bottomNav{display:none}
+.cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.metric{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.metricLabel{font-size:12px;color:#64748b;font-weight:700}.metricValue{font-size:24px;font-weight:850;margin-top:5px;letter-spacing:-.03em}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px}.panelHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.panelHead h3{margin:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:720px;font-size:13px}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #edf2f7}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}tr:last-child td{border-bottom:0}.stockLow{color:#b45309;font-weight:800}.actions{display:flex;gap:6px;flex-wrap:wrap}.miniBtn{border:0;border-radius:8px;padding:7px 9px;font-size:12px;font-weight:800}.productGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}.productCard{border:1px solid var(--line);background:#fff;border-radius:14px;padding:15px}.productCard h4{margin:0 0 5px}.paymentBtns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.paymentBtns button{border:0;border-radius:8px;padding:10px 5px;font-weight:800}.cash{background:#dcfce7;color:#166534}.cashapp{background:#ecfccb;color:#3f6212}.zelle{background:#ede9fe;color:#5b21b6}.venmo{background:#e0f2fe;color:#075985}.applepay{background:#f1f5f9;color:#111827}.cardpay{background:#e2e8f0;color:#334155}.empty{padding:28px;text-align:center;color:#64748b}.bottomNav{display:none}
 .toast{position:fixed;right:18px;bottom:18px;background:#0f172a;color:#fff;padding:12px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:80;font-size:13px}
 
 /* Responsive */
@@ -356,8 +356,18 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 }
 
 
-.exactPrice{font-weight:900;color:#0f766e}.priceMeta{font-size:10px;color:var(--muted);margin-top:3px}
-.priceError{color:#991b1b;font-size:11px}.priceLoading{color:#1d4ed8;font-size:11px}
+
+
+
+.typeToggle{display:flex;gap:6px;background:#f1f5f9;padding:4px;border-radius:10px}
+.typeToggle button{flex:1;border:0;background:transparent;padding:9px;border-radius:8px;font-weight:800;color:#64748b}
+.typeToggle button.active{background:#fff;color:#0f172a;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.sealedBadge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;background:#eef2ff;color:#4338ca;font-size:10px;font-weight:850}
+
+
+@media(max-width:820px){
+  [id^="inv_qty_"],[id^="inv_addqty_"]{font-size:16px!important;min-height:40px}
+}
 
 </style>
 </head>
@@ -579,9 +589,13 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
         <div class="panel">
           <div class="grid">
             <div style="grid-column:span 2">
+              <div class="typeToggle" style="margin-bottom:8px">
+                <button id="typeCardBtn" class="active" type="button" onclick="setInventoryType('card')">Card</button>
+                <button id="typeSealedBtn" type="button" onclick="setInventoryType('sealed')">Sealed product</button>
+              </div>
               <div class="lookupRow">
-                <input id="pName" class="input" placeholder="Product / card name" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPokemonCards()}">
-                <button class="btn btnSoft" type="button" onclick="searchPokemonCards()">Find card</button>
+                <input id="pName" class="input" placeholder="Product / card name" onkeydown="if(event.key==='Enter'){event.preventDefault();runInventoryLookup()}">
+                <button id="inventoryLookupBtn" class="btn btnSoft" type="button" onclick="runInventoryLookup()">Find card</button>
               </div>
               <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -596,16 +610,20 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
             <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
             <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
             <input id="pPrice" class="input" type="number" step=".01" placeholder="Your sell price">
-            <select id="pCondition" class="input">
+            <div id="cardConditionWrap">
+            <select id="pCondition" class="input" style="width:100%">
               <option>Near Mint</option>
               <option>Lightly Played</option>
               <option>Moderately Played</option>
               <option>Heavily Played</option>
               <option>Damaged</option>
             </select>
-            <select id="pFinish" class="input" onchange="updatePendingMarketFromFinish()">
+            </div>
+            <div id="cardFinishWrap">
+            <select id="pFinish" class="input" style="width:100%" onchange="updatePendingMarketFromFinish()">
               <option value="">Printing / finish</option>
             </select>
+            </div>
             <div class="priceBox">
               <span class="small">TCGplayer Market</span>
               <strong id="pMarketDisplay">—</strong>
@@ -631,7 +649,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
             <input id="buyQty" class="input" type="number" min="1" placeholder="Quantity">
             <input id="buyTotal" class="input" type="number" step=".01" placeholder="Total cost">
             <input id="buySource" class="input" placeholder="Seller / source">
-            <select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option></select>
+            <select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select>
             <button class="btn btnPrimary" onclick="recordPurchase()">Record purchase</button>
           </div>
         </div>
@@ -644,7 +662,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
           <div class="grid">
             <input id="expName" class="input" placeholder="Expense">
             <input id="expAmount" class="input" type="number" step=".01" placeholder="Amount">
-            <select id="expPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option></select>
+            <select id="expPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select>
             <button class="btn btnPrimary" onclick="recordExpense()">Add expense</button>
           </div>
         </div>
@@ -668,7 +686,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
           </div>
           <div class="detailsBox">
             <strong>TCGplayer price lookup</strong>
-            <p class="small" style="margin-bottom:0">Pokémon singles use the Pokémon TCG API for card identification/artwork. Exact NM/LP/MP/HP/Damaged TCGplayer SKU market pricing is requested through a secure Supabase Edge Function backed by TCGAPIs; the API key is never exposed in this browser code.</p>
+            <p class="small" style="margin-bottom:0">Pokémon singles use the Pokémon TCG API for card artwork and TCGplayer-provided market pricing. Sealed Pokémon products use TCGCSV’s daily cached TCGplayer catalog for product images, direct TCGplayer links, and market prices.</p>
           </div>
         </div>
       </section>
@@ -684,6 +702,22 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
   </nav>
 </div>
 
+
+
+<div id="sealedLookupModal" class="modalBack hidden">
+  <div class="modal">
+    <div class="modalHead">
+      <div>
+        <h2>Select the sealed product</h2>
+        <div class="small" id="sealedLookupSummary">Choose the exact TCGplayer product.</div>
+      </div>
+      <button class="btn btnGhost" onclick="closeSealedLookup()">Close</button>
+    </div>
+    <div class="modalBody">
+      <div id="sealedLookupResults" class="cardPickGrid"></div>
+    </div>
+  </div>
+</div>
 
 <div id="cardLookupModal" class="modalBack hidden">
   <div class="modal">
@@ -712,6 +746,9 @@ let undoStack=[];
 let pendingPhotoData="";
 let pendingCardData=null;
 let currentLookupResults=[];
+let inventoryType="card";
+let currentSealedResults=[];
+let pendingSealedData=null;
 
 function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null}}
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
@@ -804,6 +841,71 @@ function resetCardMetadata(){
   if(f)f.innerHTML='<option value="">Printing / finish</option>';
   const d=document.getElementById("pMarketDisplay");if(d)d.textContent="—";
   const u=document.getElementById("pMarketUpdated");if(u)u.textContent="";
+}
+
+
+function setInventoryType(type){
+  inventoryType=type;
+  const isCard=type==="card";
+  document.getElementById("typeCardBtn").classList.toggle("active",isCard);
+  document.getElementById("typeSealedBtn").classList.toggle("active",!isCard);
+  document.getElementById("inventoryLookupBtn").textContent=isCard?"Find card":"Find sealed";
+  document.getElementById("pName").placeholder=isCard?"Product / card name":"Sealed product name (ETB, booster box, bundle...)";
+  document.getElementById("cardLookupStatus").textContent=isCard
+    ?"For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card."
+    :"Search TCGplayer sealed products by name. You'll get product images, set/group, TCGplayer market price, and a direct TCGplayer link.";
+  document.getElementById("cardConditionWrap").classList.toggle("hidden",!isCard);
+  document.getElementById("cardFinishWrap").classList.toggle("hidden",!isCard);
+  pendingSealedData=null;
+  resetCardMetadata();
+}
+function runInventoryLookup(){
+  return inventoryType==="sealed"?searchSealedProducts():searchPokemonCards();
+}
+async function searchSealedProducts(){
+  const raw=document.getElementById("pName").value.trim();
+  const status=document.getElementById("cardLookupStatus");
+  if(!raw){status.textContent="Enter a sealed product name first.";return}
+  status.textContent="Searching TCGplayer sealed products…";
+  try{
+    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:raw}});
+    if(error)throw error;
+    if(!data?.success)throw new Error(data?.error||"Sealed lookup failed");
+    const items=data.results||[];
+    currentSealedResults=items;
+    if(!items.length){
+      status.textContent="No sealed products found. Try a shorter search like “Prismatic Evolutions ETB” or “Surging Sparks Booster Box”.";
+      return;
+    }
+    status.textContent=`Found ${items.length} sealed product${items.length===1?"":"s"}. Best matches are shown first.`;
+    renderSealedLookup(items);
+    document.getElementById("sealedLookupModal").classList.remove("hidden");
+  }catch(e){
+    status.textContent="Sealed product search failed. You can still add it manually.";
+  }
+}
+function renderSealedLookup(items){
+  document.getElementById("sealedLookupSummary").textContent=`${items.length} result${items.length===1?"":"s"} from TCGplayer catalog data.`;
+  document.getElementById("sealedLookupResults").innerHTML=items.map((p,i)=>`<button class="cardPick" onclick="selectSealedProduct(${i})" style="text-align:left;cursor:pointer">
+      <img src="${esc(p.imageUrl||"")}" alt="${esc(p.name||"")}">
+      <h4>${esc(p.name||"")}</h4>
+      <div class="meta">${esc(p.groupName||"Pokémon")}<br>${p.marketPrice!=null?`TCGplayer Market: ${money(p.marketPrice)}`:"Market price unavailable"}</div>
+      <div style="margin-top:7px"><span class="sealedBadge">Sealed</span></div>
+    </button>`).join("");
+}
+function closeSealedLookup(){document.getElementById("sealedLookupModal").classList.add("hidden")}
+function selectSealedProduct(i){
+  const p=currentSealedResults[i];if(!p)return;
+  pendingSealedData={...p};
+  pendingCardData=null;
+  document.getElementById("pName").value=p.name||"";
+  pendingPhotoData=p.imageUrl||"";
+  const img=document.getElementById("pPhotoPreview");
+  if(pendingPhotoData){img.src=pendingPhotoData;img.style.display="block"}
+  document.getElementById("pMarketDisplay").textContent=p.marketPrice!=null?money(p.marketPrice):"—";
+  document.getElementById("pMarketUpdated").textContent=p.updatedAt?`TCGplayer data updated ${p.updatedAt}`:"TCGplayer catalog";
+  document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}.`;
+  closeSealedLookup();
 }
 
 function normalizeCardText(v){
@@ -1146,88 +1248,16 @@ function updatePendingMarketFromFinish(){
   document.getElementById("pMarketUpdated").textContent=pendingCardData?.tcgUpdatedAt?`Price data updated ${pendingCardData.tcgUpdatedAt}`:"";
 }
 
-function normalizeTCGConditionName(condition){
-  const m={
-    "Near Mint":"Near Mint",
-    "Lightly Played":"Lightly Played",
-    "Moderately Played":"Moderately Played",
-    "Heavily Played":"Heavily Played",
-    "Damaged":"Damaged"
-  };
-  return m[condition]||condition;
-}
-function normalizeTCGPrintingName(finish){
-  return ({
-    normal:"Normal",
-    holofoil:"Holofoil",
-    reverseHolofoil:"Reverse Holofoil",
-    "1stEditionHolofoil":"1st Edition Holofoil",
-    "1stEditionNormal":"1st Edition Normal"
-  })[finish]||prettyFinish(finish||"");
-}
-async function fetchExactConditionPriceForProduct(p, silent=false){
-  if(!p?.setName || !(p.cardBaseName||p.name)){
-    if(!silent)toast("This card is missing set/name data for condition pricing");
-    return null;
-  }
-  const payload={
-    name:p.cardBaseName || String(p.name).split(" — ")[0],
-    expansion:p.setName,
-    condition:normalizeTCGConditionName(p.condition||"Near Mint"),
-    printing:normalizeTCGPrintingName(p.finish||""),
-    language:"English"
-  };
-  try{
-    if(!silent)toast("Checking exact TCGplayer condition price…");
-    const {data,error}=await sb.functions.invoke("tcg-condition-price",{body:payload});
-    if(error)throw error;
-    if(!data?.success || data?.marketPrice==null){
-      throw new Error(data?.error||"No exact condition price found");
-    }
-    p.tcgExactConditionPrice=Number(data.marketPrice);
-    p.tcgExactConditionLow=data.lowPrice!=null?Number(data.lowPrice):null;
-    p.tcgExactConditionSku=data.skuId||null;
-    p.tcgExactConditionUpdated=data.updatedAt||new Date().toISOString();
-    p.tcgExactConditionLabel=`${data.condition||payload.condition} • ${data.printing||payload.printing} • ${data.language||"English"}`;
-    p.tcgapisProductId=data.productId||p.tcgapisProductId||null;
-    save();
-    if(!silent)toast("Exact TCGplayer condition price updated");
-    return data;
-  }catch(e){
-    p.tcgExactConditionPrice=null;
-    p.tcgExactConditionLabel="";
-    p.tcgExactConditionError=e?.message||"Price lookup failed";
-    save();
-    if(!silent)toast("Condition price unavailable");
-    return null;
-  }
-}
-async function refreshExactConditionPrice(id){
-  const p=db.products.find(x=>x.id===id);if(!p)return;
-  await fetchExactConditionPriceForProduct(p,false);
-}
-
-async function updateInventoryCondition(id){
+function updateInventoryCondition(id){
   const p=db.products.find(x=>x.id===id);if(!p)return;
   pushUndo("Update card condition");
   p.condition=document.getElementById("inv_condition_"+id).value;
   const finishEl=document.getElementById("inv_finish_"+id);
   if(finishEl)p.finish=finishEl.value;
   p.tcgMarket=currentMarketFromPrices(p.tcgPrices,p.finish);
-  p.tcgExactConditionPrice=null;
-  p.tcgExactConditionLabel="";
   save();
-  toast("Condition updated — checking exact TCGplayer price");
-  await fetchExactConditionPriceForProduct(p,true);
+  toast("Card condition updated");
 }
-
-function useExactConditionAsSellPrice(id){
-  const p=db.products.find(x=>x.id===id);if(!p||p.tcgExactConditionPrice==null)return;
-  pushUndo("Set sell price from exact condition market");
-  p.price=Number(p.tcgExactConditionPrice);
-  save();toast("Sell price set to exact TCGplayer condition market");
-}
-
 function useMarketAsSellPrice(id){
   const p=db.products.find(x=>x.id===id);if(!p||p.tcgMarket==null)return;
   pushUndo("Set sell price from market");
@@ -1493,48 +1523,78 @@ function addProduct(){
  const qty=Number(document.getElementById("pQty").value||0),
        cost=Number(document.getElementById("pCost").value||0),
        price=Number(document.getElementById("pPrice").value||0),
-       condition=document.getElementById("pCondition").value,
-       finish=document.getElementById("pFinish").value;
- let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase() && (x.condition||"Near Mint")===condition && (x.finish||"")===finish);
+       condition=inventoryType==="card"?document.getElementById("pCondition").value:"Sealed",
+       finish=inventoryType==="card"?document.getElementById("pFinish").value:"Sealed";
+
+ let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase() && (x.itemType||"card")===inventoryType && (inventoryType==="sealed" || ((x.condition||"Near Mint")===condition && (x.finish||"")===finish)));
  pushUndo(p?"Update inventory item":"Add inventory item");
- const market=currentMarketFromPrices(pendingCardData?.tcgPrices,finish);
- const meta=pendingCardData?deepClone(pendingCardData):null;
- if(p){
-   p.qty+=qty;
-   if(cost)p.cost=cost;
-   if(price)p.price=price;
-   p.condition=condition;
-   p.finish=finish||p.finish||"";
-   if(pendingPhotoData)p.photo=pendingPhotoData;
-   if(meta){
-     Object.assign(p,meta);
-     p.finish=finish;
-     p.tcgMarket=market;
+
+ if(inventoryType==="sealed"){
+   const meta=pendingSealedData||{};
+   const market=meta.marketPrice!=null?Number(meta.marketPrice):null;
+   if(p){
+     p.qty+=qty;
+     if(cost)p.cost=cost;
+     if(price)p.price=price;
+     if(pendingPhotoData)p.photo=pendingPhotoData;
+     Object.assign(p,{
+       itemType:"sealed",condition:"Sealed",finish:"Sealed",
+       tcgMarket:market,tcgUrl:meta.url||p.tcgUrl||"",
+       tcgProductId:meta.productId||p.tcgProductId||null,
+       setName:meta.groupName||p.setName||"",
+       photo:pendingPhotoData||p.photo||"",
+       sealedSource:"TCGCSV"
+     });
+   }else{
+     p={
+       id:uid(),name,qty,cost,price,photo:pendingPhotoData||meta.imageUrl||"",
+       itemType:"sealed",condition:"Sealed",finish:"Sealed",
+       tcgMarket:market,tcgUrl:meta.url||"",
+       tcgProductId:meta.productId||null,
+       setName:meta.groupName||"",
+       sealedSource:"TCGCSV"
+     };
+     db.products.push(p);
    }
  }else{
-   p={
-     id:uid(),name,qty,cost,price,photo:pendingPhotoData||"",
-     condition,finish:finish||"",
-     pokemonCardId:meta?.pokemonCardId||"",
-     cardBaseName:meta?.cardBaseName||String(name).split(" — ")[0],
-     setName:meta?.setName||"",
-     setId:meta?.setId||"",
-     cardNumber:meta?.cardNumber||"",
-     rarity:meta?.rarity||"",
-     tcgUrl:meta?.tcgUrl||"",
-     tcgUpdatedAt:meta?.tcgUpdatedAt||"",
-     tcgPrices:meta?.tcgPrices||{},
-     tcgMarket:market
-   };
-   db.products.push(p);
+   const meta=pendingCardData?deepClone(pendingCardData):null;
+   const market=currentMarketFromPrices(meta?.tcgPrices,finish);
+   if(p){
+     p.qty+=qty;
+     if(cost)p.cost=cost;
+     if(price)p.price=price;
+     p.condition=condition;
+     p.finish=finish||p.finish||"";
+     p.itemType="card";
+     if(pendingPhotoData)p.photo=pendingPhotoData;
+     if(meta){
+       Object.assign(p,meta);
+       p.finish=finish;
+       p.tcgMarket=market;
+     }
+   }else{
+     p={
+       id:uid(),name,qty,cost,price,photo:pendingPhotoData||"",
+       itemType:"card",condition,finish:finish||"",
+       pokemonCardId:meta?.pokemonCardId||"",
+       cardBaseName:meta?.cardBaseName||String(name).split(" — ")[0],
+       setName:meta?.setName||"",
+       setId:meta?.setId||"",
+       cardNumber:meta?.cardNumber||"",
+       rarity:meta?.rarity||"",
+       tcgUrl:meta?.tcgUrl||"",
+       tcgUpdatedAt:meta?.tcgUpdatedAt||"",
+       tcgPrices:meta?.tcgPrices||{},
+       tcgMarket:market
+     };
+     db.products.push(p);
+   }
  }
  ["pName","pQty","pCost","pPrice"].forEach(id=>document.getElementById(id).value="");
  document.getElementById("pCondition").value="Near Mint";
+ pendingSealedData=null;
  clearProductPhotoForm();
  save();toast("Inventory updated");
- if(p?.pokemonCardId || p?.setName){
-   setTimeout(()=>fetchExactConditionPriceForProduct(p,true),150);
- }
 }
 
 function sell(id,payment){
@@ -1632,7 +1692,15 @@ function renderDashboard(){
  const revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=db.expenses.reduce((a,x)=>a+x.amount,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);
  const pay=p=>db.sales.filter(x=>x.payment===p).reduce((a,x)=>a+x.total,0);
  document.getElementById("dashCards").innerHTML=[
-   ["Total sales",money(revenue)],["Gross profit",money(revenue-cogs)],["Cash",money(pay("Cash"))],["Cash App",money(pay("Cash App"))],["Zelle",money(pay("Zelle"))],["Inventory cost",money(inv)]
+   ["Total sales",money(revenue)],
+   ["Gross profit",money(revenue-cogs)],
+   ["Cash",money(pay("Cash"))],
+   ["Cash App",money(pay("Cash App"))],
+   ["Zelle",money(pay("Zelle"))],
+   ["Venmo",money(pay("Venmo"))],
+   ["Apple Pay",money(pay("Apple Pay"))],
+   ["Card",money(pay("Card"))],
+   ["Inventory cost",money(inv)]
  ].map(x=>`<div class="metric"><div class="metricLabel">${x[0]}</div><div class="metricValue money">${x[1]}</div></div>`).join("");
 
  document.getElementById("showStatus").innerHTML=db.currentShow?`Active: <strong>${esc(db.currentShow.name)}</strong>`:"No active show.";
@@ -1642,7 +1710,7 @@ function renderDashboard(){
    <td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td>
    <td data-label="Qty"><input class="input" style="width:80px;padding:7px" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}"></td>
    <td data-label="Total"><input class="input" style="width:100px;padding:7px" id="sale_total_${x.id}" type="number" min="0" step=".01" value="${Number(x.total).toFixed(2)}"></td>
-   <td data-label="Payment"><select class="input" style="min-width:110px;padding:7px" id="sale_payment_${x.id}"><option ${x.payment==="Cash"?"selected":""}>Cash</option><option ${x.payment==="Cash App"?"selected":""}>Cash App</option><option ${x.payment==="Zelle"?"selected":""}>Zelle</option></select></td>
+   <td data-label="Payment"><select class="input" style="min-width:110px;padding:7px" id="sale_payment_${x.id}"><option ${x.payment==="Cash"?"selected":""}>Cash</option><option ${x.payment==="Cash App"?"selected":""}>Cash App</option><option ${x.payment==="Zelle"?"selected":""}>Zelle</option><option ${x.payment==="Venmo"?"selected":""}>Venmo</option><option ${x.payment==="Apple Pay"?"selected":""}>Apple Pay</option><option ${x.payment==="Card"?"selected":""}>Card</option></select></td>
    <td data-label="Actions"><div class="actions"><button class="miniBtn btnSuccess" onclick="updateRecentSale('${x.id}')">Save</button><button class="miniBtn btnDanger" onclick="deleteRecentSale('${x.id}')">Delete</button></div></td>
  </tr>`).join("")}</table></div>`:`<div class="empty">No sales yet.</div>`;
 }
@@ -1651,48 +1719,84 @@ function renderSaleProducts(){
  const q=(document.getElementById("saleSearch")?.value||"").toLowerCase();
  const arr=db.products.filter(p=>p.name.toLowerCase().includes(q));
  document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>{
-   const market=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
+   const sealed=p.itemType==="sealed";
+   const market=sealed?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket);
    return `<div class="productCard">
    ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:10px;margin-bottom:10px">`:""}
    <h4>${esc(p.name)}</h4>
-   <div class="small">${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
-   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong>`:""}${p.tcgExactConditionPrice!=null?`<br>Exact ${esc(p.condition||"Near Mint")} market: <strong class="exactPrice">${money(p.tcgExactConditionPrice)}</strong>`:""}</div>
-   <div class="paymentBtns"><button class="cash" onclick="sell('${p.id}','Cash')">Cash</button><button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button><button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button></div>
+   <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
+   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong>`:""}</div>
+   <div style="margin-top:8px"><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button></div>
+   <div class="paymentBtns" style="grid-template-columns:repeat(3,1fr)">
+<button class="cash" onclick="sell('${p.id}','Cash')">Cash</button>
+<button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button>
+<button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button>
+<button class="venmo" onclick="sell('${p.id}','Venmo')">Venmo</button>
+<button class="applepay" onclick="sell('${p.id}','Apple Pay')">Apple Pay</button>
+<button class="cardpay" onclick="sell('${p.id}','Card')">Card</button>
+</div>
    </div>`;
  }).join(""):`<div class="empty">No matching products.</div>`;
 }
 
+
+function setInventoryQty(id){
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  const el=document.getElementById("inv_qty_"+id);
+  const qty=Math.max(0,Number(el?.value||0));
+  pushUndo("Set inventory quantity");
+  p.qty=qty;
+  save();toast("Quantity updated");
+}
+function addInventoryQty(id){
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  const el=document.getElementById("inv_addqty_"+id);
+  const add=Math.max(0,Number(el?.value||0));
+  if(!add)return toast("Enter quantity to add");
+  pushUndo("Add inventory stock");
+  p.qty+=add;
+  if(el)el.value="";
+  save();toast(`Added ${add} to inventory`);
+}
+
 function renderInventory(){
  document.getElementById("inventoryTable").innerHTML=db.products.length?`<div class="tableWrap"><table>
- <tr><th>Photo</th><th>Product</th><th>Condition</th><th>Printing</th><th>Qty</th><th>Cost</th><th>Your price</th><th>TCGplayer Market</th><th>Exact condition market</th><th>Actions</th></tr>
+ <tr><th>Photo</th><th>Product</th><th>Condition</th><th>Printing</th><th>Qty</th><th>Cost</th><th>Your price</th><th>TCGplayer Market</th><th>Actions</th></tr>
  ${db.products.map(p=>{
-   const priceKeys=Object.keys(p.tcgPrices||{});
-   const market=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
+   const sealed=(p.itemType==="sealed");
+   const priceKeys=sealed?[]:Object.keys(p.tcgPrices||{});
+   const market=sealed?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket);
    p.tcgMarket=market;
    return `<tr>
    <td data-label="Photo">${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
-   <td data-label="Product"><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} #${esc(p.cardNumber||"")}</div>`:""}</td>
-   <td data-label="Condition"><select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
+   <td data-label="Product"><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} ${sealed?'<span class="sealedBadge">Sealed</span>':p.cardNumber?`#${esc(p.cardNumber)}`:""}</div>`:""}</td>
+   <td data-label="Condition">${sealed?`<span class="sealedBadge">Sealed</span>`:`<select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
      ${["Near Mint","Lightly Played","Moderately Played","Heavily Played","Damaged"].map(c=>`<option ${c===(p.condition||"Near Mint")?"selected":""}>${c}</option>`).join("")}
-   </select></td>
-   <td data-label="Printing">${priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}" onchange="updateInventoryCondition('${p.id}')">
+   </select>`}</td>
+   <td data-label="Printing">${sealed?`<span class="small">Sealed</span>`:priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}" onchange="updateInventoryCondition('${p.id}')">
      ${priceKeys.map(k=>`<option value="${k}" ${k===p.finish?"selected":""}>${prettyFinish(k)}</option>`).join("")}
    </select>`:`<span class="small">${esc(prettyFinish(p.finish||"—"))}</span>`}</td>
-   <td data-label="Qty" class="${p.qty<3?"stockLow":""}">${p.qty}</td>
+   <td data-label="Qty">
+     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+       <input id="inv_qty_${p.id}" class="input" type="number" min="0" value="${p.qty}" style="width:82px;padding:7px">
+       <button class="miniBtn btnSuccess" onclick="setInventoryQty('${p.id}')">Set</button>
+     </div>
+     <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
+       <input id="inv_addqty_${p.id}" class="input" type="number" min="0" placeholder="+ stock" style="width:82px;padding:7px">
+       <button class="miniBtn btnSoft" onclick="addInventoryQty('${p.id}')">Add</button>
+     </div>
+   </td>
    <td data-label="Cost">${money(p.cost)}</td>
    <td data-label="Your price">${money(p.price)}</td>
-   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span>${p.tcgUpdatedAt?`<div class="small">${esc(p.tcgUpdatedAt)}</div>`:""}`:`<span class="marketNone">—</span>`}</td>
-   <td data-label="Exact condition">${p.tcgExactConditionPrice!=null?`<span class="exactPrice">${money(p.tcgExactConditionPrice)}</span><div class="priceMeta">${esc(p.tcgExactConditionLabel||"")}</div>`:`<span class="marketNone">—</span>${p.tcgExactConditionError?`<div class="priceError">${esc(p.tcgExactConditionError)}</div>`:""}`}</td>
+   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span>`:`<span class="marketNone">—</span>`}</td>
    <td data-label="Actions"><div class="actions">
-     <button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button><button class="miniBtn btnSoft" onclick="refreshExactConditionPrice('${p.id}')">Refresh exact price</button>${p.tcgExactConditionPrice!=null?`<button class="miniBtn btnSoft" onclick="useExactConditionAsSellPrice('${p.id}')">Use exact price</button>`:""}
+     ${sealed?"":`<button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>`}
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
-     ${p.tcgUrl?`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl)})'>TCGplayer ↗</button>`:`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button>`}
+     <button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button>
      <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
    </div></td>
    </tr>`;
- }).join("")}</table></div>
- <div class="small" style="margin-top:12px"><strong>Pricing note:</strong> TCGplayer Market shown here is the exact market value returned for the selected printing/finish. TCGplayer condition-specific NM/LP/MP/HP/Damaged pricing is not exposed by this card-data feed, so condition is tracked separately rather than showing a made-up “TCGplayer” condition price.</div>`
- :`<div class="empty">No inventory yet.</div>`;
+ }).join("")}</table></div>`:`<div class="empty">No inventory yet.</div>`;
 }
 
 function renderPurchases(){
@@ -1713,6 +1817,9 @@ function renderShows(){
    const cash=sales.filter(x=>x.payment==="Cash").reduce((a,x)=>a+x.total,0);
    const ca=sales.filter(x=>x.payment==="Cash App").reduce((a,x)=>a+x.total,0);
    const zelle=sales.filter(x=>x.payment==="Zelle").reduce((a,x)=>a+x.total,0);
+   const venmo=sales.filter(x=>x.payment==="Venmo").reduce((a,x)=>a+x.total,0);
+   const applePay=sales.filter(x=>x.payment==="Apple Pay").reduce((a,x)=>a+x.total,0);
+   const card=sales.filter(x=>x.payment==="Card").reduce((a,x)=>a+x.total,0);
    return `<div class="panel" style="margin-top:0;margin-bottom:14px">
     <div class="panelHead">
       <div style="flex:1">
@@ -1725,12 +1832,15 @@ function renderShows(){
         <button class="miniBtn btnDanger" onclick="deleteShow('${sh.id}')">Delete</button>
       </div>
     </div>
-    <div class="cards" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="cards" style="grid-template-columns:repeat(5,minmax(0,1fr))">
       <div class="metric"><div class="metricLabel">Sales</div><div class="metricValue">${money(sh.revenue)}</div></div>
       <div class="metric"><div class="metricLabel">Net profit</div><div class="metricValue">${money(sh.profit)}</div></div>
       <div class="metric"><div class="metricLabel">Cash</div><div class="metricValue">${money(cash)}</div></div>
       <div class="metric"><div class="metricLabel">Cash App</div><div class="metricValue">${money(ca)}</div></div>
       <div class="metric"><div class="metricLabel">Zelle</div><div class="metricValue">${money(zelle)}</div></div>
+      <div class="metric"><div class="metricLabel">Venmo</div><div class="metricValue">${money(venmo)}</div></div>
+      <div class="metric"><div class="metricLabel">Apple Pay</div><div class="metricValue">${money(applePay)}</div></div>
+      <div class="metric"><div class="metricLabel">Card</div><div class="metricValue">${money(card)}</div></div>
       <div class="metric"><div class="metricLabel">Items sold</div><div class="metricValue">${sales.reduce((a,x)=>a+x.qty,0)}</div></div>
     </div>
     <div id="show_details_${sh.id}" class="detailsBox hidden">
