@@ -369,6 +369,11 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
   [id^="inv_qty_"],[id^="inv_addqty_"]{font-size:16px!important;min-height:40px}
 }
 
+
+.marketStamp{font-size:10px;color:#64748b;margin-top:3px;line-height:1.3}
+.marketFresh{color:#166534}
+.marketStale{color:#92400e}
+
 </style>
 </head>
 <body>
@@ -681,6 +686,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
           <p id="settingsEmail"></p>
           <div class="actions">
             <button class="btn btnGhost" onclick="pullCloud(true)">Refresh cloud data</button>
+            <button class="btn btnGhost" onclick="refreshStaleMarketPrices(true)">Refresh market prices</button>
             <button class="btn btnGhost" onclick="exportJSON()">Export backup</button>
             <button class="btn btnGhost" onclick="signOut()">Sign out</button>
           </div>
@@ -754,6 +760,29 @@ function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function money(n){return "$"+Number(n||0).toFixed(2)}
+
+function priceDateLabel(v){
+  if(!v)return "Update time unavailable";
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime())){
+    const cleaned=String(v).replace(/\//g,"-");
+    const d2=new Date(cleaned);
+    if(Number.isNaN(d2.getTime()))return `Updated ${v}`;
+    return `Updated ${d2.toLocaleDateString()}`;
+  }
+  return `Updated ${d.toLocaleDateString()}`;
+}
+function priceIsStale(v,hours=24){
+  if(!v)return true;
+  let d=new Date(v);
+  if(Number.isNaN(d.getTime()))d=new Date(String(v).replace(/\//g,"-"));
+  if(Number.isNaN(d.getTime()))return true;
+  return Date.now()-d.getTime() >= hours*60*60*1000;
+}
+function latestCardPriceTimestamp(card){
+  return card?.tcgplayer?.updatedAt || new Date().toISOString();
+}
+
 function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)}
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),2200)}
 function setMsg(el,msg,type=""){el.textContent=msg;el.className="authMsg"+(type?" "+type:"")}
@@ -1186,7 +1215,8 @@ async function autoAddScannedCard(id){
     cardNumber:fullCardNumber(c),rarity:c.rarity||"",
     tcgUrl:c.tcgplayer?.url||"",
     tcgUpdatedAt:c.tcgplayer?.updatedAt||"",
-    tcgPrices:prices,tcgMarket:market
+    lastMarketRefresh:new Date().toISOString(),
+    tcgPrices:prices,tcgMarket:market,lastMarketRefresh:new Date().toISOString()
   });
   save();toast("Scanned card added");
 }
@@ -1227,6 +1257,7 @@ function selectPokemonCard(i){
     image:c.images?.large||c.images?.small||"",
     tcgUrl:c.tcgplayer?.url||"",
     tcgUpdatedAt:c.tcgplayer?.updatedAt||"",
+    lastMarketRefresh:new Date().toISOString(),
     tcgPrices:c.tcgplayer?.prices||{}
   };
   document.getElementById("pName").value=`${c.name} — ${c.set?.name||""} #${fullCardNumber(c)}`.trim();
@@ -1241,6 +1272,66 @@ function selectPokemonCard(i){
   document.getElementById("cardLookupStatus").textContent=`Selected ${c.set?.name||""} #${fullCardNumber(c)}. Artwork and TCGplayer pricing loaded.`;
   closeCardLookup();
 }
+
+async function refreshCardMarketPrice(p){
+  if(!p?.pokemonCardId)return false;
+  try{
+    const r=await fetch("https://api.pokemontcg.io/v2/cards/"+encodeURIComponent(p.pokemonCardId));
+    if(!r.ok)return false;
+    const j=await r.json();
+    const c=j.data;
+    if(!c)return false;
+    p.tcgPrices=c.tcgplayer?.prices||p.tcgPrices||{};
+    p.tcgUrl=c.tcgplayer?.url||p.tcgUrl||"";
+    p.tcgUpdatedAt=latestCardPriceTimestamp(c);
+    p.tcgMarket=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
+    p.lastMarketRefresh=new Date().toISOString();
+    return true;
+  }catch(e){return false;}
+}
+async function refreshSealedMarketPrice(p){
+  if(!p || p.itemType!=="sealed" || !p.name)return false;
+  try{
+    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:p.name}});
+    if(error || !data?.success)return false;
+    const results=data.results||[];
+    let match=null;
+    if(p.tcgProductId!=null)match=results.find(x=>String(x.productId)===String(p.tcgProductId));
+    if(!match){
+      const wanted=String(p.name).toLowerCase().trim();
+      match=results.find(x=>String(x.name||"").toLowerCase().trim()===wanted);
+    }
+    if(!match)return false;
+    if(match.marketPrice!=null)p.tcgMarket=Number(match.marketPrice);
+    p.tcgUrl=match.url||p.tcgUrl||"";
+    p.photo=p.photo||match.imageUrl||"";
+    p.setName=match.groupName||p.setName||"";
+    p.tcgUpdatedAt=match.updatedAt||new Date().toISOString();
+    p.lastMarketRefresh=new Date().toISOString();
+    return true;
+  }catch(e){return false;}
+}
+async function refreshStaleMarketPrices(force=false){
+  if(!user || !db?.products?.length)return;
+  const stale=db.products.filter(p=>{
+    const stamp=p.lastMarketRefresh||p.tcgUpdatedAt;
+    return force || priceIsStale(stamp,24);
+  });
+  if(!stale.length){if(force)toast("Market prices are already current");return;}
+  setSync(true,"Updating prices…");
+  let updated=0;
+  for(const p of stale){
+    let ok=false;
+    if(p.itemType==="sealed")ok=await refreshSealedMarketPrice(p);
+    else if(p.pokemonCardId)ok=await refreshCardMarketPrice(p);
+    if(ok)updated++;
+    await new Promise(r=>setTimeout(r,120));
+  }
+  if(updated){save();toast(`${updated} market price${updated===1?"":"s"} refreshed`);}
+  else if(force)toast("No prices could be refreshed");
+  setSync(true,"Synced");
+}
+
 function updatePendingMarketFromFinish(){
   const finish=document.getElementById("pFinish")?.value||"";
   const market=currentMarketFromPrices(pendingCardData?.tcgPrices,finish);
@@ -1452,6 +1543,7 @@ async function enterApp(){
  setSync(true,"Syncing…");
  await pullCloud(false);
  renderAll();
+ setTimeout(()=>refreshStaleMarketPrices(false),500);
 }
 
 async function signOut(){
@@ -1543,7 +1635,7 @@ function addProduct(){
        tcgProductId:meta.productId||p.tcgProductId||null,
        setName:meta.groupName||p.setName||"",
        photo:pendingPhotoData||p.photo||"",
-       sealedSource:"TCGCSV"
+       sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()
      });
    }else{
      p={
@@ -1552,7 +1644,7 @@ function addProduct(){
        tcgMarket:market,tcgUrl:meta.url||"",
        tcgProductId:meta.productId||null,
        setName:meta.groupName||"",
-       sealedSource:"TCGCSV"
+       sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()
      };
      db.products.push(p);
    }
@@ -1725,7 +1817,7 @@ function renderSaleProducts(){
    ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:10px;margin-bottom:10px">`:""}
    <h4>${esc(p.name)}</h4>
    <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
-   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong>`:""}</div>
+   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}</div>
    <div style="margin-top:8px"><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button></div>
    <div class="paymentBtns" style="grid-template-columns:repeat(3,1fr)">
 <button class="cash" onclick="sell('${p.id}','Cash')">Cash</button>
@@ -1788,7 +1880,7 @@ function renderInventory(){
    </td>
    <td data-label="Cost">${money(p.cost)}</td>
    <td data-label="Your price">${money(p.price)}</td>
-   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span>`:`<span class="marketNone">—</span>`}</td>
+   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}</td>
    <td data-label="Actions"><div class="actions">
      ${sealed?"":`<button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>`}
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
