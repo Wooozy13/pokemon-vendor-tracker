@@ -1,0 +1,157 @@
+name: Add trade card TCGplayer lookup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-trade-card-tcg-lookup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch VendorTracker
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          # Add dedicated trade-card lookup modal before undo bar.
+          modal='''
+<div id="tradeCardLookupModal" class="modalBack hidden">
+  <div class="modal">
+    <div class="modalHead">
+      <div><h2>Select their card</h2><div class="small" id="tradeCardLookupSummary">Choose the exact card/set.</div></div>
+      <button class="btn btnGhost" onclick="closeTradeCardLookup()">Close</button>
+    </div>
+    <div class="modalBody"><div id="tradeCardLookupResults" class="cardPickGrid"></div></div>
+  </div>
+</div>
+'''
+          if 'id="tradeCardLookupModal"' not in s:
+              s=s.replace('<div id="undoBar"',modal+'\n<div id="undoBar"',1)
+
+          # Upgrade Their side controls.
+          old='''<div class="small">Enter what they're giving you and the value you're assigning to it.</div>
+          <div class="grid" style="margin-top:10px;grid-template-columns:minmax(0,1fr) 110px 80px auto">
+            <input id="tradeTheirName" class="input" placeholder="Card / item">
+            <input id="tradeTheirValue" class="input" type="number" min="0" step=".01" placeholder="Value">
+            <input id="tradeTheirQty" class="input" type="number" min="1" value="1" placeholder="Qty">'''
+          new='''<div class="small">Search their Pokémon card and VendorTracker will pull its TCGplayer Market price automatically. You can still overwrite the value manually.</div>
+          <div class="lookupRow" style="margin-top:10px">
+            <input id="tradeTheirName" class="input" placeholder="Card name or number, e.g. Charizard 199/165" onkeydown="if(event.key==='Enter'){event.preventDefault();searchTheirTradeCard()}">
+            <button class="btn btnSoft" type="button" onclick="searchTheirTradeCard()">Find card</button>
+          </div>
+          <div id="tradeTheirLookupStatus" class="apiStatus">Search for the exact card to load TCGplayer Market.</div>
+          <div class="grid" style="margin-top:10px;grid-template-columns:minmax(0,1fr) 110px 80px auto">
+            <select id="tradeTheirFinish" class="input hidden" onchange="updateTheirTradeMarketFromFinish()"></select>
+            <input id="tradeTheirValue" class="input" type="number" min="0" step=".01" placeholder="TCG market / value">
+            <input id="tradeTheirQty" class="input" type="number" min="1" value="1" placeholder="Qty">'''
+          if old in s:
+              s=s.replace(old,new,1)
+
+          # Add globals near trade arrays if possible, otherwise after known lookup global.
+          if 'let tradeTheirLookupResults=' not in s:
+              if 'let tradeTheirItems=[];' in s:
+                  s=s.replace('let tradeTheirItems=[];','let tradeTheirItems=[];\nlet tradeTheirLookupResults=[];\nlet pendingTheirTradeCard=null;',1)
+              else:
+                  s=s.replace('let currentLookupResults=[];','let currentLookupResults=[];\nlet tradeTheirLookupResults=[];\nlet pendingTheirTradeCard=null;',1)
+
+          funcs=r'''
+async function searchTheirTradeCard(){
+  const raw=document.getElementById("tradeTheirName")?.value.trim()||"";
+  const status=document.getElementById("tradeTheirLookupStatus");
+  if(!raw){if(status)status.textContent="Enter a card name or collector number first.";return}
+  if(status)status.textContent="Searching card database and TCGplayer Market…";
+  try{
+    const cards=await resolveCardText(raw,30);
+    tradeTheirLookupResults=cards;
+    if(!cards.length){
+      if(status)status.textContent="No match found. Try the Pokémon name plus collector number, like 199/165.";
+      return;
+    }
+    document.getElementById("tradeCardLookupSummary").textContent=`${cards.length} match${cards.length===1?"":"es"} — choose the exact artwork, set and collector number.`;
+    document.getElementById("tradeCardLookupResults").innerHTML=cards.map((c,i)=>{
+      const prices=c.tcgplayer?.prices||{};
+      const priceParts=Object.entries(prices).map(([k,v])=>`${prettyFinish(k)}: ${v?.market!=null?money(v.market):"—"}`).join(" • ");
+      return `<button class="cardPick" onclick="selectTheirTradeCard(${i})" style="text-align:left;cursor:pointer">
+        <img src="${esc(c.images?.small||c.images?.large||"")}" alt="${esc(c.name||"")}">
+        <h4>${esc(c.name||"")}</h4>
+        <div class="meta">${esc(c.set?.name||"Unknown set")} • #${esc(fullCardNumber(c))}<br>${esc(c.rarity||"")}</div>
+        <div class="meta" style="margin-top:7px">${priceParts||"No TCGplayer Market available"}</div>
+      </button>`;
+    }).join("");
+    document.getElementById("tradeCardLookupModal").classList.remove("hidden");
+    if(status)status.textContent=`Found ${cards.length} match${cards.length===1?"":"es"}. Choose the exact card.`;
+  }catch(e){
+    if(status)status.textContent="Card lookup failed. You can still enter their value manually.";
+  }
+}
+function closeTradeCardLookup(){document.getElementById("tradeCardLookupModal")?.classList.add("hidden")}
+function selectTheirTradeCard(i){
+  const c=tradeTheirLookupResults[i];if(!c)return;
+  const prices=c.tcgplayer?.prices||{};
+  const keys=Object.keys(prices).filter(k=>prices[k]?.market!=null);
+  pendingTheirTradeCard={
+    id:c.id,name:c.name||"",setName:c.set?.name||"",cardNumber:fullCardNumber(c),
+    image:c.images?.small||c.images?.large||"",tcgUrl:c.tcgplayer?.url||"",prices
+  };
+  document.getElementById("tradeTheirName").value=`${c.name} — ${c.set?.name||""} #${fullCardNumber(c)}`.trim();
+  const f=document.getElementById("tradeTheirFinish");
+  if(f){
+    if(keys.length){
+      f.innerHTML=keys.map(k=>`<option value="${k}">${prettyFinish(k)} — ${money(prices[k].market)}</option>`).join("");
+      const preferred=keys.includes("holofoil")?"holofoil":(keys.includes("normal")?"normal":keys[0]);
+      f.value=preferred;f.classList.remove("hidden");
+    }else{f.innerHTML="";f.classList.add("hidden")}
+  }
+  updateTheirTradeMarketFromFinish();
+  const status=document.getElementById("tradeTheirLookupStatus");
+  if(status)status.innerHTML=keys.length?`TCGplayer Market loaded for <strong>${esc(c.set?.name||"")} #${esc(fullCardNumber(c))}</strong>. Choose the printing if needed.`:`Exact card selected, but no TCGplayer Market was returned. Enter a value manually.`;
+  closeTradeCardLookup();
+}
+function updateTheirTradeMarketFromFinish(){
+  if(!pendingTheirTradeCard)return;
+  const f=document.getElementById("tradeTheirFinish");
+  const key=f?.value||Object.keys(pendingTheirTradeCard.prices||{})[0]||"";
+  const market=pendingTheirTradeCard.prices?.[key]?.market;
+  const v=document.getElementById("tradeTheirValue");
+  if(v && market!=null)v.value=Number(market).toFixed(2);
+}
+'''
+          if 'function searchTheirTradeCard()' not in s:
+              anchor='function addTheirTradeItem(){'
+              s=s.replace(anchor,funcs+'\n'+anchor,1)
+
+          # Preserve lookup metadata on added opponent card and clear selection after adding.
+          old_add='''tradeTheirItems.push({id:uid(),name,value,qty});'''
+          new_add='''tradeTheirItems.push({id:uid(),name,value,qty,tcgMarket:value,photo:pendingTheirTradeCard?.image||"",tcgUrl:pendingTheirTradeCard?.tcgUrl||"",cardId:pendingTheirTradeCard?.id||"",setName:pendingTheirTradeCard?.setName||"",cardNumber:pendingTheirTradeCard?.cardNumber||""});'''
+          if old_add in s:
+              s=s.replace(old_add,new_add,1)
+
+          # Clear lookup state after add if the function clears form values.
+          needle='''document.getElementById("tradeTheirQty").value=1;'''
+          repl='''document.getElementById("tradeTheirQty").value=1;
+  pendingTheirTradeCard=null;
+  const tf=document.getElementById("tradeTheirFinish");if(tf){tf.innerHTML="";tf.classList.add("hidden")}
+  const ts=document.getElementById("tradeTheirLookupStatus");if(ts)ts.textContent="Search for the exact card to load TCGplayer Market.";'''
+          if needle in s and 'pendingTheirTradeCard=null;\n  const tf=' not in s:
+              s=s.replace(needle,repl,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes needed"
+          else
+            git add index.html
+            git commit -m "Auto lookup TCGplayer market for trade cards"
+            git push
+          fi
