@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pokémon Vendor Tracker Cloud</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#171717}
+header{background:#171717;color:#fff;padding:15px 18px;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;gap:12px;align-items:center}
+header h1{margin:0;font-size:19px}.cloud{font-size:12px;padding:6px 9px;border-radius:999px;background:#333}.ok{background:#146c43}.bad{background:#9b1c1c}
+nav{display:flex;gap:6px;overflow:auto;padding:9px;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:61px;z-index:4}
+nav button{border:0;background:#eee;padding:10px 13px;border-radius:8px;font-weight:700;white-space:nowrap}nav button.active{background:#171717;color:#fff}
+main{max-width:1100px;margin:auto;padding:16px}.page{display:none}.page.active{display:block}
+.panel,.card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:15px;margin-top:14px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+.label{font-size:12px;color:#666}.value{font-size:24px;font-weight:700;margin-top:4px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:9px}
+input,select{width:100%;padding:11px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+button{cursor:pointer}.primary{background:#171717;color:#fff;border:0;padding:11px 14px;border-radius:8px;font-weight:700}.secondary{background:#eee;border:0;padding:10px 13px;border-radius:8px}
+.danger{background:#b42318;color:#fff;border:0;padding:7px 9px;border-radius:7px}.muted{color:#666;font-size:13px}.warn{color:#a15c00;font-weight:bold}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}th,td{text-align:left;padding:9px;border-bottom:1px solid #eee}th{background:#fafafa}
+.productGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px;margin-top:12px}.product{background:#fff;border:1px solid #ddd;border-radius:12px;padding:13px}
+.saleButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.saleButtons button{padding:12px 5px;border:0;border-radius:8px;font-weight:700}
+.cash{background:#e8f7ed}.ca{background:#e9f7df}.zelle{background:#eee8ff}
+#setupScreen,#authScreen{max-width:560px;margin:30px auto}.hidden{display:none!important}.syncmsg{font-size:12px;color:#666;margin:6px 0 0}
+@media(max-width:600px){main{padding:10px}table{font-size:12px}.saleButtons{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="fatalError" style="display:none;background:#fff3cd;color:#664d03;padding:12px 16px;border-bottom:1px solid #ffecb5;font-family:Arial,sans-serif"></div>
+<header><div><h1>🎴 Pokémon Vendor Tracker</h1><div class="syncmsg" id="syncText">Cloud setup required</div></div><span id="cloudBadge" class="cloud bad">Offline</span></header>
+
+<main id="setupScreen">
+<h2>1. Connect your Supabase project</h2>
+<div class="panel">
+<p class="muted">Paste your Project URL and publishable/anon key. These are saved only on this device.</p>
+<div class="grid"><input id="sbUrl" placeholder="https://xxxxx.supabase.co"><input id="sbKey" placeholder="Publishable / anon key"></div>
+<button class="primary" style="margin-top:10px" onclick="saveConfig()">Save Connection</button>
+<p class="muted">Never paste a service_role or secret key here.</p>
+</div>
+</main>
+
+<main id="authScreen" class="hidden">
+<h2>2. Sign in</h2>
+<div class="panel">
+<div class="grid"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password (6+ characters)"></div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="primary" onclick="signIn()">Sign In</button><button class="secondary" onclick="signUp()">Create Account</button><button class="secondary" onclick="resetConfig()">Change Supabase Project</button></div>
+<p class="muted" id="authMsg"></p>
+</div>
+</main>
+
+<div id="app" class="hidden">
+<nav id="nav"></nav>
+<main>
+<section id="dashboard" class="page active"><h2>Dashboard</h2><div class="cards" id="dashCards"></div>
+<div class="panel"><h3>Current Show</h3><div class="grid"><input id="showName" placeholder="Show name"><button class="primary" onclick="startShow()">Start / Update Show</button><button class="secondary" onclick="closeShow()">Close Show</button></div><p class="muted" id="showStatus"></p></div>
+<div class="panel"><h3>Recent Sales</h3><div id="recentSales"></div></div></section>
+
+<section id="sell" class="page"><h2>🛒 Sell</h2><div class="panel"><div class="grid"><input id="saleSearch" placeholder="Search product..." oninput="renderSaleProducts()"><input id="salePrice" type="number" step=".01" placeholder="Price (blank = default)"><input id="saleQty" type="number" min="1" value="1"></div><div class="productGrid" id="saleProducts"></div></div></section>
+
+<section id="inventory" class="page"><h2>📦 Inventory</h2><div class="panel"><div class="grid"><input id="pName" placeholder="Product name"><input id="pQty" type="number" min="0" placeholder="Quantity"><input id="pCost" type="number" step=".01" placeholder="Cost each"><input id="pPrice" type="number" step=".01" placeholder="Sell price"><button class="primary" onclick="addProduct()">Add / Update</button></div></div><div class="panel" id="inventoryTable"></div></section>
+
+<section id="purchases" class="page"><h2>📥 Purchases</h2><div class="panel"><div class="grid"><select id="buyProduct"></select><input id="buyName" placeholder="Or new product name"><input id="buyQty" type="number" min="1" placeholder="Quantity"><input id="buyTotal" type="number" step=".01" placeholder="Total cost"><input id="buySource" placeholder="Seller / source"><select id="buyPayment"><option>Cash</option><option>Cash App</option><option>Zelle</option></select><button class="primary" onclick="recordPurchase()">Record Purchase</button></div></div><div class="panel" id="purchaseTable"></div></section>
+
+<section id="expenses" class="page"><h2>💸 Expenses</h2><div class="panel"><div class="grid"><input id="expName" placeholder="Expense"><input id="expAmount" type="number" step=".01" placeholder="Amount"><select id="expPayment"><option>Cash</option><option>Cash App</option><option>Zelle</option></select><button class="primary" onclick="recordExpense()">Add Expense</button></div></div><div class="panel" id="expenseTable"></div></section>
+
+<section id="shows" class="page"><h2>🎪 Shows</h2><div class="panel" id="showTable"></div></section>
+
+<section id="settings" class="page"><h2>⚙️ Settings</h2><div class="panel"><p id="accountLine"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" onclick="pullCloud(true)">Refresh from Cloud</button><button class="secondary" onclick="exportJSON()">Export Backup</button><button class="secondary" onclick="signOut()">Sign Out</button></div></div></section>
+</main></div>
+
+<script>
+let sb=null,user=null,saveTimer=null,lastCloudUpdate=null,isPulling=false;
+let db={products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null};
+const CFG="pokemon_vendor_supabase_config", LOCAL="pokemon_vendor_cloud_cache";
+
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function money(n){return "$"+Number(n||0).toFixed(2)} function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)}
+function badge(ok,text){let b=document.getElementById("cloudBadge");b.textContent=text;b.className="cloud "+(ok?"ok":"bad")}
+function syncText(t){document.getElementById("syncText").textContent=t}
+function cfg(){try{return JSON.parse(localStorage.getItem(CFG)||"null")}catch{return null}}
+async function saveConfig(){
+  const url=document.getElementById("sbUrl").value.trim();
+  const key=document.getElementById("sbKey").value.trim();
+  if(!url||!key)return alert("Enter both values.");
+  localStorage.setItem(CFG,JSON.stringify({url,key}));
+  document.getElementById("setupScreen").classList.add("hidden");
+  document.getElementById("authScreen").classList.remove("hidden");
+  try{
+    sb=window.supabase.createClient(url,key);
+    badge(false,"Sign in");
+    syncText("Connection saved — sign in below");
+  }catch(e){
+    document.getElementById("authMsg").textContent="Connection error: "+e.message;
+    document.getElementById("setupScreen").classList.remove("hidden");
+    document.getElementById("authScreen").classList.add("hidden");
+  }
+}
+function resetConfig(){localStorage.removeItem(CFG);location.reload()}
+async function init(){
+ const setup=document.getElementById("setupScreen");
+ const auth=document.getElementById("authScreen");
+ const msg=document.getElementById("authMsg");
+ const c=cfg();
+ if(!c){setup.classList.remove("hidden");auth.classList.add("hidden");return}
+ setup.classList.add("hidden");auth.classList.remove("hidden");
+ try{
+   if(!window.supabase) throw new Error("Supabase library did not load. Check your internet connection.");
+   sb=window.supabase.createClient(c.url,c.key);
+   let {data:{session},error}=await sb.auth.getSession();
+   if(error) throw error;
+   if(session){user=session.user;await enterApp()}else {badge(false,"Sign in");syncText("Connected — sign in below")}
+ } catch(e){
+   msg.textContent="Connection error: "+e.message;
+   badge(false,"Error");
+   setup.classList.remove("hidden");
+   auth.classList.add("hidden");
+ }
+}
+async function signUp(){
+ const msg=document.getElementById("authMsg");
+ msg.textContent="";
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("password").value;
+ let {data,error}=await sb.auth.signUp({email,password});
+ if(error)return msg.textContent=error.message;
+ if(data.session){user=data.user;await enterApp()}
+ else msg.textContent="Account created. Check your email for a confirmation link, then sign in.";
+}
+async function signIn(){
+ const msg=document.getElementById("authMsg");
+ msg.textContent="";
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("password").value;
+ let {data,error}=await sb.auth.signInWithPassword({email,password});
+ if(error)return msg.textContent=error.message;
+ user=data.user;
+ await enterApp();
+}
+async function signOut(){await sb.auth.signOut();location.reload()}
+async function enterApp(){
+ document.getElementById("authScreen").classList.add("hidden");
+ document.getElementById("setupScreen").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden");
+ document.getElementById("accountLine").textContent="Signed in as "+user.email;
+ badge(true,"Connected");
+ syncText("Loading cloud data…");
+ await pullCloud(false);
+ setInterval(()=>pullCloud(false),4000);
+ renderAll();
+}
+async function pullCloud(showMsg=false){
+ if(!sb||!user||isPulling)return;isPulling=true;
+ let {data,error}=await sb.from("vendor_data").select("data,updated_at").eq("user_id",user.id).maybeSingle();
+ isPulling=false;if(error){syncText("Sync error: "+error.message);badge(false,"Sync error");return}
+ if(data){let remoteTime=new Date(data.updated_at).getTime();let localTime=lastCloudUpdate?new Date(lastCloudUpdate).getTime():0;if(remoteTime>localTime){db=data.data||db;lastCloudUpdate=data.updated_at;localStorage.setItem(LOCAL,JSON.stringify(db));renderAll()}}
+ else {let cached=localStorage.getItem(LOCAL);if(cached)try{db=JSON.parse(cached)}catch{};await pushCloud()}
+ badge(true,"Synced");syncText("Synced "+new Date().toLocaleTimeString());if(showMsg)alert("Cloud data refreshed.");
+}
+function save(){localStorage.setItem(LOCAL,JSON.stringify(db));renderAll();syncText("Saving…");clearTimeout(saveTimer);saveTimer=setTimeout(pushCloud,250)}
+async function pushCloud(){
+ if(!sb||!user)return;let stamp=new Date().toISOString();
+ let {data,error}=await sb.from("vendor_data").upsert({user_id:user.id,data:db,updated_at:stamp},{onConflict:"user_id"}).select("updated_at").single();
+ if(error){syncText("Save failed: "+error.message);badge(false,"Save error");return}
+ lastCloudUpdate=data.updated_at;badge(true,"Synced");syncText("Saved "+new Date().toLocaleTimeString());
+}
+const pages=[["dashboard","Dashboard"],["sell","Sell"],["inventory","Inventory"],["purchases","Purchases"],["expenses","Expenses"],["shows","Shows"],["settings","Settings"]];
+nav.innerHTML=pages.map((p,i)=>`<button class="${i===0?'active':''}" onclick="go('${p[0]}',this)">${p[1]}</button>`).join("");
+function go(id,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");renderAll()}
+function startShow(){let n=showName.value.trim()||"Unnamed Show";if(db.currentShow){db.currentShow.name=n}else db.currentShow={id:uid(),name:n,start:new Date().toISOString()};save()}
+function closeShow(){if(!db.currentShow)return alert("No active show.");let s=db.currentShow,sales=db.sales.filter(x=>x.showId===s.id),ex=db.expenses.filter(x=>x.showId===s.id),buys=db.purchases.filter(x=>x.showId===s.id);let revenue=sales.reduce((a,x)=>a+x.total,0),cogs=sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=ex.reduce((a,x)=>a+x.amount,0),purchases=buys.reduce((a,x)=>a+x.total,0);db.shows.unshift({...s,end:new Date().toISOString(),revenue,cogs,expenses,purchases,profit:revenue-cogs-expenses});db.currentShow=null;save();alert(`Show closed.\nSales: ${money(revenue)}\nNet profit: ${money(revenue-cogs-expenses)}`)}
+function addProduct(){let name=pName.value.trim();if(!name)return alert("Enter product name.");let qty=Number(pQty.value||0),cost=Number(pCost.value||0),price=Number(pPrice.value||0),p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase());if(p){p.qty+=qty;if(cost)p.cost=cost;if(price)p.price=price}else db.products.push({id:uid(),name,qty,cost,price});pName.value=pQty.value=pCost.value=pPrice.value="";save()}
+function sell(id,pay){let p=db.products.find(x=>x.id===id),qty=Math.max(1,Number(saleQty.value||1));if(!p||p.qty<qty)return alert("Not enough inventory.");let price=Number(salePrice.value||p.price);p.qty-=qty;db.sales.unshift({id:uid(),productId:p.id,name:p.name,qty,price,total:price*qty,cost:p.cost,payment:pay,time:new Date().toISOString(),showId:db.currentShow?.id||null});salePrice.value="";saleQty.value=1;save()}
+function recordPurchase(){let id=buyProduct.value,name=buyName.value.trim(),qty=Number(buyQty.value),total=Number(buyTotal.value),p=id?db.products.find(x=>x.id===id):db.products.find(x=>x.name.toLowerCase()===name.toLowerCase());if(!p){if(!name)return alert("Choose or name a product.");p={id:uid(),name,qty:0,cost:0,price:0};db.products.push(p)}if(!qty||!total)return alert("Enter quantity and total cost.");p.qty+=qty;p.cost=total/qty;db.purchases.unshift({id:uid(),productId:p.id,name:p.name,qty,total,source:buySource.value.trim(),payment:buyPayment.value,time:new Date().toISOString(),showId:db.currentShow?.id||null});buyName.value=buyQty.value=buyTotal.value=buySource.value="";save()}
+function recordExpense(){let name=expName.value.trim(),amount=Number(expAmount.value);if(!name||!amount)return alert("Enter expense and amount.");db.expenses.unshift({id:uid(),name,amount,payment:expPayment.value,time:new Date().toISOString(),showId:db.currentShow?.id||null});expName.value=expAmount.value="";save()}
+function del(type,id){if(!confirm("Delete this entry?"))return;db[type]=db[type].filter(x=>x.id!==id);save()}
+function renderSaleProducts(){let q=(saleSearch?.value||"").toLowerCase(),arr=db.products.filter(p=>p.name.toLowerCase().includes(q));saleProducts.innerHTML=arr.map(p=>`<div class=product><b>${esc(p.name)}</b><div>${money(p.price)} • <span class="${p.qty<3?'warn':''}">${p.qty} stock</span></div><div class=saleButtons><button class=cash onclick="sell('${p.id}','Cash')">Cash</button><button class=ca onclick="sell('${p.id}','Cash App')">Cash App</button><button class=zelle onclick="sell('${p.id}','Zelle')">Zelle</button></div></div>`).join("")||"<p class=muted>No products.</p>"}
+function renderInventory(){inventoryTable.innerHTML=`<table><tr><th>Product</th><th>Qty</th><th>Cost</th><th>Sell</th><th>Value</th><th></th></tr>${db.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.qty}</td><td>${money(p.cost)}</td><td>${money(p.price)}</td><td>${money(p.qty*p.cost)}</td><td><button class=danger onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("")||"<tr><td colspan=6>No inventory.</td></tr>"}</table>`}
+function renderPurchases(){buyProduct.innerHTML='<option value="">— New product —</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");purchaseTable.innerHTML=`<table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th></tr>${db.purchases.slice(0,100).map(x=>`<tr><td>${new Date(x.time).toLocaleString()}</td><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td></tr>`).join("")||"<tr><td colspan=5>No purchases.</td></tr>"}</table>`}
+function renderExpenses(){expenseTable.innerHTML=`<table><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Payment</th></tr>${db.expenses.slice(0,100).map(x=>`<tr><td>${new Date(x.time).toLocaleString()}</td><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td>${x.payment}</td></tr>`).join("")||"<tr><td colspan=4>No expenses.</td></tr>"}</table>`}
+function renderShows(){showTable.innerHTML=`<table><tr><th>Show</th><th>Sales</th><th>Expenses</th><th>Net Profit</th></tr>${db.shows.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.revenue)}</td><td>${money(x.expenses)}</td><td>${money(x.profit)}</td></tr>`).join("")||"<tr><td colspan=4>No closed shows.</td></tr>"}</table>`}
+function renderDashboard(){let revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),pay=p=>db.sales.filter(x=>x.payment===p).reduce((a,x)=>a+x.total,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);dashCards.innerHTML=`<div class=card><div class=label>Total Sales</div><div class=value>${money(revenue)}</div></div><div class=card><div class=label>Gross Profit</div><div class=value>${money(revenue-cogs)}</div></div><div class=card><div class=label>Cash</div><div class=value>${money(pay("Cash"))}</div></div><div class=card><div class=label>Cash App</div><div class=value>${money(pay("Cash App"))}</div></div><div class=card><div class=label>Zelle</div><div class=value>${money(pay("Zelle"))}</div></div><div class=card><div class=label>Inventory Cost</div><div class=value>${money(inv)}</div></div>`;showStatus.innerHTML=db.currentShow?`Active: <b>${esc(db.currentShow.name)}</b>`:"No active show.";showName.value=db.currentShow?.name||"";recentSales.innerHTML=`<table><tr><th>Time</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th></tr>${db.sales.slice(0,20).map(x=>`<tr><td>${new Date(x.time).toLocaleTimeString()}</td><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td></tr>`).join("")||"<tr><td colspan=5>No sales.</td></tr>"}</table>`}
+function exportJSON(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="pokemon-vendor-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(a.href)}
+function renderAll(){if(app.classList.contains("hidden"))return;renderDashboard();renderSaleProducts();renderInventory();renderPurchases();renderExpenses();renderShows()}
+window.addEventListener("error",e=>{
+ const box=document.getElementById("fatalError");
+ if(box){box.style.display="block";box.textContent="Tracker error: "+(e.message||"Unknown error");}
+});
+window.addEventListener("unhandledrejection",e=>{
+ const box=document.getElementById("fatalError");
+ if(box){box.style.display="block";box.textContent="Tracker error: "+(e.reason?.message||e.reason||"Unknown error");}
+});
+init();
+</script>
+</body></html>
