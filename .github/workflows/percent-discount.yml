@@ -1,0 +1,55 @@
+name: Change cart discount to percentage
+
+on:
+  push:
+    paths:
+      - '.github/workflows/percent-discount.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Convert cart discount to percent
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace(
+            '<div class="cartTotalRow"><span>Discount</span><input id="cartDiscount" class="input" type="number" min="0" step=".01" value="0" style="width:110px;padding:7px;text-align:right" oninput="renderCart()"></div>',
+            '<div class="cartTotalRow"><span>Discount %</span><div style="display:flex;align-items:center;gap:6px"><input id="cartDiscount" class="input" type="number" min="0" max="100" step="1" value="0" style="width:90px;padding:7px;text-align:right" oninput="renderCart()"><strong>%</strong></div></div>'
+          )
+
+          s=s.replace(
+            'function cartDiscount(){\n  const el=document.getElementById("cartDiscount");\n  return Math.max(0,Number(el?.value||0));\n}',
+            'function cartDiscount(){\n  const el=document.getElementById("cartDiscount");\n  return Math.min(100,Math.max(0,Number(el?.value||0)));\n}'
+          )
+
+          s=s.replace(
+            'const sub=cartSubtotal(),disc=Math.min(cartDiscount(),sub),total=Math.max(0,sub-disc);',
+            'const sub=cartSubtotal(),discountPct=cartDiscount(),disc=sub*(discountPct/100),total=Math.max(0,sub-disc);'
+          )
+
+          s=s.replace(
+            'const subtotal=cartSubtotal(),discount=Math.min(cartDiscount(),subtotal),grand=Math.max(0,subtotal-discount);',
+            'const subtotal=cartSubtotal(),discountPct=cartDiscount(),discount=subtotal*(discountPct/100),grand=Math.max(0,subtotal-discount);'
+          )
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit update
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes needed"
+          else
+            git add index.html
+            git commit -m "Use percentage discount in cart"
+            git push
+          fi
