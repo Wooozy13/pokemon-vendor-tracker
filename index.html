@@ -92,12 +92,40 @@ async function init(){
 async function signUp(){
  const msg=document.getElementById("authMsg");
  msg.textContent="";
- const email=document.getElementById("email").value.trim();
+ const email=document.getElementById("email").value.trim().toLowerCase();
  const password=document.getElementById("password").value;
+
+ if(!email) return msg.textContent="Enter your email address.";
+ if(password.length<6) return msg.textContent="Password must be at least 6 characters.";
+
+ // Supabase intentionally may not reveal whether a confirmed account already
+ // exists, to prevent email/account enumeration. We therefore handle both
+ // explicit duplicate errors and the obfuscated duplicate-signup response.
  let {data,error}=await sb.auth.signUp({email,password});
- if(error)return msg.textContent=error.message;
- if(data.session){user=data.user;await enterApp()}
- else msg.textContent="Account created. Check your email for a confirmation link, then sign in.";
+
+ if(error){
+   const t=(error.message||"").toLowerCase();
+   if(t.includes("already") || t.includes("registered") || t.includes("exists")){
+     msg.textContent="That email is already in use. Try signing in instead.";
+   } else {
+     msg.textContent=error.message;
+   }
+   return;
+ }
+
+ // With Supabase's duplicate-signup protection, an existing confirmed user
+ // can be returned with an identities array containing 0 identities.
+ if(data?.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
+   msg.textContent="That email is already in use. Try signing in instead.";
+   return;
+ }
+
+ if(data.session){
+   user=data.user;
+   await enterApp();
+ } else {
+   msg.textContent="Account created. Check your email for a confirmation link, then sign in.";
+ }
 }
 async function signIn(){
  const msg=document.getElementById("authMsg");
