@@ -39,6 +39,14 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 @media(max-width:1050px){.cards{grid-template-columns:repeat(3,1fr)}.heroGrid{grid-template-columns:1fr}.mockup{max-width:720px;margin:auto}.featureGrid{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){.navLinks{display:none}.authShell{grid-template-columns:1fr}.authAside{display:none}.appLayout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:18px}.menuBtn{display:inline-flex}.bottomNav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);z-index:50}.bottomNav button{border:0;background:#fff;padding:10px 4px;font-size:11px;color:#64748b}.bottomNav button.active{color:var(--brand);font-weight:800}.main{padding-bottom:82px}.cta{flex-direction:column;align-items:flex-start}}
 @media(max-width:620px){.container{width:min(100% - 22px,1180px)}.hero{padding:54px 0 42px}.hero h1{font-size:44px}.hero p{font-size:16px}.featureGrid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}.authMain{padding:26px}.authOverlay{padding:12px}.resetCard{padding:24px}.pageHeader{align-items:flex-start;flex-direction:column}.paymentBtns{grid-template-columns:1fr}.publicNav .brand span:last-child{font-size:15px}}
+
+.undoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:90;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 18px 50px rgba(15,23,42,.28);max-width:min(92vw,620px)}
+.undoBar.hidden{display:none}.undoBar button{border:0;background:#fff;color:#0f172a;border-radius:8px;padding:8px 10px;font-weight:850}
+.thumb{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#f8fafc}
+.photoPreview{width:110px;height:110px;border-radius:14px;object-fit:cover;border:1px solid var(--line);background:#f8fafc;display:none}
+.showActions{display:flex;gap:6px;flex-wrap:wrap}.detailsBox{margin-top:14px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px}
+.pricePill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 8px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:850;border:1px solid #fed7aa}
+
 </style>
 </head>
 <body>
@@ -262,6 +270,11 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
             <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
             <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
             <input id="pPrice" class="input" type="number" step=".01" placeholder="Default sell price">
+            <label class="btn btnGhost" style="display:flex;align-items:center;justify-content:center">
+              📷 Add / take photo
+              <input id="pPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="previewProductPhoto(this)">
+            </label>
+            <img id="pPhotoPreview" class="photoPreview" alt="Product preview">
             <button class="btn btnPrimary" onclick="addProduct()">Add / update product</button>
           </div>
         </div>
@@ -312,6 +325,10 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
             <button class="btn btnGhost" onclick="exportJSON()">Export backup</button>
             <button class="btn btnGhost" onclick="signOut()">Sign out</button>
           </div>
+          <div class="detailsBox">
+            <strong>TCGplayer price lookup</strong>
+            <p class="small" style="margin-bottom:0">Inventory items include a one-click TCGplayer search. Fully automatic TCGplayer market prices require authorized TCGplayer API access and a secure server-side integration; VendorTracker does not scrape TCGplayer.</p>
+          </div>
         </div>
       </section>
     </main>
@@ -326,6 +343,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
   </nav>
 </div>
 
+<div id="undoBar" class="undoBar hidden"><span id="undoText">Change saved</span><button onclick="undoLast()">Undo</button></div>
 <div id="toast" class="toast hidden"></div>
 
 <script>
@@ -336,6 +354,8 @@ const LOCAL_PREFIX="vendortracker_cache_";
 
 let sb=null,user=null,authMode="signin",saveTimer=null,lastCloudUpdate=null,isPulling=false;
 let db=blankDB();
+let undoStack=[];
+let pendingPhotoData="";
 
 function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null}}
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
@@ -345,6 +365,63 @@ function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),2200)}
 function setMsg(el,msg,type=""){el.textContent=msg;el.className="authMsg"+(type?" "+type:"")}
 function setSync(ok,text){const b=document.getElementById("syncBadge");if(!b)return;b.textContent=(ok?"● ":"● ")+text;b.className="syncPill"+(ok?"":" bad")}
+
+
+function deepClone(v){return JSON.parse(JSON.stringify(v))}
+function pushUndo(label){
+  undoStack.push({label,state:deepClone(db)});
+  if(undoStack.length>25)undoStack.shift();
+  const bar=document.getElementById("undoBar");
+  document.getElementById("undoText").textContent=label;
+  bar.classList.remove("hidden");
+}
+function undoLast(){
+  const item=undoStack.pop();
+  if(!item){document.getElementById("undoBar").classList.add("hidden");return}
+  db=item.state;
+  save();
+  toast("Reverted: "+item.label);
+  if(!undoStack.length)document.getElementById("undoBar").classList.add("hidden");
+  else document.getElementById("undoText").textContent=undoStack[undoStack.length-1].label;
+}
+function clearUndo(){undoStack=[];const b=document.getElementById("undoBar");if(b)b.classList.add("hidden")}
+function tcgLookup(name){
+  const q=encodeURIComponent(name);
+  window.open("https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid","_blank","noopener");
+}
+async function fileToCompressedDataURL(file,maxSize=720,quality=.78){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=reject;
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=reject;
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        const scale=Math.min(1,maxSize/Math.max(w,h));
+        w=Math.round(w*scale);h=Math.round(h*scale);
+        const c=document.createElement("canvas");c.width=w;c.height=h;
+        c.getContext("2d").drawImage(img,0,0,w,h);
+        resolve(c.toDataURL("image/jpeg",quality));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function previewProductPhoto(input){
+  const file=input.files?.[0];if(!file)return;
+  try{
+    pendingPhotoData=await fileToCompressedDataURL(file);
+    const img=document.getElementById("pPhotoPreview");
+    img.src=pendingPhotoData;img.style.display="block";
+  }catch(e){toast("Could not process photo")}
+}
+function clearProductPhotoForm(){
+  pendingPhotoData="";
+  const inp=document.getElementById("pPhoto");if(inp)inp.value="";
+  const img=document.getElementById("pPhotoPreview");if(img){img.src="";img.style.display="none"}
+}
 
 function showOnly(id){
  ["publicSite","authView","forgotView","recoveryView","app"].forEach(x=>document.getElementById(x).classList.add("hidden"));
@@ -507,6 +584,7 @@ async function finishPasswordReset(){
 }
 
 async function enterApp(){
+ clearUndo();
  if(!user?.email_confirmed_at){await sb.auth.signOut();openAuth("signin");return}
  showOnly("app");
  document.getElementById("accountEmail").textContent=user.email;
@@ -517,6 +595,7 @@ async function enterApp(){
 }
 
 async function signOut(){
+ clearUndo();
  db=blankDB();user=null;
  await sb.auth.signOut();
  showOnly("publicSite");
@@ -542,6 +621,7 @@ async function pullCloud(showMsg=false){
 }
 
 function save(){
+ db.shows.forEach(sh=>recalcClosedShow(sh.id));
  const key=localKey();
  if(key)localStorage.setItem(key,JSON.stringify(db));
  renderAll();setSync(true,"Saving…");
@@ -564,14 +644,17 @@ function go(id,btn){
 
 function startShow(){
  const n=document.getElementById("showName").value.trim()||"Unnamed Show";
+ pushUndo(db.currentShow?"Update show name":"Start show");
  if(db.currentShow)db.currentShow.name=n;else db.currentShow={id:uid(),name:n,start:new Date().toISOString()};
- save();toast("Show started");
+ save();toast(db.currentShow?"Show active":"Show started");
 }
+
 function closeShow(){
  if(!db.currentShow)return toast("No active show to close");
- const s=db.currentShow,sales=db.sales.filter(x=>x.showId===s.id),ex=db.expenses.filter(x=>x.showId===s.id),buys=db.purchases.filter(x=>x.showId===s.id);
+ pushUndo("Close show");
+ const sh=db.currentShow,sales=db.sales.filter(x=>x.showId===sh.id),ex=db.expenses.filter(x=>x.showId===sh.id),buys=db.purchases.filter(x=>x.showId===sh.id);
  const revenue=sales.reduce((a,x)=>a+x.total,0),cogs=sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=ex.reduce((a,x)=>a+x.amount,0),purchases=buys.reduce((a,x)=>a+x.total,0);
- db.shows.unshift({...s,end:new Date().toISOString(),revenue,cogs,expenses,purchases,profit:revenue-cogs-expenses});
+ db.shows.unshift({...sh,end:new Date().toISOString(),revenue,cogs,expenses,purchases,profit:revenue-cogs-expenses});
  db.currentShow=null;save();toast("Show closed");
 }
 
@@ -579,8 +662,15 @@ function addProduct(){
  const name=document.getElementById("pName").value.trim();if(!name)return toast("Enter a product name");
  const qty=Number(document.getElementById("pQty").value||0),cost=Number(document.getElementById("pCost").value||0),price=Number(document.getElementById("pPrice").value||0);
  let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase());
- if(p){p.qty+=qty;if(cost)p.cost=cost;if(price)p.price=price}else db.products.push({id:uid(),name,qty,cost,price});
+ pushUndo(p?"Update inventory item":"Add inventory item");
+ if(p){
+   p.qty+=qty;
+   if(cost)p.cost=cost;
+   if(price)p.price=price;
+   if(pendingPhotoData)p.photo=pendingPhotoData;
+ }else db.products.push({id:uid(),name,qty,cost,price,photo:pendingPhotoData||""});
  ["pName","pQty","pCost","pPrice"].forEach(id=>document.getElementById(id).value="");
+ clearProductPhotoForm();
  save();toast("Inventory updated");
 }
 
@@ -588,6 +678,7 @@ function sell(id,payment){
  const p=db.products.find(x=>x.id===id),qty=Math.max(1,Number(document.getElementById("saleQty").value||1));
  if(!p||p.qty<qty)return toast("Not enough inventory");
  const price=Number(document.getElementById("salePrice").value||p.price);
+ pushUndo("Record sale");
  p.qty-=qty;
  db.sales.unshift({id:uid(),productId:p.id,name:p.name,qty,price,total:price*qty,cost:p.cost,payment,time:new Date().toISOString(),showId:db.currentShow?.id||null});
  document.getElementById("salePrice").value="";document.getElementById("saleQty").value=1;save();toast("Sale recorded");
@@ -596,8 +687,9 @@ function sell(id,payment){
 function recordPurchase(){
  const id=document.getElementById("buyProduct").value,name=document.getElementById("buyName").value.trim(),qty=Number(document.getElementById("buyQty").value),total=Number(document.getElementById("buyTotal").value);
  let p=id?db.products.find(x=>x.id===id):db.products.find(x=>x.name.toLowerCase()===name.toLowerCase());
- if(!p){if(!name)return toast("Choose or name a product");p={id:uid(),name,qty:0,cost:0,price:0};db.products.push(p)}
+ if(!p){if(!name)return toast("Choose or name a product");p={id:uid(),name,qty:0,cost:0,price:0,photo:""};db.products.push(p)}
  if(!qty||!total)return toast("Enter quantity and total cost");
+ pushUndo("Record purchase");
  p.qty+=qty;p.cost=total/qty;
  db.purchases.unshift({id:uid(),productId:p.id,name:p.name,qty,total,source:document.getElementById("buySource").value.trim(),payment:document.getElementById("buyPayment").value,time:new Date().toISOString(),showId:db.currentShow?.id||null});
  ["buyName","buyQty","buyTotal","buySource"].forEach(id=>document.getElementById(id).value="");save();toast("Purchase recorded");
@@ -606,12 +698,14 @@ function recordPurchase(){
 function recordExpense(){
  const name=document.getElementById("expName").value.trim(),amount=Number(document.getElementById("expAmount").value);
  if(!name||!amount)return toast("Enter expense and amount");
+ pushUndo("Add expense");
  db.expenses.unshift({id:uid(),name,amount,payment:document.getElementById("expPayment").value,time:new Date().toISOString(),showId:db.currentShow?.id||null});
  document.getElementById("expName").value="";document.getElementById("expAmount").value="";save();toast("Expense added");
 }
 
 function updateRecentSale(id){
  const sale=db.sales.find(x=>x.id===id);if(!sale)return;
+ pushUndo("Edit sale");
  const qty=Math.max(1,Number(document.getElementById("sale_qty_"+id).value||1)),total=Math.max(0,Number(document.getElementById("sale_total_"+id).value||0)),payment=document.getElementById("sale_payment_"+id).value;
  const product=db.products.find(p=>p.id===sale.productId);
  if(product){
@@ -625,6 +719,7 @@ function updateRecentSale(id){
 function deleteRecentSale(id){
  const sale=db.sales.find(x=>x.id===id);if(!sale)return;
  if(!confirm("Delete this sale? The quantity will be returned to inventory."))return;
+ pushUndo("Delete sale");
  const product=db.products.find(p=>p.id===sale.productId);if(product)product.qty+=sale.qty;
  db.sales=db.sales.filter(x=>x.id!==id);save();toast("Sale deleted");
 }
@@ -632,10 +727,43 @@ function deleteRecentSale(id){
 function deleteProduct(id){
  const p=db.products.find(x=>x.id===id);if(!p)return;
  if(!confirm("Delete "+p.name+" from inventory?"))return;
+ pushUndo("Delete inventory item");
  db.products=db.products.filter(x=>x.id!==id);save();
 }
-function deletePurchase(id){if(!confirm("Delete this purchase record?"))return;db.purchases=db.purchases.filter(x=>x.id!==id);save()}
-function deleteExpense(id){if(!confirm("Delete this expense?"))return;db.expenses=db.expenses.filter(x=>x.id!==id);save()}
+function deletePurchase(id){
+ const x=db.purchases.find(v=>v.id===id);if(!x||!confirm("Delete this purchase record? Inventory quantity will be reduced by the purchased amount."))return;
+ pushUndo("Delete purchase");
+ const p=db.products.find(v=>v.id===x.productId);if(p)p.qty=Math.max(0,p.qty-x.qty);
+ db.purchases=db.purchases.filter(v=>v.id!==id);save();
+}
+function deleteExpense(id){
+ if(!confirm("Delete this expense?"))return;
+ pushUndo("Delete expense");db.expenses=db.expenses.filter(x=>x.id!==id);save();
+}
+function saveShowName(id){
+ const sh=db.shows.find(x=>x.id===id);if(!sh)return;
+ const input=document.getElementById("show_name_"+id);const name=input.value.trim();
+ if(!name)return toast("Show name cannot be blank");
+ pushUndo("Rename show");sh.name=name;save();toast("Show renamed");
+}
+function deleteShow(id){
+ const sh=db.shows.find(x=>x.id===id);if(!sh)return;
+ if(!confirm("Delete this show record? Transactions will remain in Sales/Purchases/Expenses, but they will no longer be grouped under this closed show."))return;
+ pushUndo("Delete show");db.shows=db.shows.filter(x=>x.id!==id);save();toast("Show deleted");
+}
+function toggleShowDetails(id){
+ const el=document.getElementById("show_details_"+id);if(el)el.classList.toggle("hidden");
+}
+function recalcClosedShow(id){
+ const sh=db.shows.find(x=>x.id===id);if(!sh)return;
+ const sales=db.sales.filter(x=>x.showId===id),ex=db.expenses.filter(x=>x.showId===id),buys=db.purchases.filter(x=>x.showId===id);
+ sh.revenue=sales.reduce((a,x)=>a+x.total,0);
+ sh.cogs=sales.reduce((a,x)=>a+x.cost*x.qty,0);
+ sh.expenses=ex.reduce((a,x)=>a+x.amount,0);
+ sh.purchases=buys.reduce((a,x)=>a+x.total,0);
+ sh.profit=sh.revenue-sh.cogs-sh.expenses;
+}
+
 
 function renderDashboard(){
  const revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=db.expenses.reduce((a,x)=>a+x.amount,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);
@@ -659,11 +787,24 @@ function renderDashboard(){
 function renderSaleProducts(){
  const q=(document.getElementById("saleSearch")?.value||"").toLowerCase();
  const arr=db.products.filter(p=>p.name.toLowerCase().includes(q));
- document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>`<div class="productCard"><h4>${esc(p.name)}</h4><div class="small">${money(p.price)} default price • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div><div class="paymentBtns"><button class="cash" onclick="sell('${p.id}','Cash')">Cash</button><button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button><button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button></div></div>`).join(""):`<div class="empty">No matching products.</div>`;
+ document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>`<div class="productCard">
+ ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:10px">`:""}
+ <h4>${esc(p.name)}</h4>
+ <div class="small">${money(p.price)} default price • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
+ <div style="margin-top:8px"><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>Check TCGplayer price ↗</button></div>
+ <div class="paymentBtns"><button class="cash" onclick="sell('${p.id}','Cash')">Cash</button><button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button><button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button></div>
+ </div>`).join(""):`<div class="empty">No matching products.</div>`;
 }
 
 function renderInventory(){
- document.getElementById("inventoryTable").innerHTML=db.products.length?`<div class="tableWrap"><table><tr><th>Product</th><th>Qty</th><th>Cost</th><th>Sell price</th><th>Stock value</th><th></th></tr>${db.products.map(p=>`<tr><td><strong>${esc(p.name)}</strong></td><td class="${p.qty<3?"stockLow":""}">${p.qty}</td><td>${money(p.cost)}</td><td>${money(p.price)}</td><td>${money(p.qty*p.cost)}</td><td><button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No inventory yet.</div>`;
+ document.getElementById("inventoryTable").innerHTML=db.products.length?`<div class="tableWrap"><table><tr><th>Photo</th><th>Product</th><th>Qty</th><th>Cost</th><th>Sell price</th><th>Stock value</th><th>Price check</th><th></th></tr>${db.products.map(p=>`<tr>
+ <td>${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
+ <td><strong>${esc(p.name)}</strong></td>
+ <td class="${p.qty<3?"stockLow":""}">${p.qty}</td>
+ <td>${money(p.cost)}</td><td>${money(p.price)}</td><td>${money(p.qty*p.cost)}</td>
+ <td><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button></td>
+ <td><button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button></td>
+ </tr>`).join("")}</table></div>`:`<div class="empty">No inventory yet.</div>`;
 }
 
 function renderPurchases(){
@@ -676,7 +817,44 @@ function renderExpenses(){
 }
 
 function renderShows(){
- document.getElementById("showTable").innerHTML=db.shows.length?`<div class="tableWrap"><table><tr><th>Show</th><th>Date</th><th>Sales</th><th>COGS</th><th>Expenses</th><th>Net profit</th></tr>${db.shows.map(x=>`<tr><td><strong>${esc(x.name)}</strong></td><td>${new Date(x.start).toLocaleDateString()}</td><td>${money(x.revenue)}</td><td>${money(x.cogs)}</td><td>${money(x.expenses)}</td><td><strong>${money(x.profit)}</strong></td></tr>`).join("")}</table></div>`:`<div class="empty">No closed shows yet.</div>`;
+ if(!db.shows.length){
+   document.getElementById("showTable").innerHTML=`<div class="empty">No closed shows yet.</div>`;return;
+ }
+ document.getElementById("showTable").innerHTML=db.shows.map(sh=>{
+   const sales=db.sales.filter(x=>x.showId===sh.id),purchases=db.purchases.filter(x=>x.showId===sh.id),expenses=db.expenses.filter(x=>x.showId===sh.id);
+   const cash=sales.filter(x=>x.payment==="Cash").reduce((a,x)=>a+x.total,0);
+   const ca=sales.filter(x=>x.payment==="Cash App").reduce((a,x)=>a+x.total,0);
+   const zelle=sales.filter(x=>x.payment==="Zelle").reduce((a,x)=>a+x.total,0);
+   return `<div class="panel" style="margin-top:0;margin-bottom:14px">
+    <div class="panelHead">
+      <div style="flex:1">
+        <input id="show_name_${sh.id}" class="input" value="${esc(sh.name)}" style="max-width:360px;font-weight:800">
+        <div class="small" style="margin-top:6px">${new Date(sh.start).toLocaleString()} → ${sh.end?new Date(sh.end).toLocaleString():""}</div>
+      </div>
+      <div class="showActions">
+        <button class="miniBtn btnSuccess" onclick="saveShowName('${sh.id}')">Save name</button>
+        <button class="miniBtn btnSoft" onclick="toggleShowDetails('${sh.id}')">Details</button>
+        <button class="miniBtn btnDanger" onclick="deleteShow('${sh.id}')">Delete</button>
+      </div>
+    </div>
+    <div class="cards" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+      <div class="metric"><div class="metricLabel">Sales</div><div class="metricValue">${money(sh.revenue)}</div></div>
+      <div class="metric"><div class="metricLabel">Net profit</div><div class="metricValue">${money(sh.profit)}</div></div>
+      <div class="metric"><div class="metricLabel">Cash</div><div class="metricValue">${money(cash)}</div></div>
+      <div class="metric"><div class="metricLabel">Cash App</div><div class="metricValue">${money(ca)}</div></div>
+      <div class="metric"><div class="metricLabel">Zelle</div><div class="metricValue">${money(zelle)}</div></div>
+      <div class="metric"><div class="metricLabel">Items sold</div><div class="metricValue">${sales.reduce((a,x)=>a+x.qty,0)}</div></div>
+    </div>
+    <div id="show_details_${sh.id}" class="detailsBox hidden">
+      <h4>Sales</h4>
+      ${sales.length?`<div class="tableWrap"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th></th></tr>${sales.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteRecentSale('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">No sales.</div>`}
+      <h4>Purchases</h4>
+      ${purchases.length?`<div class="tableWrap"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th></th></tr>${purchases.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">No purchases.</div>`}
+      <h4>Expenses</h4>
+      ${expenses.length?`<div class="tableWrap"><table><tr><th>Expense</th><th>Amount</th><th>Payment</th><th></th></tr>${expenses.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">No expenses.</div>`}
+    </div>
+   </div>`;
+ }).join("");
 }
 
 function exportJSON(){
