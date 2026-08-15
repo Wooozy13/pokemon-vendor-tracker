@@ -47,6 +47,17 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .showActions{display:flex;gap:6px;flex-wrap:wrap}.detailsBox{margin-top:14px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px}
 .pricePill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 8px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:850;border:1px solid #fed7aa}
 
+
+.lookupRow{display:flex;gap:8px;align-items:center}.lookupRow .input{flex:1}
+.modalBack{position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);display:grid;place-items:center;padding:18px;z-index:120}
+.modalBack.hidden{display:none}.modal{width:min(980px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;border:1px solid var(--line);box-shadow:0 30px 90px rgba(15,23,42,.35)}
+.modalHead{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;z-index:2}
+.modalHead h2{margin:0;font-size:22px}.modalBody{padding:18px}.cardPickGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.cardPick{border:1px solid var(--line);border-radius:15px;padding:12px;background:#fff;transition:.15s}.cardPick:hover{border-color:#93c5fd;box-shadow:0 8px 24px rgba(37,99,235,.1);transform:translateY(-1px)}
+.cardPick img{width:100%;aspect-ratio:2.5/3.5;object-fit:contain;background:#f8fafc;border-radius:10px}.cardPick h4{margin:10px 0 3px}.cardPick .meta{font-size:12px;color:var(--muted);line-height:1.45}
+.priceBox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px}.priceBox strong{display:block;font-size:18px;margin-top:3px}.apiStatus{font-size:12px;color:var(--muted);margin-top:8px}
+.marketGood{color:#166534;font-weight:850}.marketNone{color:#94a3b8}
+
 </style>
 </head>
 <body>
@@ -266,12 +277,33 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
         <div class="pageHeader"><div><h1>Inventory</h1><p>Add products and see what you currently have on hand.</p></div></div>
         <div class="panel">
           <div class="grid">
-            <input id="pName" class="input" placeholder="Product name">
+            <div style="grid-column:span 2">
+              <div class="lookupRow">
+                <input id="pName" class="input" placeholder="Product / card name">
+                <button class="btn btnSoft" type="button" onclick="searchPokemonCards()">Find card</button>
+              </div>
+              <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, type a name/card number and click Find card to pull artwork and TCGplayer pricing.</div>
+            </div>
             <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
             <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
-            <input id="pPrice" class="input" type="number" step=".01" placeholder="Default sell price">
+            <input id="pPrice" class="input" type="number" step=".01" placeholder="Your sell price">
+            <select id="pCondition" class="input">
+              <option>Near Mint</option>
+              <option>Lightly Played</option>
+              <option>Moderately Played</option>
+              <option>Heavily Played</option>
+              <option>Damaged</option>
+            </select>
+            <select id="pFinish" class="input" onchange="updatePendingMarketFromFinish()">
+              <option value="">Printing / finish</option>
+            </select>
+            <div class="priceBox">
+              <span class="small">TCGplayer Market</span>
+              <strong id="pMarketDisplay">—</strong>
+              <span id="pMarketUpdated" class="small"></span>
+            </div>
             <label class="btn btnGhost" style="display:flex;align-items:center;justify-content:center">
-              📷 Add / take photo
+              📷 Use own photo
               <input id="pPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="previewProductPhoto(this)">
             </label>
             <img id="pPhotoPreview" class="photoPreview" alt="Product preview">
@@ -327,7 +359,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
           </div>
           <div class="detailsBox">
             <strong>TCGplayer price lookup</strong>
-            <p class="small" style="margin-bottom:0">Inventory items include a one-click TCGplayer search. Fully automatic TCGplayer market prices require authorized TCGplayer API access and a secure server-side integration; VendorTracker does not scrape TCGplayer.</p>
+            <p class="small" style="margin-bottom:0">Pokémon singles can use the Pokémon TCG API for card artwork and TCGplayer-provided market pricing by printing/finish. Conditions are stored separately because the feed does not expose NM/LP/MP/HP/Damaged TCGplayer prices. VendorTracker does not scrape TCGplayer.</p>
           </div>
         </div>
       </section>
@@ -343,6 +375,19 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
   </nav>
 </div>
 
+
+<div id="cardLookupModal" class="modalBack hidden">
+  <div class="modal">
+    <div class="modalHead">
+      <div><h2>Select the correct card</h2><div class="small" id="lookupSummary">Choose the matching artwork/set.</div></div>
+      <button class="btn btnGhost" onclick="closeCardLookup()">Close</button>
+    </div>
+    <div class="modalBody">
+      <div id="cardLookupResults" class="cardPickGrid"></div>
+    </div>
+  </div>
+</div>
+
 <div id="undoBar" class="undoBar hidden"><span id="undoText">Change saved</span><button onclick="undoLast()">Undo</button></div>
 <div id="toast" class="toast hidden"></div>
 
@@ -356,6 +401,8 @@ let sb=null,user=null,authMode="signin",saveTimer=null,lastCloudUpdate=null,isPu
 let db=blankDB();
 let undoStack=[];
 let pendingPhotoData="";
+let pendingCardData=null;
+let currentLookupResults=[];
 
 function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null}}
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
@@ -409,6 +456,129 @@ async function fileToCompressedDataURL(file,maxSize=720,quality=.78){
     reader.readAsDataURL(file);
   });
 }
+
+function prettyFinish(k){
+  return ({normal:"Normal",holofoil:"Holofoil",reverseHolofoil:"Reverse Holofoil",1stEditionHolofoil:"1st Edition Holofoil",1stEditionNormal:"1st Edition Normal"})[k]||k;
+}
+function currentMarketFromPrices(prices,finish){
+  const p=prices?.[finish];
+  return p?.market ?? p?.mid ?? p?.low ?? null;
+}
+function resetCardMetadata(){
+  pendingCardData=null;
+  const f=document.getElementById("pFinish");
+  if(f)f.innerHTML='<option value="">Printing / finish</option>';
+  const d=document.getElementById("pMarketDisplay");if(d)d.textContent="—";
+  const u=document.getElementById("pMarketUpdated");if(u)u.textContent="";
+}
+function buildPokemonQuery(raw){
+  raw=(raw||"").trim();
+  if(!raw)return "";
+  // Pull a collector number from inputs such as "Charizard ex 199/165" or "#199".
+  const numMatch=raw.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)(?:\/\d+)?\s*$/);
+  let number="", name=raw;
+  if(numMatch){
+    number=numMatch[1];
+    name=raw.slice(0,numMatch.index).trim();
+  }
+  name=name.replace(/[:"()]/g," ").replace(/\s+/g," ").trim();
+  const parts=[];
+  if(name)parts.push(`name:"${name}"`);
+  if(number)parts.push(`number:${number}`);
+  return parts.join(" ");
+}
+async function searchPokemonCards(){
+  const raw=document.getElementById("pName").value.trim();
+  const status=document.getElementById("cardLookupStatus");
+  if(!raw){status.textContent="Enter a card name first.";return}
+  status.textContent="Searching Pokémon card database…";
+  try{
+    let query=buildPokemonQuery(raw);
+    let url="https://api.pokemontcg.io/v2/cards?pageSize=40&orderBy=-set.releaseDate&q="+encodeURIComponent(query);
+    let r=await fetch(url);
+    if(!r.ok)throw new Error("Lookup returned "+r.status);
+    let j=await r.json();
+    let cards=j.data||[];
+
+    // If name+number was too strict, fall back to name-only.
+    if(!cards.length){
+      const loose=raw.replace(/\s+\S+\/\S+\s*$/,"").replace(/\s+#?\d+\s*$/,"").trim();
+      if(loose){
+        r=await fetch("https://api.pokemontcg.io/v2/cards?pageSize=40&orderBy=-set.releaseDate&q="+encodeURIComponent(`name:"${loose.replace(/"/g,"")}"`));
+        if(r.ok){j=await r.json();cards=j.data||[]}
+      }
+    }
+
+    currentLookupResults=cards;
+    if(!cards.length){status.textContent="No Pokémon cards found. Try just the card name or add the card number.";return}
+    status.textContent=`Found ${cards.length} possible match${cards.length===1?"":"es"}.`;
+    renderCardLookup(cards);
+    document.getElementById("cardLookupModal").classList.remove("hidden");
+  }catch(e){
+    status.textContent="Card lookup failed. You can still add the item manually or use your own photo.";
+  }
+}
+function renderCardLookup(cards){
+  document.getElementById("lookupSummary").textContent=`${cards.length} result${cards.length===1?"":"s"} — compare artwork, set and card number.`;
+  document.getElementById("cardLookupResults").innerHTML=cards.map((c,i)=>{
+    const prices=c.tcgplayer?.prices||{};
+    const priceParts=Object.entries(prices).map(([k,v])=>`${prettyFinish(k)} ${v?.market!=null?money(v.market):"—"}`).join(" • ");
+    return `<button class="cardPick" onclick="selectPokemonCard(${i})" style="text-align:left;cursor:pointer">
+      <img src="${esc(c.images?.small||c.images?.large||"")}" alt="${esc(c.name)}">
+      <h4>${esc(c.name)}</h4>
+      <div class="meta">${esc(c.set?.name||"Unknown set")} • #${esc(c.number||"—")}<br>${esc(c.rarity||"")}</div>
+      <div class="meta" style="margin-top:7px">${priceParts||"No TCGplayer price available"}</div>
+    </button>`;
+  }).join("");
+}
+function closeCardLookup(){document.getElementById("cardLookupModal").classList.add("hidden")}
+function selectPokemonCard(i){
+  const c=currentLookupResults[i];if(!c)return;
+  pendingCardData={
+    pokemonCardId:c.id,
+    setName:c.set?.name||"",
+    setId:c.set?.id||"",
+    cardNumber:c.number||"",
+    rarity:c.rarity||"",
+    image:c.images?.large||c.images?.small||"",
+    tcgUrl:c.tcgplayer?.url||"",
+    tcgUpdatedAt:c.tcgplayer?.updatedAt||"",
+    tcgPrices:c.tcgplayer?.prices||{}
+  };
+  document.getElementById("pName").value=`${c.name} — ${c.set?.name||""} #${c.number||""}`.trim();
+  pendingPhotoData=pendingCardData.image||"";
+  const img=document.getElementById("pPhotoPreview");
+  if(pendingPhotoData){img.src=pendingPhotoData;img.style.display="block"}
+  const f=document.getElementById("pFinish");
+  const keys=Object.keys(pendingCardData.tcgPrices||{});
+  f.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No TCGplayer printing price</option>';
+  if(keys.length)f.value=keys.includes("holofoil")?"holofoil":keys[0];
+  updatePendingMarketFromFinish();
+  document.getElementById("cardLookupStatus").textContent=`Selected ${c.set?.name||""} #${c.number||""}. Artwork and TCGplayer pricing loaded.`;
+  closeCardLookup();
+}
+function updatePendingMarketFromFinish(){
+  const finish=document.getElementById("pFinish")?.value||"";
+  const market=currentMarketFromPrices(pendingCardData?.tcgPrices,finish);
+  document.getElementById("pMarketDisplay").textContent=market!=null?money(market):"—";
+  document.getElementById("pMarketUpdated").textContent=pendingCardData?.tcgUpdatedAt?`Price data updated ${pendingCardData.tcgUpdatedAt}`:"";
+}
+function updateInventoryCondition(id){
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  pushUndo("Update card condition");
+  p.condition=document.getElementById("inv_condition_"+id).value;
+  const finishEl=document.getElementById("inv_finish_"+id);
+  if(finishEl)p.finish=finishEl.value;
+  p.tcgMarket=currentMarketFromPrices(p.tcgPrices,p.finish);
+  save();toast("Card condition updated");
+}
+function useMarketAsSellPrice(id){
+  const p=db.products.find(x=>x.id===id);if(!p||p.tcgMarket==null)return;
+  pushUndo("Set sell price from market");
+  p.price=Number(p.tcgMarket);
+  save();toast("Sell price set to TCGplayer market");
+}
+
 async function previewProductPhoto(input){
   const file=input.files?.[0];if(!file)return;
   try{
@@ -419,8 +589,12 @@ async function previewProductPhoto(input){
 }
 function clearProductPhotoForm(){
   pendingPhotoData="";
+  pendingCardData=null;
   const inp=document.getElementById("pPhoto");if(inp)inp.value="";
   const img=document.getElementById("pPhotoPreview");if(img){img.src="";img.style.display="none"}
+  const finish=document.getElementById("pFinish");if(finish)finish.innerHTML='<option value="">Printing / finish</option>';
+  const market=document.getElementById("pMarketDisplay");if(market)market.textContent="—";
+  const updated=document.getElementById("pMarketUpdated");if(updated)updated.textContent="";
 }
 
 function showOnly(id){
@@ -660,16 +834,45 @@ function closeShow(){
 
 function addProduct(){
  const name=document.getElementById("pName").value.trim();if(!name)return toast("Enter a product name");
- const qty=Number(document.getElementById("pQty").value||0),cost=Number(document.getElementById("pCost").value||0),price=Number(document.getElementById("pPrice").value||0);
- let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase());
+ const qty=Number(document.getElementById("pQty").value||0),
+       cost=Number(document.getElementById("pCost").value||0),
+       price=Number(document.getElementById("pPrice").value||0),
+       condition=document.getElementById("pCondition").value,
+       finish=document.getElementById("pFinish").value;
+ let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase() && (x.condition||"Near Mint")===condition && (x.finish||"")===finish);
  pushUndo(p?"Update inventory item":"Add inventory item");
+ const market=currentMarketFromPrices(pendingCardData?.tcgPrices,finish);
+ const meta=pendingCardData?deepClone(pendingCardData):null;
  if(p){
    p.qty+=qty;
    if(cost)p.cost=cost;
    if(price)p.price=price;
+   p.condition=condition;
+   p.finish=finish||p.finish||"";
    if(pendingPhotoData)p.photo=pendingPhotoData;
- }else db.products.push({id:uid(),name,qty,cost,price,photo:pendingPhotoData||""});
+   if(meta){
+     Object.assign(p,meta);
+     p.finish=finish;
+     p.tcgMarket=market;
+   }
+ }else{
+   p={
+     id:uid(),name,qty,cost,price,photo:pendingPhotoData||"",
+     condition,finish:finish||"",
+     pokemonCardId:meta?.pokemonCardId||"",
+     setName:meta?.setName||"",
+     setId:meta?.setId||"",
+     cardNumber:meta?.cardNumber||"",
+     rarity:meta?.rarity||"",
+     tcgUrl:meta?.tcgUrl||"",
+     tcgUpdatedAt:meta?.tcgUpdatedAt||"",
+     tcgPrices:meta?.tcgPrices||{},
+     tcgMarket:market
+   };
+   db.products.push(p);
+ }
  ["pName","pQty","pCost","pPrice"].forEach(id=>document.getElementById(id).value="");
+ document.getElementById("pCondition").value="Near Mint";
  clearProductPhotoForm();
  save();toast("Inventory updated");
 }
@@ -787,24 +990,48 @@ function renderDashboard(){
 function renderSaleProducts(){
  const q=(document.getElementById("saleSearch")?.value||"").toLowerCase();
  const arr=db.products.filter(p=>p.name.toLowerCase().includes(q));
- document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>`<div class="productCard">
- ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:10px">`:""}
- <h4>${esc(p.name)}</h4>
- <div class="small">${money(p.price)} default price • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
- <div style="margin-top:8px"><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>Check TCGplayer price ↗</button></div>
- <div class="paymentBtns"><button class="cash" onclick="sell('${p.id}','Cash')">Cash</button><button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button><button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button></div>
- </div>`).join(""):`<div class="empty">No matching products.</div>`;
+ document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>{
+   const market=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
+   return `<div class="productCard">
+   ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:10px;margin-bottom:10px">`:""}
+   <h4>${esc(p.name)}</h4>
+   <div class="small">${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
+   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong>`:""}</div>
+   <div class="paymentBtns"><button class="cash" onclick="sell('${p.id}','Cash')">Cash</button><button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button><button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button></div>
+   </div>`;
+ }).join(""):`<div class="empty">No matching products.</div>`;
 }
 
 function renderInventory(){
- document.getElementById("inventoryTable").innerHTML=db.products.length?`<div class="tableWrap"><table><tr><th>Photo</th><th>Product</th><th>Qty</th><th>Cost</th><th>Sell price</th><th>Stock value</th><th>Price check</th><th></th></tr>${db.products.map(p=>`<tr>
- <td>${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
- <td><strong>${esc(p.name)}</strong></td>
- <td class="${p.qty<3?"stockLow":""}">${p.qty}</td>
- <td>${money(p.cost)}</td><td>${money(p.price)}</td><td>${money(p.qty*p.cost)}</td>
- <td><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button></td>
- <td><button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button></td>
- </tr>`).join("")}</table></div>`:`<div class="empty">No inventory yet.</div>`;
+ document.getElementById("inventoryTable").innerHTML=db.products.length?`<div class="tableWrap"><table>
+ <tr><th>Photo</th><th>Product</th><th>Condition</th><th>Printing</th><th>Qty</th><th>Cost</th><th>Your price</th><th>TCGplayer Market</th><th>Actions</th></tr>
+ ${db.products.map(p=>{
+   const priceKeys=Object.keys(p.tcgPrices||{});
+   const market=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
+   p.tcgMarket=market;
+   return `<tr>
+   <td>${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
+   <td><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} #${esc(p.cardNumber||"")}</div>`:""}</td>
+   <td><select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
+     ${["Near Mint","Lightly Played","Moderately Played","Heavily Played","Damaged"].map(c=>`<option ${c===(p.condition||"Near Mint")?"selected":""}>${c}</option>`).join("")}
+   </select></td>
+   <td>${priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}" onchange="updateInventoryCondition('${p.id}')">
+     ${priceKeys.map(k=>`<option value="${k}" ${k===p.finish?"selected":""}>${prettyFinish(k)}</option>`).join("")}
+   </select>`:`<span class="small">${esc(prettyFinish(p.finish||"—"))}</span>`}</td>
+   <td class="${p.qty<3?"stockLow":""}">${p.qty}</td>
+   <td>${money(p.cost)}</td>
+   <td>${money(p.price)}</td>
+   <td>${market!=null?`<span class="marketGood">${money(market)}</span>${p.tcgUpdatedAt?`<div class="small">${esc(p.tcgUpdatedAt)}</div>`:""}`:`<span class="marketNone">—</span>`}</td>
+   <td><div class="actions">
+     <button class="miniBtn btnSuccess" onclick="updateInventoryCondition('${p.id}')">Save condition</button>
+     ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
+     ${p.tcgUrl?`<button class="miniBtn btnSoft" onclick="window.open('${esc(p.tcgUrl)}','_blank','noopener')">TCGplayer ↗</button>`:`<button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)})'>TCGplayer ↗</button>`}
+     <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
+   </div></td>
+   </tr>`;
+ }).join("")}</table></div>
+ <div class="small" style="margin-top:12px"><strong>Pricing note:</strong> TCGplayer Market shown here is the exact market value returned for the selected printing/finish. TCGplayer condition-specific NM/LP/MP/HP/Damaged pricing is not exposed by this card-data feed, so condition is tracked separately rather than showing a made-up “TCGplayer” condition price.</div>`
+ :`<div class="empty">No inventory yet.</div>`;
 }
 
 function renderPurchases(){
