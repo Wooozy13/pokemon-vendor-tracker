@@ -77,10 +77,18 @@ table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}th,td{t
 <script>
 let sb=null,user=null,saveTimer=null,lastCloudUpdate=null,isPulling=false;
 let db={products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null};
-const LOCAL="pokemon_vendor_cloud_cache";
+
+function blankDB(){
+  return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null};
+}
+function localKey(){
+  return user ? LOCAL_PREFIX + user.id : null;
+}
+const LOCAL_PREFIX="pokemon_vendor_cloud_cache_";
 const PROJECT_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const PUBLISHABLE_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const SITE_URL="https://wooozy13.github.io/pokemon-vendor-tracker/";
+const APP_DATA_VERSION="v7-user-isolated";
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function money(n){return "$"+Number(n||0).toFixed(2)} function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)}
@@ -289,7 +297,12 @@ function showPasswordRecovery(){
  syncText("Choose a new password");
 }
 
-async function signOut(){await sb.auth.signOut();location.reload()}
+async function signOut(){
+ db=blankDB();
+ user=null;
+ await sb.auth.signOut();
+ location.reload();
+}
 async function enterApp(){
  if(!user?.email_confirmed_at){
    document.getElementById("authMsg").textContent="Verify your email before accessing the tracker.";
@@ -308,14 +321,52 @@ async function enterApp(){
  renderAll();
 }
 async function pullCloud(showMsg=false){
- if(!sb||!user||isPulling)return;isPulling=true;
- let {data,error}=await sb.from("vendor_data").select("data,updated_at").eq("user_id",user.id).maybeSingle();
- isPulling=false;if(error){syncText("Sync error: "+error.message);badge(false,"Sync error");return}
- if(data){let remoteTime=new Date(data.updated_at).getTime();let localTime=lastCloudUpdate?new Date(lastCloudUpdate).getTime():0;if(remoteTime>localTime){db=data.data||db;lastCloudUpdate=data.updated_at;localStorage.setItem(LOCAL,JSON.stringify(db));renderAll()}}
- else {let cached=localStorage.getItem(LOCAL);if(cached)try{db=JSON.parse(cached)}catch{};await pushCloud()}
- badge(true,"Synced");syncText("Synced "+new Date().toLocaleTimeString());if(showMsg)alert("Cloud data refreshed.");
+ if(!sb||!user||isPulling)return;
+ isPulling=true;
+
+ let {data,error}=await sb
+   .from("vendor_data")
+   .select("data,updated_at")
+   .eq("user_id",user.id)
+   .maybeSingle();
+
+ isPulling=false;
+
+ if(error){
+   syncText("Sync error: "+error.message);
+   badge(false,"Sync error");
+   return;
+ }
+
+ const key=localKey();
+
+ if(data){
+   // Existing cloud row for THIS user is the source of truth.
+   db=data.data || blankDB();
+   lastCloudUpdate=data.updated_at;
+   if(key) localStorage.setItem(key,JSON.stringify(db));
+   renderAll();
+ } else {
+   // Brand-new account: start blank. Never copy another user's browser cache.
+   db=blankDB();
+   lastCloudUpdate=null;
+   if(key) localStorage.setItem(key,JSON.stringify(db));
+   await pushCloud();
+   renderAll();
+ }
+
+ badge(true,"Synced");
+ syncText("Synced "+new Date().toLocaleTimeString());
+ if(showMsg)alert("Cloud data refreshed.");
 }
-function save(){localStorage.setItem(LOCAL,JSON.stringify(db));renderAll();syncText("Saving…");clearTimeout(saveTimer);saveTimer=setTimeout(pushCloud,250)}
+function save(){
+ const key=localKey();
+ if(key) localStorage.setItem(key,JSON.stringify(db));
+ renderAll();
+ syncText("Saving…");
+ clearTimeout(saveTimer);
+ saveTimer=setTimeout(pushCloud,250);
+}
 async function pushCloud(){
  if(!sb||!user)return;let stamp=new Date().toISOString();
  let {data,error}=await sb.from("vendor_data").upsert({user_id:user.id,data:db,updated_at:stamp},{onConflict:"user_id"}).select("updated_at").single();
