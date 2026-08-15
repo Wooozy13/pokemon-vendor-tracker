@@ -1,0 +1,36 @@
+name: Fix Supabase key
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-supabase-key.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore working Supabase publishable key
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('const SUPABASE_ANON_KEY="sb_publishable_0Eo__QsO3XmkkgpZZlgiwA_9C2TDQmp";','const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";')
+          s=s.replace('const PUBLISHABLE_KEY="sb_publishable_0Eo__QsO3XmkkgpZZlgiwA_9C2TDQmp";','const PUBLISHABLE_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No change needed"
+          else
+            git commit -m "Restore working Supabase key"
+            git push
+          fi
