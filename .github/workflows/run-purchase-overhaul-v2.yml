@@ -1,0 +1,56 @@
+name: Run Purchases overhaul v2
+
+on:
+  push:
+    paths:
+      - '.github/purchases-overhaul-v2.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply purchase overhaul script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          wf=Path('.github/workflows/apply-purchase-batches.yml').read_text(encoding='utf-8')
+          marker="          python - <<'PY'\n"
+          start=wf.index(marker)+len(marker)
+          end=wf.index("\n          PY", start)
+          raw=wf[start:end]
+          lines=[]
+          for line in raw.splitlines():
+              lines.append(line[10:] if line.startswith('          ') else line)
+          script='\n'.join(lines)
+          exec(compile(script,'purchase-overhaul','exec'),{})
+          PY
+      - name: Set build v11.23
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          s=re.sub(r'const APP_VERSION="[^"]+";', 'const APP_VERSION="v11.23";', s, count=1)
+          s=s.replace('v11.22</span> · Updated Aug 15, 2026','v11.23</span> · Updated Aug 15, 2026')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify purchase UI and logic
+        run: |
+          grep -q 'Purchase batch details' index.html
+          grep -q 'buyTypeCardBtn' index.html
+          grep -q 'buyTypeSealedBtn' index.html
+          grep -q 'searchPurchaseItem' index.html
+          grep -q 'purchaseBatchItems' index.html
+          grep -q 'savePurchaseBatch' index.html
+          grep -q 'Purchase history' index.html
+      - name: Commit updated site
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Apply Purchases overhaul v11.23"
+          git push
