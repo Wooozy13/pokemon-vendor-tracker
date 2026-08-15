@@ -1,0 +1,260 @@
+name: Apply purchase lookup upgrade
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-purchase-lookup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upgrade Purchases lookup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          old='''      <section id="purchases" class="page">
+        <div class="pageHeader"><div><h1>Purchases</h1><p>Track stock you buy and automatically increase inventory.</p></div></div>
+        <div class="panel"><div class="grid"><select id="buyProduct" class="input"></select><input id="buyName" class="input" placeholder="Or new product name"><input id="buyQty" class="input" type="number" min="1" placeholder="Quantity"><input id="buyTotal" class="input" type="number" step=".01" placeholder="Total paid"><input id="buySource" class="input" placeholder="Source / vendor"><select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select><button class="btn btnPrimary" onclick="recordPurchase()">Record purchase</button></div></div>
+        <div class="panel"><div id="purchaseTable"></div></div>
+      </section>'''
+          new='''      <section id="purchases" class="page">
+        <div class="pageHeader"><div><h1>Purchases</h1><p>Look up cards or sealed products, record what you paid, and add them to inventory with full product data.</p></div></div>
+        <div class="panel">
+          <div class="typeToggle" style="max-width:420px;margin-bottom:12px">
+            <button id="buyTypeCardBtn" class="active" type="button" onclick="setPurchaseType('card')">Card</button>
+            <button id="buyTypeSealedBtn" type="button" onclick="setPurchaseType('sealed')">Sealed product</button>
+          </div>
+          <div class="small" style="margin-bottom:7px">Restock an existing item (optional)</div>
+          <select id="buyProduct" class="input" onchange="selectExistingPurchaseProduct()"><option value="">— Search / add a product below —</option></select>
+
+          <div class="lookupRow" style="margin-top:12px">
+            <input id="buyLookupName" class="input" placeholder="Card name or collector number" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPurchaseProduct()}">
+            <button id="buyLookupBtn" class="btn btnSoft" type="button" onclick="searchPurchaseProduct()">Find card</button>
+          </div>
+          <div id="buyLookupStatus" class="apiStatus">Search the same way you do in Inventory, then choose the exact product.</div>
+
+          <div id="buySelectedPreview" class="detailsBox hidden" style="margin-top:12px">
+            <div style="display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;align-items:start">
+              <img id="buyPreviewImage" class="thumb" style="width:90px;height:120px;object-fit:contain" alt="">
+              <div>
+                <strong id="buyPreviewName"></strong>
+                <div id="buyPreviewMeta" class="small" style="margin-top:4px"></div>
+                <div style="margin-top:9px"><span class="small">TCGplayer Market</span><div id="buyPreviewMarket" class="marketGood" style="font-size:20px">—</div></div>
+                <button class="miniBtn btnGhost" style="margin-top:8px" onclick="clearPurchaseSelection()">Change product</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid" style="margin-top:12px">
+            <div id="buyConditionWrap"><select id="buyCondition" class="input"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select></div>
+            <div id="buyFinishWrap"><select id="buyFinish" class="input" onchange="updatePurchaseMarketFromFinish()"><option value="">Printing / finish</option></select></div>
+            <input id="buyQty" class="input" type="number" min="1" placeholder="Quantity">
+            <input id="buyTotal" class="input" type="number" step=".01" min="0" placeholder="Total paid">
+            <input id="buySellPrice" class="input" type="number" step=".01" min="0" placeholder="Your sell price">
+            <input id="buySource" class="input" placeholder="Source / vendor">
+            <select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select>
+            <button class="btn btnPrimary" onclick="recordPurchase()">Record purchase + add stock</button>
+          </div>
+        </div>
+        <div class="panel"><div id="purchaseTable"></div></div>
+      </section>'''
+          if old not in s:
+            raise SystemExit('purchase section not found')
+          s=s.replace(old,new,1)
+
+          modal='''
+<div id="purchaseLookupModal" class="modalBack hidden">
+  <div class="modal">
+    <div class="modalHead">
+      <div><h2>Select purchase item</h2><div id="purchaseLookupSummary" class="small">Choose the exact product.</div></div>
+      <button class="btn btnGhost" onclick="closePurchaseLookup()">Close</button>
+    </div>
+    <div class="modalBody"><div id="purchaseLookupResults" class="cardPickGrid"></div></div>
+  </div>
+</div>
+'''
+          if 'id="purchaseLookupModal"' not in s:
+            s=s.replace('<div id="tradeCalculatorModal"',modal+'\n<div id="tradeCalculatorModal"',1)
+
+          globals_old='''let pendingSealedData=null;
+
+let tradeYourItems=[];'''
+          globals_new='''let pendingSealedData=null;
+let purchaseType="card";
+let pendingPurchaseProduct=null;
+let purchaseLookupResults=[];
+
+let tradeYourItems=[];'''
+          if globals_old in s:
+            s=s.replace(globals_old,globals_new,1)
+
+          funcs=r'''
+function setPurchaseType(type){
+  purchaseType=type;
+  const card=type==="card";
+  document.getElementById("buyTypeCardBtn")?.classList.toggle("active",card);
+  document.getElementById("buyTypeSealedBtn")?.classList.toggle("active",!card);
+  const input=document.getElementById("buyLookupName"),btn=document.getElementById("buyLookupBtn"),st=document.getElementById("buyLookupStatus");
+  if(input)input.placeholder=card?"Card name or collector number (e.g. Fuecoco 201/193)":"Sealed product name (ETB, booster box, bundle...)";
+  if(btn)btn.textContent=card?"Find card":"Find sealed";
+  if(st)st.textContent=card?"Search by Pokémon name, card number, or both.":"Search the TCGplayer sealed catalog and choose the exact product.";
+  document.getElementById("buyConditionWrap")?.classList.toggle("hidden",!card);
+  document.getElementById("buyFinishWrap")?.classList.toggle("hidden",!card);
+  clearPurchaseSelection(false);
+}
+function closePurchaseLookup(){document.getElementById("purchaseLookupModal")?.classList.add("hidden")}
+function clearPurchaseSelection(clearExisting=true){
+  pendingPurchaseProduct=null;
+  if(clearExisting){const e=document.getElementById("buyProduct");if(e)e.value=""}
+  document.getElementById("buySelectedPreview")?.classList.add("hidden");
+  const f=document.getElementById("buyFinish");if(f)f.innerHTML='<option value="">Printing / finish</option>';
+  const sp=document.getElementById("buySellPrice");if(sp)sp.value="";
+}
+function selectExistingPurchaseProduct(){
+  const id=document.getElementById("buyProduct")?.value;
+  if(!id){clearPurchaseSelection(false);return}
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  purchaseType=p.itemType==="sealed"?"sealed":"card";
+  setPurchaseType(purchaseType);
+  document.getElementById("buyProduct").value=id;
+  pendingPurchaseProduct={existingId:p.id,itemType:purchaseType,name:p.name,imageUrl:p.photo||"",marketPrice:p.tcgMarket??null,tcgUrl:p.tcgUrl||"",setName:p.setName||"",cardNumber:p.cardNumber||"",tcgPrices:p.tcgPrices||{},finish:p.finish||"",condition:p.condition||"Near Mint"};
+  applyPurchaseSelection();
+}
+async function searchPurchaseProduct(){
+  const raw=document.getElementById("buyLookupName")?.value.trim();
+  const st=document.getElementById("buyLookupStatus");
+  if(!raw){if(st)st.textContent="Enter a product to search.";return}
+  if(st)st.textContent="Searching…";
+  try{
+    if(purchaseType==="sealed"){
+      const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:raw}});
+      if(error||!data?.success)throw error||new Error(data?.error||"Lookup failed");
+      purchaseLookupResults=(data.results||[]).map(x=>({...x,itemType:"sealed"}));
+    }else{
+      const cards=await resolveCardText(raw,30);
+      purchaseLookupResults=cards.map(c=>({itemType:"card",rawCard:c,name:c.name,setName:c.set?.name||"",cardNumber:fullCardNumber(c),imageUrl:c.images?.large||c.images?.small||"",tcgUrl:c.tcgplayer?.url||"",tcgUpdatedAt:c.tcgplayer?.updatedAt||"",tcgPrices:c.tcgplayer?.prices||{},pokemonCardId:c.id,rarity:c.rarity||""}));
+    }
+    if(!purchaseLookupResults.length){if(st)st.textContent="No matches found. Try a shorter name or include the collector number.";return}
+    renderPurchaseLookup();
+    document.getElementById("purchaseLookupModal")?.classList.remove("hidden");
+    if(st)st.textContent=`Found ${purchaseLookupResults.length} match${purchaseLookupResults.length===1?"":"es"}.`;
+  }catch(e){if(st)st.textContent="Lookup failed. Try again in a moment."}
+}
+function renderPurchaseLookup(){
+  const box=document.getElementById("purchaseLookupResults");if(!box)return;
+  document.getElementById("purchaseLookupSummary").textContent=`${purchaseLookupResults.length} result${purchaseLookupResults.length===1?"":"s"} — choose the exact product.`;
+  box.innerHTML=purchaseLookupResults.map((x,i)=>{
+    if(x.itemType==="sealed")return `<button class="cardPick" onclick="selectPurchaseLookup(${i})" style="text-align:left"><img src="${esc(x.imageUrl||"")}" alt=""><h4>${esc(x.name||"")}</h4><div class="meta">${esc(x.groupName||"")}<br>${x.marketPrice!=null?`TCGplayer Market: ${money(x.marketPrice)}`:"Market unavailable"}</div></button>`;
+    const markets=Object.entries(x.tcgPrices||{}).map(([k,v])=>`${prettyFinish(k)} ${v?.market!=null?money(v.market):"—"}`).join(" • ");
+    return `<button class="cardPick" onclick="selectPurchaseLookup(${i})" style="text-align:left"><img src="${esc(x.imageUrl||"")}" alt=""><h4>${esc(x.name||"")}</h4><div class="meta">${esc(x.setName||"")} • #${esc(x.cardNumber||"")}<br>${esc(x.rarity||"")}</div><div class="meta" style="margin-top:6px">${markets||"No market price"}</div></button>`;
+  }).join("");
+}
+function selectPurchaseLookup(i){
+  const x=purchaseLookupResults[i];if(!x)return;
+  pendingPurchaseProduct={...x};
+  const existing=document.getElementById("buyProduct");if(existing)existing.value="";
+  if(x.itemType==="card"){
+    const keys=Object.keys(x.tcgPrices||{}),f=document.getElementById("buyFinish");
+    if(f){f.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No printing price</option>';if(keys.length)f.value=keys.includes("holofoil")?"holofoil":keys[0]}
+    pendingPurchaseProduct.finish=f?.value||keys[0]||"";
+    pendingPurchaseProduct.condition=document.getElementById("buyCondition")?.value||"Near Mint";
+    updatePurchaseMarketFromFinish();
+  }else{
+    const market=x.marketPrice!=null?Number(x.marketPrice):null;
+    pendingPurchaseProduct.marketPrice=market;
+    const sp=document.getElementById("buySellPrice");if(sp&&market!=null)sp.value=market.toFixed(2);
+  }
+  applyPurchaseSelection();closePurchaseLookup();
+}
+function updatePurchaseMarketFromFinish(){
+  if(!pendingPurchaseProduct||pendingPurchaseProduct.itemType!=="card")return;
+  const finish=document.getElementById("buyFinish")?.value||"";
+  pendingPurchaseProduct.finish=finish;
+  const market=currentMarketFromPrices(pendingPurchaseProduct.tcgPrices,finish);
+  pendingPurchaseProduct.marketPrice=market;
+  const sp=document.getElementById("buySellPrice");if(sp&&market!=null)sp.value=Number(market).toFixed(2);
+  applyPurchaseSelection();
+}
+function applyPurchaseSelection(){
+  const x=pendingPurchaseProduct;if(!x)return;
+  const preview=document.getElementById("buySelectedPreview");preview?.classList.remove("hidden");
+  const img=document.getElementById("buyPreviewImage");if(img){img.src=x.imageUrl||"";img.style.display=x.imageUrl?"block":"none"}
+  const nm=document.getElementById("buyPreviewName");if(nm)nm.textContent=x.itemType==="card"?`${x.name} — ${x.setName||""} #${x.cardNumber||""}`:x.name||"";
+  const meta=document.getElementById("buyPreviewMeta");if(meta)meta.textContent=x.itemType==="card"?`${document.getElementById("buyCondition")?.value||x.condition||"Near Mint"} • ${prettyFinish(document.getElementById("buyFinish")?.value||x.finish||"")}`:`${x.groupName||x.setName||"Pokémon"} • Sealed`;
+  const market=x.itemType==="card"?currentMarketFromPrices(x.tcgPrices,document.getElementById("buyFinish")?.value||x.finish):x.marketPrice;
+  x.marketPrice=market;
+  const mk=document.getElementById("buyPreviewMarket");if(mk)mk.textContent=market!=null?money(market):"—";
+}
+'''
+          anchor='function recordPurchase(){'
+          if 'function setPurchaseType(type)' not in s:
+            s=s.replace(anchor,funcs+'\n'+anchor,1)
+
+          start=s.index('function recordPurchase(){')
+          end=s.index('\nfunction recordExpense(){',start)
+          replacement=r'''function recordPurchase(){
+  const qty=Math.max(0,Number(document.getElementById("buyQty")?.value||0));
+  const total=Math.max(0,Number(document.getElementById("buyTotal")?.value||0));
+  if(!qty||!total)return toast("Enter quantity and total paid");
+  const source=document.getElementById("buySource")?.value.trim()||"";
+  const payment=document.getElementById("buyPayment")?.value||"Cash";
+  const sellPrice=Math.max(0,Number(document.getElementById("buySellPrice")?.value||0));
+  const selectedId=document.getElementById("buyProduct")?.value||"";
+  let p=selectedId?db.products.find(x=>x.id===selectedId):null;
+
+  if(!p && !pendingPurchaseProduct)return toast("Choose an existing item or look up a card/sealed product first");
+  pushUndo("Record purchase");
+
+  if(!p){
+    const x=pendingPurchaseProduct;
+    if(x.itemType==="sealed"){
+      p=db.products.find(v=>v.itemType==="sealed" && ((x.productId&&String(v.tcgProductId)===String(x.productId)) || v.name.toLowerCase()===String(x.name).toLowerCase()));
+      if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:sellPrice||Number(x.marketPrice||0),photo:x.imageUrl||"",itemType:"sealed",condition:"Sealed",finish:"Sealed",tcgMarket:x.marketPrice!=null?Number(x.marketPrice):null,tcgUrl:x.url||x.tcgUrl||"",tcgProductId:x.productId||null,setName:x.groupName||x.setName||"",sealedSource:"TCGCSV",tcgUpdatedAt:x.updatedAt||"",lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
+    }else{
+      const condition=document.getElementById("buyCondition")?.value||"Near Mint";
+      const finish=document.getElementById("buyFinish")?.value||x.finish||"";
+      const market=currentMarketFromPrices(x.tcgPrices,finish);
+      const fullName=`${x.name} — ${x.setName||""} #${x.cardNumber||""}`.trim();
+      p=db.products.find(v=>(v.itemType||"card")==="card" && v.pokemonCardId===x.pokemonCardId && (v.condition||"Near Mint")===condition && (v.finish||"")===finish);
+      if(!p){p={id:uid(),name:fullName,qty:0,cost:0,price:sellPrice||Number(market||0),photo:x.imageUrl||"",itemType:"card",condition,finish,pokemonCardId:x.pokemonCardId||"",cardBaseName:x.name||"",setName:x.setName||"",cardNumber:x.cardNumber||"",rarity:x.rarity||"",tcgUrl:x.tcgUrl||"",tcgUpdatedAt:x.tcgUpdatedAt||"",tcgPrices:x.tcgPrices||{},tcgMarket:market,lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
+    }
+  }
+
+  p.qty+=qty;
+  p.cost=total/qty;
+  if(sellPrice>0)p.price=sellPrice;
+  db.purchases.unshift({id:uid(),productId:p.id,name:p.name,qty,total,source,payment,time:new Date().toISOString(),showId:db.currentShow?.id||null});
+  ["buyQty","buyTotal","buySource","buySellPrice","buyLookupName"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
+  const bp=document.getElementById("buyProduct");if(bp)bp.value="";
+  pendingPurchaseProduct=null;
+  document.getElementById("buySelectedPreview")?.classList.add("hidden");
+  save();toast("Purchase recorded and inventory updated");
+}'''
+          s=s[:start]+replacement+s[end:]
+
+          # Enhance purchase table with image and current market when possible.
+          old_table='''document.getElementById("purchaseTable").innerHTML=db.purchases.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Source</th><th>Payment</th><th></th></tr>'''
+          new_table='''document.getElementById("purchaseTable").innerHTML=db.purchases.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Source</th><th>Payment</th><th></th></tr>'''
+          # keep renderer compatible; metadata lives on linked inventory product.
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit site update
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Make Purchases use card and sealed product lookup"
+            git push
+          fi
