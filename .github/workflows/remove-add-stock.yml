@@ -1,0 +1,43 @@
+name: Remove redundant add stock controls
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-add-stock.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove plus stock controls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='''     <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
+       <input id="inv_addqty_${p.id}" class="input" type="number" min="0" placeholder="+ stock" style="width:82px;padding:7px">
+       <button class="miniBtn btnSoft" onclick="addInventoryQty('${p.id}')">Add</button>
+     </div>'''
+          s2=s.replace(old,'')
+          if s2==s:
+              # Tolerant regex fallback for whitespace differences.
+              import re
+              s2=re.sub(r'<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">\s*<input id="inv_addqty_\$\{p\.id\}"[^>]*placeholder="\+ stock"[^>]*>\s*<button[^>]*onclick="addInventoryQty\(\'\$\{p\.id\}\'\)"[^>]*>Add</button>\s*</div>','',s,flags=re.S)
+          p.write_text(s2,encoding='utf-8')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "Controls already removed"
+          else
+            git add index.html
+            git commit -m "Remove redundant add stock controls"
+            git push
+          fi
