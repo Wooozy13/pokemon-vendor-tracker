@@ -713,7 +713,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.26</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.27</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -821,7 +821,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.26";
+const APP_VERSION="v11.27";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1943,7 +1943,7 @@ function renderDashboard(){
 
  document.getElementById("recentSales").innerHTML=db.sales.length?`<div class="tableWrap"><table><tr><th>Time</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th>Actions</th></tr>${db.sales.slice(0,20).map(x=>`<tr>
    <td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td>
-   <td data-label="Qty"><input class="input" style="width:80px;padding:7px" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}"></td>
+   <td data-label="Qty"><input class="input" style="width:80px;padding:7px" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}" onchange="editSale('${x.id}')"></td>
    <td data-label="Total"><input class="input" style="width:100px;padding:7px" id="sale_total_${x.id}" type="number" min="0" step=".01" value="${Number(x.total).toFixed(2)}"></td>
    <td data-label="Payment"><select class="input" style="min-width:110px;padding:7px" id="sale_payment_${x.id}"><option ${x.payment==="Cash"?"selected":""}>Cash</option><option ${x.payment==="Cash App"?"selected":""}>Cash App</option><option ${x.payment==="Zelle"?"selected":""}>Zelle</option><option ${x.payment==="Venmo"?"selected":""}>Venmo</option><option ${x.payment==="Apple Pay"?"selected":""}>Apple Pay</option><option ${x.payment==="Card"?"selected":""}>Card</option></select></td>
    <td data-label="Actions"><div class="actions"><button class="miniBtn btnSuccess" onclick="editSale('${x.id}')">Save</button><button class="miniBtn btnDanger" onclick="deleteSale('${x.id}')">Delete</button></div></td></tr>`).join("")}</table></div>`:`<div class="empty">No sales yet.</div>`;
@@ -2003,9 +2003,10 @@ function setInventoryQty(id){
   const p=db.products.find(x=>x.id===id);if(!p)return;
   const el=document.getElementById("inv_qty_"+id);
   const qty=Math.max(0,Number(el?.value||0));
+  if(qty===Number(p.qty||0))return;
   pushUndo("Set inventory quantity");
   p.qty=qty;
-  save();toast("Quantity updated");
+  save();toast("Quantity saved");
 }
 function addInventoryQty(id){
   const p=db.products.find(x=>x.id===id);if(!p)return;
@@ -2037,7 +2038,7 @@ function renderInventory(){
    </select>`:`<span class="small">${esc(prettyFinish(p.finish||"—"))}</span>`}</td>
    <td data-label="Qty">
      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-       <input id="inv_qty_${p.id}" class="input" type="number" min="0" value="${p.qty}" style="width:82px;padding:7px">
+       <input id="inv_qty_${p.id}" class="input" type="number" min="0" value="${p.qty}" style="width:82px;padding:7px" onchange="setInventoryQty('${p.id}')">
      </div>
 
    </td>
