@@ -663,6 +663,11 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
             <button class="btn btnGhost" onclick="exportJSON()">Export backup</button>
             <button class="btn btnGhost" onclick="signOut()">Sign out</button>
           </div>
+          <div class="detailsBox" id="buildInfoBox">
+            <strong>VendorTracker build</strong>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.22</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
+          </div>
           <div class="detailsBox">
             <strong>TCGplayer price lookup</strong>
             <p class="small" style="margin-bottom:0">Pokémon singles use the Pokémon TCG API for card artwork and TCGplayer-provided market pricing. Sealed Pokémon products use TCGCSV’s daily cached TCGplayer catalog for product images, direct TCGplayer links, and market prices.</p>
@@ -768,6 +773,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
+const APP_VERSION="v11.22";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
