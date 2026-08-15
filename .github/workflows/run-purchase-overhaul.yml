@@ -1,0 +1,55 @@
+name: Run verified purchase overhaul
+
+on:
+  push:
+    paths:
+      - '.github/purchases-overhaul.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply purchase overhaul script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+          wf=Path('.github/workflows/apply-purchase-batches.yml').read_text(encoding='utf-8')
+          start=wf.index("          python - <<'PY'\n")+len("          python - <<'PY'\n")
+          end=wf.index("\n          PY", start)
+          script=textwrap.dedent(wf[start:end])
+          exec(compile(script,'purchase-overhaul','exec'),{})
+          PY
+      - name: Ensure build marker is current
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'const APP_VERSION="[^"]+";', 'const APP_VERSION="v11.23";', s, count=1)
+          s=s.replace('v11.22</span> · Updated Aug 15, 2026','v11.23</span> · Updated Aug 15, 2026')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify overhaul was applied
+        run: |
+          grep -q 'Purchase batch details' index.html
+          grep -q 'buyTypeCardBtn' index.html
+          grep -q 'purchaseBatchItems' index.html
+          grep -q 'searchPurchaseItem' index.html
+          grep -q 'Save purchase batch' index.html
+      - name: Commit updated site
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Apply Purchases card sealed and batch overhaul v11.23"
+            git push
+          fi
