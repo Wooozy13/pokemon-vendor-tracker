@@ -458,7 +458,7 @@ async function fileToCompressedDataURL(file,maxSize=720,quality=.78){
 }
 
 function prettyFinish(k){
-  return ({normal:"Normal",holofoil:"Holofoil",reverseHolofoil:"Reverse Holofoil",1stEditionHolofoil:"1st Edition Holofoil",1stEditionNormal:"1st Edition Normal"})[k]||k;
+  return ({normal:"Normal",holofoil:"Holofoil",reverseHolofoil:"Reverse Holofoil","1stEditionHolofoil":"1st Edition Holofoil","1stEditionNormal":"1st Edition Normal"})[k]||k;
 }
 function currentMarketFromPrices(prices,finish){
   const p=prices?.[finish];
