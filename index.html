@@ -15,7 +15,7 @@ main{max-width:1100px;margin:auto;padding:16px}.page{display:none}.page.active{d
 .label{font-size:12px;color:#666}.value{font-size:24px;font-weight:700;margin-top:4px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:9px}
 input,select{width:100%;padding:11px;border:1px solid #ccc;border-radius:8px;font-size:15px}
 button{cursor:pointer}.primary{background:#171717;color:#fff;border:0;padding:11px 14px;border-radius:8px;font-weight:700}.secondary{background:#eee;border:0;padding:10px 13px;border-radius:8px}
-.danger{background:#b42318;color:#fff;border:0;padding:7px 9px;border-radius:7px}.muted{color:#666;font-size:13px}.warn{color:#a15c00;font-weight:bold}
+.danger{background:#b42318;color:#fff;border:0;padding:7px 9px;border-radius:7px}.saveSale{background:#146c43;color:#fff;border:0;padding:7px 9px;border-radius:7px;font-weight:700}.saleEdit{min-width:74px;padding:7px;font-size:13px}.actions{display:flex;gap:5px;flex-wrap:wrap}.muted{color:#666;font-size:13px}.warn{color:#a15c00;font-weight:bold}
 table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}th,td{text-align:left;padding:9px;border-bottom:1px solid #eee}th{background:#fafafa}
 .productGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px;margin-top:12px}.product{background:#fff;border:1px solid #ddd;border-radius:12px;padding:13px}
 .saleButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.saleButtons button{padding:12px 5px;border:0;border-radius:8px;font-weight:700}
@@ -34,8 +34,23 @@ table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}th,td{t
 <h2>Sign in to Pokémon Vendor Tracker</h2>
 <div class="panel">
 <div class="grid"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password (6+ characters)"></div>
-<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="primary" onclick="signIn()">Sign In</button><button class="secondary" onclick="signUp()">Create Account</button></div>
-<p class="muted">Use the same account on your phone and computer to keep everything synced.</p><p class="muted" id="authMsg"></p>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="primary" onclick="signIn()">Sign In</button><button class="secondary" onclick="signUp()">Create Account</button><button class="secondary" onclick="resendVerification()">Resend Verification Email</button></div>
+<p class="muted">Use the same account on your phone and computer to keep everything synced.</p>
+<p class="muted" id="authMsg"></p>
+<div id="resetRequestBox" class="panel" style="margin-top:14px">
+  <h3 style="margin-top:0">Forgot password?</h3>
+  <p class="muted">Enter your email above, then send yourself a password reset link.</p>
+  <button class="secondary" onclick="sendPasswordReset()">Send Password Reset Email</button>
+</div>
+<div id="newPasswordBox" class="panel hidden" style="margin-top:14px">
+  <h3 style="margin-top:0">Set a new password</h3>
+  <div class="grid">
+    <input id="newPassword" type="password" placeholder="New password">
+    <input id="newPasswordConfirm" type="password" placeholder="Confirm new password">
+  </div>
+  <button class="primary" style="margin-top:10px" onclick="finishPasswordReset()">Update Password</button>
+  <p class="muted" id="resetMsg"></p>
+</div>
 </div>
 </main>
 
@@ -65,6 +80,7 @@ let db={products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null}
 const LOCAL="pokemon_vendor_cloud_cache";
 const PROJECT_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const PUBLISHABLE_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
+const SITE_URL="https://wooozy13.github.io/pokemon-vendor-tracker/";
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function money(n){return "$"+Number(n||0).toFixed(2)} function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)}
@@ -80,10 +96,50 @@ async function init(){
  try{
    if(!window.supabase) throw new Error("Supabase library did not load. Check your internet connection.");
    sb=window.supabase.createClient(PROJECT_URL,PUBLISHABLE_KEY);
+
+   sb.auth.onAuthStateChange((event,session)=>{
+     if(event==="PASSWORD_RECOVERY"){
+       user=session?.user||null;
+       showPasswordRecovery();
+     }
+   });
+
+   // Supabase processes a successful email-confirmation callback from the URL.
    let {data:{session},error}=await sb.auth.getSession();
    if(error) throw error;
-   if(session){user=session.user;await enterApp()}
-   else {badge(false,"Sign in");syncText("Sign in to sync your vendor data")}
+
+   if(session){
+     const hashParams=new URLSearchParams(location.hash.replace(/^#/,""));
+     const isRecovery=hashParams.get("type")==="recovery";
+     if(isRecovery){
+       user=session.user;
+       showPasswordRecovery();
+       return;
+     }
+
+     const verified=session.user?.email_confirmed_at;
+     if(!verified){
+       await sb.auth.signOut();
+       msg.textContent="Your email has not been verified yet. Check your inbox, verify it, then sign in.";
+       badge(false,"Verify email");
+       syncText("Email verification required");
+       return;
+     }
+     user=session.user;
+     // Remove auth tokens/errors from the address bar after Supabase finishes.
+     if(location.hash && (location.hash.includes("access_token") || location.hash.includes("error"))) {
+       history.replaceState({},document.title,location.pathname);
+     }
+     await enterApp();
+   } else {
+     badge(false,"Sign in");
+     syncText("Sign in to sync your vendor data");
+     const params=new URLSearchParams(location.hash.replace(/^#/,""));
+     if(params.get("error")){
+       msg.textContent=params.get("error_description")||"Verification link could not be completed. Try resending the verification email.";
+       history.replaceState({},document.title,location.pathname);
+     }
+   }
  } catch(e){
    msg.textContent="Connection error: "+e.message;
    badge(false,"Error");
@@ -98,10 +154,11 @@ async function signUp(){
  if(!email) return msg.textContent="Enter your email address.";
  if(password.length<6) return msg.textContent="Password must be at least 6 characters.";
 
- // Supabase intentionally may not reveal whether a confirmed account already
- // exists, to prevent email/account enumeration. We therefore handle both
- // explicit duplicate errors and the obfuscated duplicate-signup response.
- let {data,error}=await sb.auth.signUp({email,password});
+ let {data,error}=await sb.auth.signUp({
+   email,
+   password,
+   options:{emailRedirectTo:SITE_URL}
+ });
 
  if(error){
    const t=(error.message||"").toLowerCase();
@@ -113,32 +170,133 @@ async function signUp(){
    return;
  }
 
- // With Supabase's duplicate-signup protection, an existing confirmed user
- // can be returned with an identities array containing 0 identities.
  if(data?.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
    msg.textContent="That email is already in use. Try signing in instead.";
    return;
  }
 
- if(data.session){
+ // Even if a project is accidentally configured to create a session immediately,
+ // do not enter the tracker unless Supabase reports the email as confirmed.
+ if(data?.session && data?.user?.email_confirmed_at){
    user=data.user;
    await enterApp();
- } else {
-   msg.textContent="Account created. Check your email for a confirmation link, then sign in.";
+   return;
  }
+
+ if(data?.session && !data?.user?.email_confirmed_at){
+   await sb.auth.signOut();
+ }
+
+ msg.textContent="Account created. Verify your email first, then come back and sign in.";
+}
+
+async function resendVerification(){
+ const msg=document.getElementById("authMsg");
+ const email=document.getElementById("email").value.trim().toLowerCase();
+ if(!email) return msg.textContent="Enter your email address first.";
+ msg.textContent="Sending verification email…";
+ const {error}=await sb.auth.resend({
+   type:"signup",
+   email,
+   options:{emailRedirectTo:SITE_URL}
+ });
+ if(error){
+   msg.textContent=error.message;
+   return;
+ }
+ msg.textContent="Verification email sent. Check your inbox and spam/junk folder.";
 }
 async function signIn(){
  const msg=document.getElementById("authMsg");
  msg.textContent="";
- const email=document.getElementById("email").value.trim();
+ const email=document.getElementById("email").value.trim().toLowerCase();
  const password=document.getElementById("password").value;
+
  let {data,error}=await sb.auth.signInWithPassword({email,password});
- if(error)return msg.textContent=error.message;
+ if(error){
+   const t=(error.message||"").toLowerCase();
+   if(t.includes("email") && (t.includes("confirm") || t.includes("verified"))){
+     msg.textContent="You need to verify your email before you can access the tracker. Check your inbox or use Resend Verification Email.";
+   } else {
+     msg.textContent=error.message;
+   }
+   return;
+ }
+
+ if(!data?.user?.email_confirmed_at){
+   await sb.auth.signOut();
+   msg.textContent="You need to verify your email before you can access the tracker.";
+   badge(false,"Verify email");
+   return;
+ }
+
  user=data.user;
  await enterApp();
 }
+
+async function sendPasswordReset(){
+ const msg=document.getElementById("authMsg");
+ const email=document.getElementById("email").value.trim().toLowerCase();
+ if(!email){
+   msg.textContent="Enter your email address first.";
+   return;
+ }
+ msg.textContent="Sending password reset email…";
+ const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:SITE_URL});
+ if(error){
+   msg.textContent=error.message;
+   return;
+ }
+ msg.textContent="Password reset email sent. Check your inbox and spam/junk folder.";
+}
+
+async function finishPasswordReset(){
+ const msg=document.getElementById("resetMsg");
+ const p1=document.getElementById("newPassword").value;
+ const p2=document.getElementById("newPasswordConfirm").value;
+ msg.textContent="";
+
+ if(p1.length<6){
+   msg.textContent="Password must be at least 6 characters.";
+   return;
+ }
+ if(p1!==p2){
+   msg.textContent="Passwords do not match.";
+   return;
+ }
+
+ msg.textContent="Updating password…";
+ const {error}=await sb.auth.updateUser({password:p1});
+ if(error){
+   msg.textContent=error.message;
+   return;
+ }
+
+ msg.textContent="Password updated successfully. You can now use your new password.";
+ setTimeout(async()=>{
+   await sb.auth.signOut();
+   history.replaceState({},document.title,location.pathname);
+   location.reload();
+ },1200);
+}
+
+function showPasswordRecovery(){
+ document.getElementById("authScreen").classList.remove("hidden");
+ document.getElementById("app").classList.add("hidden");
+ document.getElementById("resetRequestBox").classList.add("hidden");
+ document.getElementById("newPasswordBox").classList.remove("hidden");
+ badge(false,"Reset password");
+ syncText("Choose a new password");
+}
+
 async function signOut(){await sb.auth.signOut();location.reload()}
 async function enterApp(){
+ if(!user?.email_confirmed_at){
+   document.getElementById("authMsg").textContent="Verify your email before accessing the tracker.";
+   document.getElementById("authScreen").classList.remove("hidden");
+   document.getElementById("app").classList.add("hidden");
+   return;
+ }
  document.getElementById("authScreen").classList.add("hidden");
  document.getElementById("setupScreen").classList.add("hidden");
  document.getElementById("app").classList.remove("hidden");
@@ -174,12 +332,86 @@ function sell(id,pay){let p=db.products.find(x=>x.id===id),qty=Math.max(1,Number
 function recordPurchase(){let id=buyProduct.value,name=buyName.value.trim(),qty=Number(buyQty.value),total=Number(buyTotal.value),p=id?db.products.find(x=>x.id===id):db.products.find(x=>x.name.toLowerCase()===name.toLowerCase());if(!p){if(!name)return alert("Choose or name a product.");p={id:uid(),name,qty:0,cost:0,price:0};db.products.push(p)}if(!qty||!total)return alert("Enter quantity and total cost.");p.qty+=qty;p.cost=total/qty;db.purchases.unshift({id:uid(),productId:p.id,name:p.name,qty,total,source:buySource.value.trim(),payment:buyPayment.value,time:new Date().toISOString(),showId:db.currentShow?.id||null});buyName.value=buyQty.value=buyTotal.value=buySource.value="";save()}
 function recordExpense(){let name=expName.value.trim(),amount=Number(expAmount.value);if(!name||!amount)return alert("Enter expense and amount.");db.expenses.unshift({id:uid(),name,amount,payment:expPayment.value,time:new Date().toISOString(),showId:db.currentShow?.id||null});expName.value=expAmount.value="";save()}
 function del(type,id){if(!confirm("Delete this entry?"))return;db[type]=db[type].filter(x=>x.id!==id);save()}
+
+function updateRecentSale(id){
+ const sale=db.sales.find(x=>x.id===id);
+ if(!sale)return;
+
+ const qty=Math.max(1,Number(document.getElementById("sale_qty_"+id).value||1));
+ const total=Math.max(0,Number(document.getElementById("sale_total_"+id).value||0));
+ const payment=document.getElementById("sale_payment_"+id).value;
+ const product=db.products.find(p=>p.id===sale.productId);
+
+ if(product){
+   const availableIncludingOriginal=product.qty+sale.qty;
+   if(qty>availableIncludingOriginal){
+     alert("Not enough inventory for that quantity. Maximum is "+availableIncludingOriginal+".");
+     renderAll();
+     return;
+   }
+   // Restore the old sale quantity, then subtract the edited quantity.
+   product.qty=availableIncludingOriginal-qty;
+ }
+
+ sale.qty=qty;
+ sale.total=total;
+ sale.price=qty ? total/qty : 0;
+ sale.payment=payment;
+ save();
+}
+
+function deleteRecentSale(id){
+ const sale=db.sales.find(x=>x.id===id);
+ if(!sale)return;
+ if(!confirm("Delete this sale? Its quantity will be added back to inventory."))return;
+
+ const product=db.products.find(p=>p.id===sale.productId);
+ if(product) product.qty+=sale.qty;
+
+ db.sales=db.sales.filter(x=>x.id!==id);
+ save();
+}
 function renderSaleProducts(){let q=(saleSearch?.value||"").toLowerCase(),arr=db.products.filter(p=>p.name.toLowerCase().includes(q));saleProducts.innerHTML=arr.map(p=>`<div class=product><b>${esc(p.name)}</b><div>${money(p.price)} • <span class="${p.qty<3?'warn':''}">${p.qty} stock</span></div><div class=saleButtons><button class=cash onclick="sell('${p.id}','Cash')">Cash</button><button class=ca onclick="sell('${p.id}','Cash App')">Cash App</button><button class=zelle onclick="sell('${p.id}','Zelle')">Zelle</button></div></div>`).join("")||"<p class=muted>No products.</p>"}
 function renderInventory(){inventoryTable.innerHTML=`<table><tr><th>Product</th><th>Qty</th><th>Cost</th><th>Sell</th><th>Value</th><th></th></tr>${db.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.qty}</td><td>${money(p.cost)}</td><td>${money(p.price)}</td><td>${money(p.qty*p.cost)}</td><td><button class=danger onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("")||"<tr><td colspan=6>No inventory.</td></tr>"}</table>`}
 function renderPurchases(){buyProduct.innerHTML='<option value="">— New product —</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");purchaseTable.innerHTML=`<table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th></tr>${db.purchases.slice(0,100).map(x=>`<tr><td>${new Date(x.time).toLocaleString()}</td><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td></tr>`).join("")||"<tr><td colspan=5>No purchases.</td></tr>"}</table>`}
 function renderExpenses(){expenseTable.innerHTML=`<table><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Payment</th></tr>${db.expenses.slice(0,100).map(x=>`<tr><td>${new Date(x.time).toLocaleString()}</td><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td>${x.payment}</td></tr>`).join("")||"<tr><td colspan=4>No expenses.</td></tr>"}</table>`}
 function renderShows(){showTable.innerHTML=`<table><tr><th>Show</th><th>Sales</th><th>Expenses</th><th>Net Profit</th></tr>${db.shows.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.revenue)}</td><td>${money(x.expenses)}</td><td>${money(x.profit)}</td></tr>`).join("")||"<tr><td colspan=4>No closed shows.</td></tr>"}</table>`}
-function renderDashboard(){let revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),pay=p=>db.sales.filter(x=>x.payment===p).reduce((a,x)=>a+x.total,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);dashCards.innerHTML=`<div class=card><div class=label>Total Sales</div><div class=value>${money(revenue)}</div></div><div class=card><div class=label>Gross Profit</div><div class=value>${money(revenue-cogs)}</div></div><div class=card><div class=label>Cash</div><div class=value>${money(pay("Cash"))}</div></div><div class=card><div class=label>Cash App</div><div class=value>${money(pay("Cash App"))}</div></div><div class=card><div class=label>Zelle</div><div class=value>${money(pay("Zelle"))}</div></div><div class=card><div class=label>Inventory Cost</div><div class=value>${money(inv)}</div></div>`;showStatus.innerHTML=db.currentShow?`Active: <b>${esc(db.currentShow.name)}</b>`:"No active show.";showName.value=db.currentShow?.name||"";recentSales.innerHTML=`<table><tr><th>Time</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th></tr>${db.sales.slice(0,20).map(x=>`<tr><td>${new Date(x.time).toLocaleTimeString()}</td><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td></tr>`).join("")||"<tr><td colspan=5>No sales.</td></tr>"}</table>`}
+function renderDashboard(){
+ let revenue=db.sales.reduce((a,x)=>a+x.total,0),
+     cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),
+     pay=p=>db.sales.filter(x=>x.payment===p).reduce((a,x)=>a+x.total,0),
+     inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);
+
+ dashCards.innerHTML=`<div class=card><div class=label>Total Sales</div><div class=value>${money(revenue)}</div></div>
+ <div class=card><div class=label>Gross Profit</div><div class=value>${money(revenue-cogs)}</div></div>
+ <div class=card><div class=label>Cash</div><div class=value>${money(pay("Cash"))}</div></div>
+ <div class=card><div class=label>Cash App</div><div class=value>${money(pay("Cash App"))}</div></div>
+ <div class=card><div class=label>Zelle</div><div class=value>${money(pay("Zelle"))}</div></div>
+ <div class=card><div class=label>Inventory Cost</div><div class=value>${money(inv)}</div></div>`;
+
+ showStatus.innerHTML=db.currentShow?`Active: <b>${esc(db.currentShow.name)}</b>`:"No active show.";
+ showName.value=db.currentShow?.name||"";
+
+ recentSales.innerHTML=`<p class="muted">Edit quantity, total, or payment below. Saving a quantity change automatically fixes inventory.</p>
+ <table>
+ <tr><th>Time</th><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th>Actions</th></tr>
+ ${db.sales.slice(0,20).map(x=>`<tr>
+   <td>${new Date(x.time).toLocaleTimeString()}</td>
+   <td>${esc(x.name)}</td>
+   <td><input class="saleEdit" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}"></td>
+   <td><input class="saleEdit" id="sale_total_${x.id}" type="number" min="0" step=".01" value="${Number(x.total).toFixed(2)}"></td>
+   <td><select class="saleEdit" id="sale_payment_${x.id}">
+     <option ${x.payment==="Cash"?"selected":""}>Cash</option>
+     <option ${x.payment==="Cash App"?"selected":""}>Cash App</option>
+     <option ${x.payment==="Zelle"?"selected":""}>Zelle</option>
+   </select></td>
+   <td><div class="actions">
+     <button class="saveSale" onclick="updateRecentSale('${x.id}')">Save</button>
+     <button class="danger" onclick="deleteRecentSale('${x.id}')">Delete</button>
+   </div></td>
+ </tr>`).join("")||"<tr><td colspan=6>No sales.</td></tr>"}
+ </table>`;
+}
 function exportJSON(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="pokemon-vendor-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(a.href)}
 function renderAll(){if(app.classList.contains("hidden"))return;renderDashboard();renderSaleProducts();renderInventory();renderPurchases();renderExpenses();renderShows()}
 window.addEventListener("error",e=>{
