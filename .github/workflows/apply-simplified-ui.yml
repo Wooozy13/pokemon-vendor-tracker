@@ -1,0 +1,18 @@
+name: Apply simplified UI
+on: push
+permissions:
+  contents: write
+jobs:
+  update:
+    if: contains(github.event.head_commit.message, 'Add simplified UI runner')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/apply_simplified_ui_v1128.py
+      - run: grep -q 'v11.28' index.html && grep -q 'id="moreMenu"' index.html && grep -q 'class="quickActions"' index.html
+      - run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Simplify VendorTracker UI v11.28"
+          git push
