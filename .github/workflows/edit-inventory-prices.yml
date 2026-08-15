@@ -1,0 +1,51 @@
+name: Add editable inventory cost and price
+
+on:
+  push:
+    paths:
+      - '.github/workflows/edit-inventory-prices.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch inventory editor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          marker='function setInventoryQty(id){'
+          helper='''function saveInventoryMoney(id){\n  const p=db.products.find(x=>x.id===id);if(!p)return;\n  const costEl=document.getElementById("inv_cost_"+id);\n  const priceEl=document.getElementById("inv_price_"+id);\n  const cost=Math.max(0,Number(costEl?.value||0));\n  const price=Math.max(0,Number(priceEl?.value||0));\n  pushUndo("Update inventory cost and price");\n  p.cost=cost;\n  p.price=price;\n  save();toast("Cost and price updated");\n}\n'''
+          if 'function saveInventoryMoney(id)' not in s:
+              s=s.replace(marker,helper+marker,1)
+
+          old='''<td data-label="Cost">${money(p.cost)}</td>\n   <td data-label="Your price">${money(p.price)}</td>'''
+          new='''<td data-label="Cost">\n     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">\n       <input id="inv_cost_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.cost||0).toFixed(2)}" style="width:92px;padding:7px">\n     </div>\n   </td>\n   <td data-label="Your price">\n     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">\n       <input id="inv_price_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.price||0).toFixed(2)}" style="width:92px;padding:7px">\n       <button class="miniBtn btnSuccess" onclick="saveInventoryMoney('${p.id}')">Save</button>\n     </div>\n   </td>'''
+          if old in s:
+              s=s.replace(old,new,1)
+
+          # Make Use market update the visible input immediately when inventory is open.
+          old2='''function useMarketAsSellPrice(id){\n  const p=db.products.find(x=>x.id===id);if(!p)return;\n  const market=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;\n  if(market==null)return toast("No market price available");\n  pushUndo("Set sell price from market");\n  p.price=market;\n  save();toast("Sell price set to market");\n}'''
+          new2='''function useMarketAsSellPrice(id){\n  const p=db.products.find(x=>x.id===id);if(!p)return;\n  const market=(p.itemType==="sealed"?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket));\n  if(market==null)return toast("No market price available");\n  pushUndo("Set sell price from market");\n  p.price=Number(market);\n  const priceEl=document.getElementById("inv_price_"+id);\n  if(priceEl)priceEl.value=Number(market).toFixed(2);\n  save();toast("Sell price set to market");\n}'''
+          if old2 in s:
+              s=s.replace(old2,new2,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes needed"
+          else
+            git add index.html
+            git commit -m "Make inventory cost and sell price editable"
+            git push
+          fi
