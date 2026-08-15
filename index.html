@@ -683,7 +683,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
         <div class="panel">
 <div class="panelHead"><div><h3>Current batch</h3><div class="small">Add everything at market value first, then enter what you actually paid for each line before saving.</div></div><span id="purchaseBatchCount" class="small">0 items</span></div>
 <div id="purchaseBatchItems" class="purchaseBatchList"><div class="empty">No items in this batch yet.</div></div>
-<div class="purchaseBatchSummary"><div style="display:flex;gap:28px;flex-wrap:wrap"><div><div class="small">Market value</div><strong id="purchaseBatchMarketTotal" style="font-size:24px">$0.00</strong></div><div><div class="small">Total paid</div><strong id="purchaseBatchTotal" style="font-size:24px">$0.00</strong></div></div><div class="actions"><button class="btn btnGhost" onclick="clearPurchaseBatch()">Clear batch</button><button class="btn btnPrimary" id="savePurchaseBatchBtn" onclick="savePurchaseBatch()" disabled>Save purchase batch</button></div></div>
+<div class="purchaseBatchSummary" style="align-items:flex-end"><div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end"><div><div class="small">Market value</div><strong id="purchaseBatchMarketTotal" style="font-size:24px">$0.00</strong></div><div><div class="small">Total paid</div><strong id="purchaseBatchTotal" style="font-size:24px">$0.00</strong></div><div style="min-width:220px"><div class="small" style="margin-bottom:5px">Whole-lot paid amount</div><div style="display:flex;gap:7px"><input id="purchaseWholeLotPaid" class="input" type="number" min="0" step=".01" placeholder="e.g. 800.00"><button class="btn btnSoft" type="button" onclick="distributeWholeLotPaid()">Distribute</button></div><div class="small" style="margin-top:5px">Splits the lot cost by each line's share of market value.</div></div></div><div class="actions"><button class="btn btnGhost" onclick="clearPurchaseBatch()">Clear batch</button><button class="btn btnPrimary" id="savePurchaseBatchBtn" onclick="savePurchaseBatch()" disabled>Save purchase batch</button></div></div>
         </div>
 
         <div class="panel"><div class="panelHead"><h3>Purchase history</h3></div><div id="purchaseTable"></div></div>
@@ -713,7 +713,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.24</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.25</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -821,7 +821,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.24";
+const APP_VERSION="v11.25";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1755,13 +1755,35 @@ function setPurchasePaid(id,v){
   updatePurchaseBatchTotals();
 }
 function removePurchaseBatchItem(id){purchaseBatchItems=purchaseBatchItems.filter(x=>x.id!==id);renderPurchaseBatch()}
-function clearPurchaseBatch(){purchaseBatchItems=[];renderPurchaseBatch()}
+function clearPurchaseBatch(){purchaseBatchItems=[];const w=document.getElementById("purchaseWholeLotPaid");if(w)w.value="";renderPurchaseBatch()}
 function updatePurchaseBatchTotals(){
   const units=purchaseBatchItems.reduce((a,x)=>a+x.qty,0),paid=purchaseBatchItems.reduce((a,x)=>a+(x.total==null?0:Number(x.total||0)),0),market=purchaseBatchItems.reduce((a,x)=>a+(x.market==null?0:Number(x.market||0)*x.qty),0),missing=purchaseBatchItems.filter(x=>x.total==null).length;
   const count=document.getElementById("purchaseBatchCount");if(count)count.textContent=`${purchaseBatchItems.length} line${purchaseBatchItems.length===1?"":"s"} • ${units} item${units===1?"":"s"}`;
   const paidEl=document.getElementById("purchaseBatchTotal");if(paidEl)paidEl.textContent=money(paid);
   const marketEl=document.getElementById("purchaseBatchMarketTotal");if(marketEl)marketEl.textContent=money(market);
   const saveBtn=document.getElementById("savePurchaseBatchBtn");if(saveBtn){saveBtn.disabled=!purchaseBatchItems.length||missing>0;saveBtn.title=missing?`Enter paid amount for ${missing} line${missing===1?"":"s"}`:""}
+}
+function distributeWholeLotPaid(){
+  if(!purchaseBatchItems.length)return toast("Add items to the batch first");
+  const el=document.getElementById("purchaseWholeLotPaid");
+  const whole=Math.max(0,Number(el?.value||0));
+  if(!whole)return toast("Enter the whole-lot amount you paid");
+  const marketLines=purchaseBatchItems.map(x=>Math.max(0,Number(x.market||0))*Math.max(1,Number(x.qty||1)));
+  const marketTotal=marketLines.reduce((a,v)=>a+v,0);
+  if(marketTotal<=0)return toast("Market pricing is required to distribute the lot cost");
+  let remaining=Math.round(whole*100)/100;
+  purchaseBatchItems.forEach((x,i)=>{
+    let amount;
+    if(i===purchaseBatchItems.length-1){
+      amount=Math.round(remaining*100)/100;
+    }else{
+      amount=Math.round((whole*(marketLines[i]/marketTotal))*100)/100;
+      remaining=Math.round((remaining-amount)*100)/100;
+    }
+    x.total=amount;
+  });
+  renderPurchaseBatch();
+  toast(`Distributed ${money(whole)} across ${purchaseBatchItems.length} line${purchaseBatchItems.length===1?"":"s"}`);
 }
 function renderPurchaseBatch(){
   const box=document.getElementById("purchaseBatchItems");if(!box)return;
@@ -1786,7 +1808,7 @@ function savePurchaseBatch(){
   const source=document.getElementById("buySource")?.value.trim()||"Unknown seller",payment=document.getElementById("buyPayment")?.value||"Cash",note=document.getElementById("buyBatchNote")?.value.trim()||"",time=new Date().toISOString(),batchId=uid(),total=purchaseBatchItems.reduce((a,x)=>a+Number(x.total||0),0),marketTotal=purchaseBatchItems.reduce((a,x)=>a+(x.market==null?0:Number(x.market||0)*x.qty),0),units=purchaseBatchItems.reduce((a,x)=>a+x.qty,0);
   pushUndo("Record purchase batch");const saved=[];for(const x of purchaseBatchItems){const prod=addBatchItemToInventory(x);saved.push({...deepClone(x),productId:prod?.id||null})}
   db.purchases.unshift({id:batchId,batchId,isBatch:true,name:`${source} • ${purchaseBatchItems.length} line${purchaseBatchItems.length===1?"":"s"}`,qty:units,total,marketTotal,source,payment,note,time,showId:db.currentShow?.id||null,items:saved});
-  purchaseBatchItems=[];document.getElementById("buySource").value="";document.getElementById("buyBatchNote").value="";save();toast("Purchase batch saved");
+  purchaseBatchItems=[];document.getElementById("buySource").value="";document.getElementById("buyBatchNote").value="";const w=document.getElementById("purchaseWholeLotPaid");if(w)w.value="";save();toast("Purchase batch saved");
 }
 function recordPurchase(){savePurchaseBatch()}
 
