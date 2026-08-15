@@ -1,0 +1,159 @@
+name: Apply VendorTracker v11.15
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v1115.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply v11.15 daily market refresh
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          css = '''
+          .marketStamp{font-size:10px;color:#64748b;margin-top:3px;line-height:1.3}
+          .marketFresh{color:#166534}
+          .marketStale{color:#92400e}
+          '''
+          if '.marketStamp{' not in s:
+              s = s.replace('</style>', css + '\n</style>', 1)
+
+          marker = 'function money(n){return "$"+Number(n||0).toFixed(2)}'
+          helpers = '''
+          function priceDateLabel(v){
+            if(!v)return "Update time unavailable";
+            const d=new Date(v);
+            if(Number.isNaN(d.getTime())){
+              const cleaned=String(v).replace(/\\//g,"-");
+              const d2=new Date(cleaned);
+              if(Number.isNaN(d2.getTime()))return `Updated ${v}`;
+              return `Updated ${d2.toLocaleDateString()}`;
+            }
+            return `Updated ${d.toLocaleDateString()}`;
+          }
+          function priceIsStale(v,hours=24){
+            if(!v)return true;
+            let d=new Date(v);
+            if(Number.isNaN(d.getTime()))d=new Date(String(v).replace(/\\//g,"-"));
+            if(Number.isNaN(d.getTime()))return true;
+            return Date.now()-d.getTime() >= hours*60*60*1000;
+          }
+          function latestCardPriceTimestamp(card){
+            return card?.tcgplayer?.updatedAt || new Date().toISOString();
+          }
+          '''
+          if 'function priceDateLabel(v)' not in s:
+              s = s.replace(marker, marker + '\n' + helpers, 1)
+
+          marker2 = 'function updatePendingMarketFromFinish(){'
+          refresh = '''
+          async function refreshCardMarketPrice(p){
+            if(!p?.pokemonCardId)return false;
+            try{
+              const r=await fetch("https://api.pokemontcg.io/v2/cards/"+encodeURIComponent(p.pokemonCardId));
+              if(!r.ok)return false;
+              const j=await r.json();
+              const c=j.data;
+              if(!c)return false;
+              p.tcgPrices=c.tcgplayer?.prices||p.tcgPrices||{};
+              p.tcgUrl=c.tcgplayer?.url||p.tcgUrl||"";
+              p.tcgUpdatedAt=latestCardPriceTimestamp(c);
+              p.tcgMarket=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
+              p.lastMarketRefresh=new Date().toISOString();
+              return true;
+            }catch(e){return false;}
+          }
+          async function refreshSealedMarketPrice(p){
+            if(!p || p.itemType!=="sealed" || !p.name)return false;
+            try{
+              const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:p.name}});
+              if(error || !data?.success)return false;
+              const results=data.results||[];
+              let match=null;
+              if(p.tcgProductId!=null)match=results.find(x=>String(x.productId)===String(p.tcgProductId));
+              if(!match){
+                const wanted=String(p.name).toLowerCase().trim();
+                match=results.find(x=>String(x.name||"").toLowerCase().trim()===wanted);
+              }
+              if(!match)return false;
+              if(match.marketPrice!=null)p.tcgMarket=Number(match.marketPrice);
+              p.tcgUrl=match.url||p.tcgUrl||"";
+              p.photo=p.photo||match.imageUrl||"";
+              p.setName=match.groupName||p.setName||"";
+              p.tcgUpdatedAt=match.updatedAt||new Date().toISOString();
+              p.lastMarketRefresh=new Date().toISOString();
+              return true;
+            }catch(e){return false;}
+          }
+          async function refreshStaleMarketPrices(force=false){
+            if(!user || !db?.products?.length)return;
+            const stale=db.products.filter(p=>{
+              const stamp=p.lastMarketRefresh||p.tcgUpdatedAt;
+              return force || priceIsStale(stamp,24);
+            });
+            if(!stale.length){if(force)toast("Market prices are already current");return;}
+            setSync(true,"Updating prices…");
+            let updated=0;
+            for(const p of stale){
+              let ok=false;
+              if(p.itemType==="sealed")ok=await refreshSealedMarketPrice(p);
+              else if(p.pokemonCardId)ok=await refreshCardMarketPrice(p);
+              if(ok)updated++;
+              await new Promise(r=>setTimeout(r,120));
+            }
+            if(updated){save();toast(`${updated} market price${updated===1?"":"s"} refreshed`);}
+            else if(force)toast("No prices could be refreshed");
+            setSync(true,"Synced");
+          }
+          '''
+          if 'async function refreshStaleMarketPrices(force=false)' not in s:
+              s = s.replace(marker2, refresh + '\n' + marker2, 1)
+
+          old = ' await pullCloud(false);\n renderAll();\n}'
+          new = ' await pullCloud(false);\n renderAll();\n setTimeout(()=>refreshStaleMarketPrices(false),500);\n}'
+          if 'refreshStaleMarketPrices(false)' not in s:
+              s = s.replace(old, new, 1)
+
+          btn = '<button class="btn btnGhost" onclick="pullCloud(true)">Refresh cloud data</button>'
+          if 'onclick="refreshStaleMarketPrices(true)"' not in s:
+              s = s.replace(btn, btn + '\n            <button class="btn btnGhost" onclick="refreshStaleMarketPrices(true)">Refresh market prices</button>', 1)
+
+          old_market = '<td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span>`:`<span class="marketNone">—</span>`}</td>'
+          new_market = '<td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}</td>'
+          if 'refresh pending' not in s:
+              s = s.replace(old_market, new_market, 1)
+
+          old_sell = '<div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong>`:""}</div>'
+          new_sell = '<div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}</div>'
+          s = s.replace(old_sell, new_sell, 1)
+
+          if 'lastMarketRefresh:new Date().toISOString(),' not in s:
+              s = s.replace('tcgUpdatedAt:c.tcgplayer?.updatedAt||"",', 'tcgUpdatedAt:c.tcgplayer?.updatedAt||"",\n    lastMarketRefresh:new Date().toISOString(),')
+
+          s = s.replace('sealedSource:"TCGCSV"', 'sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()')
+          s = s.replace('tcgPrices:prices,tcgMarket:market', 'tcgPrices:prices,tcgMarket:market,lastMarketRefresh:new Date().toISOString()')
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit updated site
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No update needed"
+          else
+            git add index.html
+            git commit -m "Update VendorTracker to v11.15 daily market refresh"
+            git push
+          fi
