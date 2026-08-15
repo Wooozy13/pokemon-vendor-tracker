@@ -1,0 +1,29 @@
+name: Run inventory save changes v11.26
+
+on:
+  push:
+    paths:
+      - '.github/workflows/run-inventory-save-changes-v1126.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: python scripts/apply_inventory_save_changes_v1126.py
+      - name: Verify
+        run: |
+          grep -q 'function saveInventoryChanges(id)' index.html
+          grep -q 'Save changes</button>' index.html
+          grep -q 'v11.26' index.html
+      - name: Commit site
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Unify inventory edits under Save changes v11.26"
+          git push
