@@ -1,0 +1,33 @@
+name: Run whole-lot paid v11.25
+
+on:
+  push:
+    paths:
+      - '.github/workflows/run-whole-lot-paid-v1125.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply whole-lot paid patch
+        run: python tools/apply_whole_lot_paid_v1125.py
+      - name: Verify
+        run: |
+          grep -q 'purchaseWholeLotPaid' index.html
+          grep -q 'function distributeWholeLotPaid' index.html
+          grep -q 'v11.25' index.html
+      - name: Commit site
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Add whole-lot paid amount v11.25"
+            git push
+          fi
