@@ -1,0 +1,216 @@
+name: Apply purchase batch system
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-purchase-batches.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add purchase batches
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          # styles
+          if '.purchaseBatchList{' not in s:
+            s=s.replace('</style>', '''
+.purchaseBatchList{display:grid;gap:8px;margin-top:12px}.purchaseBatchItem{display:grid;grid-template-columns:56px minmax(0,1fr) 90px 100px auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.purchaseBatchItem img{width:56px;height:72px;object-fit:contain;border-radius:8px;background:#f8fafc}.purchaseBatchSummary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0 0;border-top:1px solid var(--line);margin-top:12px}.purchaseLookupGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;margin-top:10px}.purchaseLookupCard{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px;text-align:left}.purchaseLookupCard img{width:100%;height:155px;object-fit:contain;background:#f8fafc;border-radius:8px}.purchaseSelected{display:grid;grid-template-columns:90px 1fr;gap:12px;align-items:center;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px}.purchaseSelected img{width:90px;height:118px;object-fit:contain;border-radius:8px;background:#fff}@media(max-width:820px){.purchaseBatchItem{grid-template-columns:52px 1fr}.purchaseBatchItem>div:nth-child(n+3),.purchaseBatchItem>button{grid-column:2}.purchaseSelected{grid-template-columns:72px 1fr}.purchaseSelected img{width:72px;height:96px}}
+'''+'\n</style>',1)
+
+          # Replace Purchases HTML section
+          purchase_section='''      <section id="purchases" class="page">
+        <div class="pageHeader"><div><h1>Purchases</h1><p>Build a complete purchase lot and keep every item grouped by seller/source.</p></div></div>
+
+        <div class="panel">
+          <div class="panelHead"><div><h3>Purchase batch details</h3><div class="small">These details apply to every item in this lot.</div></div></div>
+          <div class="grid">
+            <input id="buySource" class="input" placeholder="Seller / source / vendor">
+            <select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select>
+            <input id="buyBatchNote" class="input" placeholder="Batch note (optional)">
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panelHead"><div><h3>Add an item</h3><div class="small">Restock an existing item or search a new card/sealed product.</div></div></div>
+          <div class="grid" style="align-items:end">
+            <div><label class="small">Existing inventory</label><select id="buyProduct" class="input"></select></div>
+            <input id="buyQty" class="input" type="number" min="1" value="1" placeholder="Quantity">
+            <input id="buyLineTotal" class="input" type="number" min="0" step=".01" placeholder="Total paid for this item">
+            <button class="btn btnSoft" onclick="addExistingPurchaseItem()">Add existing item</button>
+          </div>
+
+          <div style="height:1px;background:var(--line);margin:18px 0"></div>
+          <div class="typeToggle" style="max-width:360px;margin-bottom:10px">
+            <button id="buyTypeCardBtn" class="active" type="button" onclick="setPurchaseLookupType('card')">Card</button>
+            <button id="buyTypeSealedBtn" type="button" onclick="setPurchaseLookupType('sealed')">Sealed product</button>
+          </div>
+          <div class="lookupRow">
+            <input id="buySearch" class="input" placeholder="Search card name / number" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPurchaseItem()}">
+            <button id="buySearchBtn" class="btn btnSoft" onclick="searchPurchaseItem()">Find card</button>
+          </div>
+          <div id="buyLookupStatus" class="apiStatus">Search for the exact card or sealed product, then select it below.</div>
+          <div id="buyLookupResults" class="purchaseLookupGrid"></div>
+          <div id="buySelectedPreview"></div>
+          <div id="buyNewItemFields" class="grid hidden" style="margin-top:10px">
+            <select id="buyCondition" class="input"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select>
+            <select id="buyFinish" class="input" onchange="updatePurchaseSelectedMarket()"><option value="">Printing / finish</option></select>
+            <input id="buyNewQty" class="input" type="number" min="1" value="1" placeholder="Quantity">
+            <input id="buyNewLineTotal" class="input" type="number" min="0" step=".01" placeholder="Total paid for this item">
+            <input id="buySellPrice" class="input" type="number" min="0" step=".01" placeholder="Your sell price (optional)">
+            <button class="btn btnPrimary" onclick="addSelectedPurchaseItem()">Add to batch</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panelHead"><div><h3>Current batch</h3><div class="small">Everything here will be saved as one grouped purchase.</div></div><span id="purchaseBatchCount" class="small">0 items</span></div>
+          <div id="purchaseBatchItems" class="purchaseBatchList"><div class="empty">No items in this batch yet.</div></div>
+          <div class="purchaseBatchSummary"><div><div class="small">Batch total</div><strong id="purchaseBatchTotal" style="font-size:24px">$0.00</strong></div><div class="actions"><button class="btn btnGhost" onclick="clearPurchaseBatch()">Clear batch</button><button class="btn btnPrimary" onclick="savePurchaseBatch()">Save purchase batch</button></div></div>
+        </div>
+
+        <div class="panel"><div class="panelHead"><h3>Purchase history</h3></div><div id="purchaseTable"></div></div>
+      </section>'''
+          s=re.sub(r'      <section id="purchases" class="page">.*?      </section>\n\n      <section id="expenses"',purchase_section+'\n\n      <section id="expenses"',s,count=1,flags=re.S)
+
+          # state vars
+          if 'let purchaseBatchItems=[];' not in s:
+            s=s.replace('let saleCart=[];','let saleCart=[];\nlet purchaseBatchItems=[];\nlet purchaseLookupType="card";\nlet purchaseLookupResults=[];\nlet purchaseSelectedItem=null;',1)
+
+          funcs=r'''
+function setPurchaseLookupType(type){
+  purchaseLookupType=type;purchaseSelectedItem=null;purchaseLookupResults=[];
+  document.getElementById("buyTypeCardBtn")?.classList.toggle("active",type==="card");
+  document.getElementById("buyTypeSealedBtn")?.classList.toggle("active",type==="sealed");
+  const b=document.getElementById("buySearchBtn"),q=document.getElementById("buySearch");
+  if(b)b.textContent=type==="card"?"Find card":"Find sealed";
+  if(q)q.placeholder=type==="card"?"Search card name / number":"Search sealed product";
+  const r=document.getElementById("buyLookupResults");if(r)r.innerHTML="";
+  const p=document.getElementById("buySelectedPreview");if(p)p.innerHTML="";
+  document.getElementById("buyNewItemFields")?.classList.add("hidden");
+}
+async function searchPurchaseItem(){
+  const q=document.getElementById("buySearch")?.value.trim(),status=document.getElementById("buyLookupStatus"),box=document.getElementById("buyLookupResults");
+  if(!q)return toast("Enter something to search");
+  status.textContent="Searching…";box.innerHTML="";purchaseSelectedItem=null;document.getElementById("buyNewItemFields")?.classList.add("hidden");
+  try{
+    if(purchaseLookupType==="card"){
+      const cards=await resolveCardText(q,24);purchaseLookupResults=cards;
+      if(!cards.length){status.textContent="No cards found. Try the name plus collector number.";return}
+      status.textContent=`Found ${cards.length} card${cards.length===1?"":"s"}. Select the exact printing.`;
+      box.innerHTML=cards.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||"")}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||"")} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):"Market unavailable"}</div></button>`}).join("");
+    }else{
+      const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:q}});if(error)throw error;
+      const items=data?.results||[];purchaseLookupResults=items;
+      if(!items.length){status.textContent="No sealed products found.";return}
+      status.textContent=`Found ${items.length} sealed product${items.length===1?"":"s"}.`;
+      box.innerHTML=items.map((x,i)=>`<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(x.imageUrl||"")}"><strong>${esc(x.name||"")}</strong><div class="small">${esc(x.groupName||"")}</div><div class="marketGood" style="margin-top:5px">${x.marketPrice!=null?money(x.marketPrice):"Market unavailable"}</div></button>`).join("");
+    }
+  }catch(e){status.textContent="Lookup failed. Try again in a moment."}
+}
+function selectPurchaseLookup(i){
+  const x=purchaseLookupResults[i];if(!x)return;
+  const fields=document.getElementById("buyNewItemFields"),preview=document.getElementById("buySelectedPreview"),finish=document.getElementById("buyFinish"),condition=document.getElementById("buyCondition");
+  if(purchaseLookupType==="card"){
+    const prices=x.tcgplayer?.prices||{},keys=Object.keys(prices),chosen=keys.includes("holofoil")?"holofoil":(keys[0]||"");
+    purchaseSelectedItem={type:"card",pokemonCardId:x.id,name:`${x.name} — ${x.set?.name||""} #${fullCardNumber(x)}`.trim(),cardBaseName:x.name||"",setName:x.set?.name||"",setId:x.set?.id||"",cardNumber:fullCardNumber(x),rarity:x.rarity||"",photo:x.images?.large||x.images?.small||"",tcgUrl:x.tcgplayer?.url||"",tcgUpdatedAt:x.tcgplayer?.updatedAt||"",tcgPrices:prices,finish:chosen,condition:"Near Mint"};
+    finish.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No printing price</option>';finish.value=chosen;condition.classList.remove("hidden");finish.classList.remove("hidden");
+  }else{
+    purchaseSelectedItem={type:"sealed",name:x.name||"Sealed product",photo:x.imageUrl||"",setName:x.groupName||"",tcgMarket:x.marketPrice!=null?Number(x.marketPrice):null,tcgUrl:x.url||"",tcgProductId:x.productId||null,condition:"Sealed",finish:"Sealed",sealedSource:"TCGCSV"};
+    condition.classList.add("hidden");finish.classList.add("hidden");
+  }
+  updatePurchaseSelectedMarket();
+  const market=purchaseSelectedMarket();
+  document.getElementById("buySellPrice").value=market!=null?Number(market).toFixed(2):"";
+  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`TCGplayer Market ${money(market)}`:"Market unavailable"}</div></div></div>`;
+  fields.classList.remove("hidden");
+  document.getElementById("buyLookupResults").innerHTML="";
+}
+function purchaseSelectedMarket(){
+  if(!purchaseSelectedItem)return null;if(purchaseSelectedItem.type==="sealed")return purchaseSelectedItem.tcgMarket;
+  const f=document.getElementById("buyFinish")?.value||purchaseSelectedItem.finish;return currentMarketFromPrices(purchaseSelectedItem.tcgPrices,f);
+}
+function updatePurchaseSelectedMarket(){
+  if(!purchaseSelectedItem)return;if(purchaseSelectedItem.type==="card")purchaseSelectedItem.finish=document.getElementById("buyFinish")?.value||purchaseSelectedItem.finish;
+  const m=purchaseSelectedMarket(),el=document.getElementById("buySelectedMarket");if(el)el.textContent=m!=null?`TCGplayer Market ${money(m)}`:"Market unavailable";
+}
+function addExistingPurchaseItem(){
+  const id=document.getElementById("buyProduct")?.value,p=db.products.find(x=>x.id===id),qty=Math.max(1,Number(document.getElementById("buyQty")?.value||1)),total=Math.max(0,Number(document.getElementById("buyLineTotal")?.value||0));
+  if(!p)return toast("Choose an existing inventory item");if(!total)return toast("Enter what you paid for this item");
+  purchaseBatchItems.push({id:uid(),existingProductId:p.id,name:p.name,qty,total,photo:p.photo||"",market:p.tcgMarket!=null?Number(p.tcgMarket):null,itemType:p.itemType||"card"});
+  document.getElementById("buyQty").value=1;document.getElementById("buyLineTotal").value="";renderPurchaseBatch();
+}
+function addSelectedPurchaseItem(){
+  if(!purchaseSelectedItem)return toast("Select a card or sealed product first");
+  const qty=Math.max(1,Number(document.getElementById("buyNewQty")?.value||1)),total=Math.max(0,Number(document.getElementById("buyNewLineTotal")?.value||0)),sell=Math.max(0,Number(document.getElementById("buySellPrice")?.value||0));
+  if(!total)return toast("Enter what you paid for this item");
+  const item=deepClone(purchaseSelectedItem);item.id=uid();item.qty=qty;item.total=total;item.price=sell;item.market=purchaseSelectedMarket();if(item.type==="card")item.condition=document.getElementById("buyCondition")?.value||"Near Mint";
+  purchaseBatchItems.push(item);purchaseSelectedItem=null;document.getElementById("buySelectedPreview").innerHTML="";document.getElementById("buyNewItemFields").classList.add("hidden");document.getElementById("buySearch").value="";renderPurchaseBatch();
+}
+function removePurchaseBatchItem(id){purchaseBatchItems=purchaseBatchItems.filter(x=>x.id!==id);renderPurchaseBatch()}
+function clearPurchaseBatch(){purchaseBatchItems=[];renderPurchaseBatch()}
+function renderPurchaseBatch(){
+  const box=document.getElementById("purchaseBatchItems");if(!box)return;const units=purchaseBatchItems.reduce((a,x)=>a+x.qty,0),total=purchaseBatchItems.reduce((a,x)=>a+x.total,0);
+  document.getElementById("purchaseBatchCount").textContent=`${purchaseBatchItems.length} line${purchaseBatchItems.length===1?"":"s"} • ${units} item${units===1?"":"s"}`;document.getElementById("purchaseBatchTotal").textContent=money(total);
+  box.innerHTML=purchaseBatchItems.length?purchaseBatchItems.map(x=>`<div class="purchaseBatchItem">${x.photo?`<img src="${esc(x.photo)}">`:`<div class="thumb"></div>`}<div><strong>${esc(x.name)}</strong><div class="small">${x.existingProductId?"Existing inventory":(x.type==="sealed"?"Sealed":`${esc(x.condition||"Near Mint")} • ${esc(prettyFinish(x.finish||""))}`)}${x.market!=null?` • Market ${money(x.market)}`:""}</div></div><div><div class="small">Qty</div><strong>${x.qty}</strong></div><div><div class="small">Paid</div><strong>${money(x.total)}</strong></div><button class="miniBtn btnDanger" onclick="removePurchaseBatchItem('${x.id}')">Remove</button></div>`).join(""):'<div class="empty">No items in this batch yet.</div>';
+}
+function addBatchItemToInventory(x){
+  if(x.existingProductId){const p=db.products.find(v=>v.id===x.existingProductId);if(!p)return null;const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+x.total)/(oldQty+x.qty);p.qty=oldQty+x.qty;return p}
+  if(x.type==="sealed"){
+    let p=db.products.find(v=>(v.itemType==="sealed")&&((x.tcgProductId&&String(v.tcgProductId)===String(x.tcgProductId))||v.name===x.name));
+    if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:x.price||x.market||0,photo:x.photo||"",itemType:"sealed",condition:"Sealed",finish:"Sealed",tcgMarket:x.market,tcgUrl:x.tcgUrl||"",tcgProductId:x.tcgProductId||null,setName:x.setName||"",sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
+    const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+x.total)/(oldQty+x.qty);p.qty=oldQty+x.qty;if(x.price)p.price=x.price;return p;
+  }
+  let p=db.products.find(v=>(v.itemType||"card")==="card"&&x.pokemonCardId&&v.pokemonCardId===x.pokemonCardId&&(v.finish||"")===(x.finish||"")&&(v.condition||"Near Mint")===(x.condition||"Near Mint"));
+  if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:x.price||x.market||0,photo:x.photo||"",itemType:"card",condition:x.condition||"Near Mint",finish:x.finish||"",pokemonCardId:x.pokemonCardId||"",cardBaseName:x.cardBaseName||"",setName:x.setName||"",setId:x.setId||"",cardNumber:x.cardNumber||"",rarity:x.rarity||"",tcgUrl:x.tcgUrl||"",tcgUpdatedAt:x.tcgUpdatedAt||"",tcgPrices:x.tcgPrices||{},tcgMarket:x.market,lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
+  const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+x.total)/(oldQty+x.qty);p.qty=oldQty+x.qty;if(x.price)p.price=x.price;return p;
+}
+function savePurchaseBatch(){
+  if(!purchaseBatchItems.length)return toast("Add at least one item to the batch");const source=document.getElementById("buySource")?.value.trim()||"Unknown seller",payment=document.getElementById("buyPayment")?.value||"Cash",note=document.getElementById("buyBatchNote")?.value.trim()||"",time=new Date().toISOString(),batchId=uid(),total=purchaseBatchItems.reduce((a,x)=>a+x.total,0),units=purchaseBatchItems.reduce((a,x)=>a+x.qty,0);
+  pushUndo("Record purchase batch");const saved=[];for(const x of purchaseBatchItems){const prod=addBatchItemToInventory(x);saved.push({...deepClone(x),productId:prod?.id||null})}
+  db.purchases.unshift({id:batchId,batchId,isBatch:true,name:`${source} • ${purchaseBatchItems.length} line${purchaseBatchItems.length===1?"":"s"}`,qty:units,total,source,payment,note,time,showId:db.currentShow?.id||null,items:saved});
+  purchaseBatchItems=[];document.getElementById("buySource").value="";document.getElementById("buyBatchNote").value="";save();toast("Purchase batch saved");
+}
+function recordPurchase(){savePurchaseBatch()}
+'''
+          s=re.sub(r'function recordPurchase\(\)\{.*?\n\}\n\nfunction recordExpense\(\)\{',funcs+'\nfunction recordExpense(){',s,count=1,flags=re.S)
+
+          # batch-aware delete
+          s=re.sub(r'function deletePurchase\(id\)\{.*?\n\}',r'''function deletePurchase(id){
+ const i=db.purchases.findIndex(x=>x.id===id);if(i<0)return;const x=db.purchases[i];pushUndo("Delete purchase");
+ if(x.isBatch&&Array.isArray(x.items)){x.items.forEach(it=>{const p=db.products.find(v=>v.id===it.productId);if(p)p.qty=Math.max(0,p.qty-Number(it.qty||0))})}
+ else{const p=db.products.find(p=>p.id===x.productId);if(p)p.qty=Math.max(0,p.qty-x.qty)}
+ db.purchases.splice(i,1);save();toast("Purchase deleted")
+}''',s,count=1,flags=re.S)
+
+          # render purchase history + selector
+          s=re.sub(r'function renderPurchases\(\)\{.*?\n\}\nfunction renderExpenses',r'''function renderPurchases(){
+ const sel=document.getElementById("buyProduct");if(sel)sel.innerHTML='<option value="">Select existing product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.qty} in stock</option>`).join("");
+ renderPurchaseBatch();
+ const table=document.getElementById("purchaseTable");if(!table)return;
+ table.innerHTML=db.purchases.length?db.purchases.slice(0,50).map(x=>x.isBatch?`<div class="panel" style="margin:0 0 10px;padding:14px"><div class="panelHead"><div><strong>${esc(x.source||"Purchase batch")}</strong><div class="small">${new Date(x.time).toLocaleString()} • ${esc(x.payment||"")}${x.note?` • ${esc(x.note)}`:""}</div></div><div style="text-align:right"><strong>${money(x.total)}</strong><div class="small">${x.qty||0} total items</div></div></div><div class="purchaseBatchList">${(x.items||[]).map(it=>`<div class="purchaseBatchItem">${it.photo?`<img src="${esc(it.photo)}">`:`<div class="thumb"></div>`}<div><strong>${esc(it.name)}</strong></div><div><div class="small">Qty</div>${it.qty}</div><div><div class="small">Paid</div>${money(it.total)}</div><span></span></div>`).join("")}</div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete batch</button></div></div>`:`<div class="panel" style="margin:0 0 10px;padding:14px"><div class="panelHead"><div><strong>${esc(x.name)}</strong><div class="small">${new Date(x.time).toLocaleString()} • ${esc(x.source||"")} • ${esc(x.payment||"")}</div></div><div style="text-align:right"><strong>${money(x.total)}</strong><div class="small">Qty ${x.qty}</div></div></div><div style="display:flex;justify-content:flex-end"><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></div></div>`).join(""):'<div class="empty">No purchases yet.</div>';
+}
+function renderExpenses''',s,count=1,flags=re.S)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit update
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes needed"
+          else
+            git add index.html
+            git commit -m "Add grouped purchase batches"
+            git push
+          fi
