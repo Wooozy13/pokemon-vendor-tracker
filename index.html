@@ -45,9 +45,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .undoBar.hidden{display:none}.undoBar button{border:0;background:#fff;color:#0f172a;border-radius:8px;padding:8px 10px;font-weight:850}
 .thumb{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#f8fafc}
 .photoPreview{width:110px;height:110px;border-radius:14px;object-fit:cover;border:1px solid var(--line);background:#f8fafc;display:none}
-.showActions{display:flex;gap:6px;flex-wrap:wrap}.detailsBox{margin-top:14px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px}
-.pricePill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 8px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:850;border:1px solid #fed7aa}
-
+.showActions{display:flex;gap:6px;flex-wrap:wrap}.detailsBox{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:13px;margin-top:10px}
 
 .lookupRow{display:flex;gap:8px;align-items:center}.lookupRow .input{flex:1}
 .modalBack{position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);display:grid;place-items:center;padding:18px;z-index:120}
@@ -59,10 +57,8 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .priceBox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px}.priceBox strong{display:block;font-size:18px;margin-top:3px}.apiStatus{font-size:12px;color:var(--muted);margin-top:8px}
 .marketGood{color:#166534;font-weight:850}.marketNone{color:#94a3b8}
 
-
 .scanQueue{display:grid;gap:10px;margin-top:12px}.scanItem{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
 .scanItem img{width:76px;height:100px;object-fit:cover;border-radius:8px;background:#f8fafc}.scanStatus{font-size:12px;color:var(--muted);margin-top:4px}.scanGood{color:#166534;font-weight:800}.scanBad{color:#991b1b;font-weight:800}
-
 
 /* ===== Mobile usability improvements ===== */
 .mobileOnly{display:none}
@@ -374,6 +370,41 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .marketFresh{color:#166534}
 .marketStale{color:#92400e}
 
+
+/* Cart + Vendor Mode */
+.sellLayout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+.cartPanel{position:sticky;top:82px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.cartHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.cartHead h3{margin:0}.cartCount{background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:850}
+.cartItem{display:grid;grid-template-columns:46px 1fr auto;gap:9px;align-items:center;padding:10px 0;border-bottom:1px solid #eef2f7}
+.cartItem:last-child{border-bottom:0}.cartItem img{width:46px;height:58px;object-fit:contain;border-radius:7px;background:#f8fafc}
+.cartItemName{font-size:12px;font-weight:800;line-height:1.25}.cartItemMeta{font-size:10px;color:var(--muted);margin-top:3px}
+.cartQty{display:flex;align-items:center;gap:5px;margin-top:6px}.cartQty button{width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:7px;font-weight:900}.cartQty span{min-width:22px;text-align:center;font-weight:800}
+.cartTotals{display:grid;gap:7px;padding-top:12px}.cartTotalRow{display:flex;justify-content:space-between;gap:12px;font-size:13px}.cartGrand{font-size:18px;font-weight:900;border-top:1px solid var(--line);padding-top:9px;margin-top:2px}
+.checkoutPayments{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}.checkoutPayments button{border:0;border-radius:10px;min-height:42px;font-weight:850}
+.addCartBtn{width:100%;margin-top:10px}.vendorModeBtn{background:#111827;color:#fff}.vendorExit{display:none}
+body.vendorMode .sidebar,body.vendorMode .appTop{display:none!important}
+body.vendorMode .appLayout{display:block}
+body.vendorMode .main{max-width:none;padding:14px}
+body.vendorMode .page:not(#sell){display:none!important}
+body.vendorMode #sell{display:block!important}
+body.vendorMode .vendorExit{display:inline-flex}
+body.vendorMode .bottomNav{display:none!important}
+body.vendorMode .sellLayout{grid-template-columns:minmax(0,1fr) 400px}
+body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:20;padding:4px 0 10px}
+.vendorModeBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media(max-width:980px){.sellLayout{grid-template-columns:1fr}.cartPanel{position:static}}
+@media(max-width:820px){
+  .sellLayout{display:block}.cartPanel{margin-top:12px;position:static}
+  .checkoutPayments{grid-template-columns:repeat(3,1fr)}
+  body.vendorMode .main{padding:10px 10px 20px}
+  body.vendorMode .sellLayout{display:block}
+  body.vendorMode .productGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body.vendorMode .productCard{padding:10px}
+  body.vendorMode .productCard img{height:145px!important}
+}
+@media(max-width:430px){.checkoutPayments{grid-template-columns:repeat(2,1fr)}body.vendorMode .productGrid{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
@@ -397,165 +428,82 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
         <span class="eyebrow">Built for vendors, resellers & pop-up sellers</span>
         <h1>Know your stock.<br>Know your profit.</h1>
         <p>Track inventory, record sales, manage purchases and expenses, and see how every show performs — from your phone or computer.</p>
-        <div class="heroButtons">
-          <button class="btn btnPrimary" onclick="openAuth('signup')">Create free account</button>
-          <button class="btn btnGhost" onclick="openAuth('signin')">Sign in</button>
-        </div>
+        <div class="heroButtons"><button class="btn btnPrimary" onclick="openAuth('signup')">Create free account</button><button class="btn btnGhost" onclick="openAuth('signin')">Sign in</button></div>
         <div class="heroNote">Cloud synced • Separate account data • Works on desktop and mobile</div>
       </div>
       <div class="mockup">
         <div class="mockInner">
-          <div class="mockTop"><div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div><span class="syncPill">● Synced</span></div>
-          <div class="mockCards">
-            <div class="mockCard"><div class="mockLabel">Sales today</div><div class="mockValue">$2,460</div></div>
-            <div class="mockCard"><div class="mockLabel">Gross profit</div><div class="mockValue">$1,087</div></div>
-            <div class="mockCard"><div class="mockLabel">Inventory cost</div><div class="mockValue">$6,920</div></div>
-          </div>
-          <div class="mockTable">
-            <div class="mockRow head"><span>Recent sale</span><span>Qty</span><span>Total</span></div>
-            <div class="mockRow"><span>Premium Box</span><span>1</span><strong>$85</strong></div>
-            <div class="mockRow"><span>Collector Bundle</span><span>2</span><strong>$120</strong></div>
-            <div class="mockRow"><span>Single Item</span><span>4</span><strong>$48</strong></div>
-          </div>
+          <div class="mockTop"><div class="brand"><span class="brandMark">V</span>VendorTracker</div><span class="syncPill">● Synced</span></div>
+          <div class="mockCards"><div class="mockCard"><div class="mockLabel">Sales today</div><div class="mockValue">$2,460</div></div><div class="mockCard"><div class="mockLabel">Gross profit</div><div class="mockValue">$1,087</div></div><div class="mockCard"><div class="mockLabel">Inventory cost</div><div class="mockValue">$6,920</div></div></div>
+          <div class="mockTable"><div class="mockRow head"><span>Recent sale</span><span>Qty</span><span>Total</span></div><div class="mockRow"><span>Premium Box</span><span>1</span><strong>$85</strong></div><div class="mockRow"><span>Collector Bundle</span><span>2</span><strong>$120</strong></div><div class="mockRow"><span>Single Item</span><span>4</span><strong>$48</strong></div></div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="features" class="section">
-    <div class="container">
-      <div class="sectionTitle"><h2>Everything you need at the table</h2><p>Designed around fast selling, simple inventory updates, and knowing exactly where your money went.</p></div>
-      <div class="featureGrid">
-        <div class="feature"><div class="featureIcon">📦</div><h3>Live inventory</h3><p>Every sale automatically reduces stock. Purchases automatically add it back.</p></div>
-        <div class="feature"><div class="featureIcon">💵</div><h3>Fast sales logging</h3><p>Record Cash, Cash App, or Zelle sales in seconds without slowing down your line.</p></div>
-        <div class="feature"><div class="featureIcon">📊</div><h3>Profit tracking</h3><p>See revenue, cost of goods, expenses and profit without building spreadsheets by hand.</p></div>
-        <div class="feature"><div class="featureIcon">🎪</div><h3>Show reports</h3><p>Start a show, track everything that happens, then close it with a clean performance summary.</p></div>
-        <div class="feature"><div class="featureIcon">☁️</div><h3>Cloud synced</h3><p>Your account follows you between your phone and computer, with separate data for every user.</p></div>
-        <div class="feature"><div class="featureIcon">↩️</div><h3>Fix mistakes fast</h3><p>Edit or delete recent sales and automatically correct inventory when something was entered wrong.</p></div>
-      </div>
-    </div>
-  </section>
+  <section id="features" class="section"><div class="container"><div class="sectionTitle"><h2>Everything you need at the table</h2><p>Designed around fast selling, simple inventory updates, and knowing exactly where your money went.</p></div><div class="featureGrid">
+    <div class="feature"><div class="featureIcon">📦</div><h3>Live inventory</h3><p>Every sale automatically reduces stock. See low-stock items and inventory value immediately.</p></div>
+    <div class="feature"><div class="featureIcon">💵</div><h3>Fast sales logging</h3><p>Record Cash, Cash App, or Zelle sales in seconds while keeping accurate profit numbers.</p></div>
+    <div class="feature"><div class="featureIcon">📊</div><h3>Profit tracking</h3><p>See revenue, cost of goods, expenses and gross profit without maintaining spreadsheets.</p></div>
+    <div class="feature"><div class="featureIcon">🧾</div><h3>Purchases & expenses</h3><p>Track new stock, table fees, travel costs and other expenses in one place.</p></div>
+    <div class="feature"><div class="featureIcon">🎪</div><h3>Show reports</h3><p>Start a show, sell throughout the day, then close it to save a complete performance report.</p></div>
+    <div class="feature"><div class="featureIcon">☁️</div><h3>Private cloud sync</h3><p>Your data follows your account and stays separate from every other VendorTracker user.</p></div>
+  </div></div></section>
 
-  <section id="how" class="section" style="background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
-    <div class="container">
-      <div class="sectionTitle"><h2>Simple from setup to closeout</h2><p>Add inventory before your event, log sales while you vend, and review the numbers when you're done.</p></div>
-      <div class="featureGrid">
-        <div class="feature"><div class="featureIcon">1</div><h3>Add your products</h3><p>Enter quantity, cost and normal selling price so profit calculations are ready.</p></div>
-        <div class="feature"><div class="featureIcon">2</div><h3>Sell from your phone</h3><p>Tap a product and choose how the customer paid. Inventory updates automatically.</p></div>
-        <div class="feature"><div class="featureIcon">3</div><h3>Close the show</h3><p>See sales, expenses and estimated net profit for that event in one place.</p></div>
-      </div>
-    </div>
-  </section>
+  <section id="how" class="section" style="background:#fff"><div class="container"><div class="sectionTitle"><h2>Simple enough to use while selling</h2><p>Add what you own, tap what sold, and let VendorTracker handle the math.</p></div><div class="featureGrid">
+    <div class="feature"><span class="eyebrow">01</span><h3 style="margin-top:16px">Add inventory</h3><p>Enter quantity, your cost and selling price. Add a product photo from your phone if you want.</p></div>
+    <div class="feature"><span class="eyebrow">02</span><h3 style="margin-top:16px">Record transactions</h3><p>Log sales, restocks and expenses as they happen. Inventory remains accurate automatically.</p></div>
+    <div class="feature"><span class="eyebrow">03</span><h3 style="margin-top:16px">Review the numbers</h3><p>Use the dashboard and show reports to understand revenue, profit and payment totals.</p></div>
+  </div></div></section>
 
-  <section id="about" class="section">
-    <div class="container cta">
-      <div><h2>Run your table with less guesswork.</h2><p>Keep your inventory, sales and show performance in one clean place.</p></div>
-      <button class="btn btnPrimary" onclick="openAuth('signup')">Start using VendorTracker</button>
-    </div>
-  </section>
-
-  <footer class="footer"><div class="container">© 2026 VendorTracker. Inventory and sales tools for independent sellers.</div></footer>
+  <section id="about" class="section"><div class="container"><div class="cta"><div><h2>Built for the way vendors actually sell.</h2><p>Stop rebuilding your totals after every event.</p></div><button class="btn btnPrimary" onclick="openAuth('signup')">Start tracking</button></div></div></section>
+  <footer class="footer"><div class="container">© 2026 VendorTracker · vendortracker.app</div></footer>
 </div>
 
 <!-- AUTH -->
-<div id="authView" class="authOverlay hidden">
+<div id="authOverlay" class="authOverlay hidden">
   <div class="authShell">
     <aside class="authAside">
-      <div>
-        <div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div>
-        <h2>Your selling business, organized.</h2>
-        <p>Keep inventory, sales, purchases, expenses and show results synced under one account.</p>
-        <div class="authPoint">✓ Your own private inventory data</div>
-        <div class="authPoint">✓ Syncs across your devices</div>
-        <div class="authPoint">✓ Email verification and account recovery</div>
-      </div>
-      <div class="small" style="color:#94a3b8">Secure account access powered by Supabase.</div>
+      <div><div class="brand"><span class="brandMark">V</span>VendorTracker</div><h2>Your business,<br>organized.</h2><p>Everything you need to track inventory, transactions and event profitability without a complicated POS system.</p><div class="authPoint">✓ Data synced to your account</div><div class="authPoint">✓ Inventory adjusts after every sale</div><div class="authPoint">✓ Built for phones and desktops</div></div>
+      <div class="small" style="color:#94a3b8">vendortracker.app</div>
     </aside>
     <main class="authMain">
-      <button class="linkBtn" onclick="backHome()">← Back to website</button>
-      <h1 id="authTitle" style="margin-top:22px">Welcome back</h1>
-      <p id="authSubtitle" class="muted">Sign in to continue to your VendorTracker dashboard.</p>
-
-      <div class="authTabs">
-        <button id="signinTab" class="authTab active" onclick="switchAuth('signin')">Sign in</button>
-        <button id="signupTab" class="authTab" onclick="switchAuth('signup')">Create account</button>
-      </div>
-
-      <div class="field"><label>Email address</label><input id="email" class="input" type="email" autocomplete="email" placeholder="you@example.com"></div>
-      <div class="field"><label>Password</label><input id="password" class="input" type="password" autocomplete="current-password" placeholder="Enter your password"></div>
-
-      <div id="signinExtras" class="authRow"><span class="small">Use the same login on every device.</span><button class="linkBtn" onclick="showForgotPassword()">Forgot password?</button></div>
-
-      <button id="authSubmit" class="btn btnPrimary" style="width:100%" onclick="handleAuthSubmit()">Sign in</button>
-      <div id="signupHelp" class="small hidden" style="margin-top:12px">We'll email you a verification link before you can access your dashboard.</div>
-
-      <div id="verifyActions" class="hidden" style="margin-top:14px">
-        <button class="btn btnSoft" style="width:100%" onclick="resendVerification()">Resend verification email</button>
-      </div>
-
+      <button class="linkBtn" onclick="closeAuth()">← Back to VendorTracker</button>
+      <h1 style="margin-top:26px">Welcome to VendorTracker</h1><div class="small">Sign in or create your account to continue.</div>
+      <div class="authTabs"><button id="signInTab" class="authTab active" onclick="setAuthTab('signin')">Sign in</button><button id="signUpTab" class="authTab" onclick="setAuthTab('signup')">Create account</button></div>
+      <form onsubmit="submitAuth(event)">
+        <div class="field"><label>Email address</label><input id="email" class="input" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+        <div class="field"><label>Password</label><input id="password" class="input" type="password" autocomplete="current-password" placeholder="Enter your password" required minlength="6"></div>
+        <div class="authRow"><span class="small">Use at least 6 characters.</span><button type="button" class="linkBtn" onclick="forgotPassword()">Forgot password?</button></div>
+        <button id="authSubmit" class="btn btnPrimary" style="width:100%">Sign in</button>
+      </form>
       <div id="authMsg" class="authMsg"></div>
     </main>
   </div>
 </div>
 
-<!-- FORGOT PASSWORD -->
-<div id="forgotView" class="authOverlay hidden">
+<!-- PASSWORD RESET -->
+<div id="resetView" class="authOverlay hidden">
   <div class="resetCard">
-    <div class="resetHeader">
-      <div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div>
-      <h1>Reset your password</h1>
-      <p>Enter the email address connected to your account. We'll send you a secure link to choose a new password.</p>
-      <span class="secureBadge">🔒 Secure account recovery</span>
-    </div>
-    <div class="field" style="margin-top:24px"><label>Email address</label><input id="forgotEmail" class="input" type="email" placeholder="you@example.com"></div>
-    <button class="btn btnPrimary" style="width:100%" onclick="sendPasswordReset()">Send reset link</button>
-    <button class="btn btnGhost" style="width:100%;margin-top:8px" onclick="returnToSignin()">Back to sign in</button>
-    <div id="forgotMsg" class="authMsg"></div>
-    <p class="small" style="text-align:center;margin-top:16px">For your security, password reset links expire and can only be used once.</p>
-  </div>
-</div>
-
-<!-- NEW PASSWORD -->
-<div id="recoveryView" class="authOverlay hidden">
-  <div class="resetCard">
-    <div class="resetHeader">
-      <div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div>
-      <h1>Choose a new password</h1>
-      <p>Your recovery link was accepted. Create a new password for your VendorTracker account.</p>
-      <span class="secureBadge">✓ Recovery link verified</span>
-    </div>
-    <div class="field" style="margin-top:24px"><label>New password</label><input id="newPassword" class="input" type="password" placeholder="At least 6 characters"></div>
-    <div class="field"><label>Confirm new password</label><input id="newPasswordConfirm" class="input" type="password" placeholder="Enter it again"></div>
-    <button class="btn btnPrimary" style="width:100%" onclick="finishPasswordReset()">Update password</button>
+    <div class="resetHeader"><div class="brand"><span class="brandMark">V</span>VendorTracker</div><span class="secureBadge">🔒 Secure account recovery</span><h1>Choose a new password</h1><p>Enter a new password for your VendorTracker account. After it is updated, you'll be returned to your dashboard.</p></div>
+    <form onsubmit="completePasswordReset(event)"><div class="field"><label>New password</label><input id="newPassword" class="input" type="password" minlength="6" required placeholder="At least 6 characters"></div><div class="field"><label>Confirm new password</label><input id="confirmPassword" class="input" type="password" minlength="6" required placeholder="Re-enter password"></div><button class="btn btnPrimary" style="width:100%;margin-top:8px">Update password</button></form>
     <div id="resetMsg" class="authMsg"></div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header class="appTop">
-    <div class="appLeft">
-      <div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div>
-      <span id="syncBadge" class="syncPill">● Synced</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span id="accountEmail" class="small"></span>
-      <button class="btn btnGhost" onclick="signOut()">Sign out</button>
-    </div>
-  </header>
-
+  <header class="appTop"><div class="appLeft"><button class="btn btnGhost menuBtn" onclick="toggleMobileNav()">☰</button><div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div><span id="syncBadge" class="syncPill">● Synced</span></div><div style="display:flex;align-items:center;gap:10px"><span id="accountEmail" class="small"></span><button class="btn btnGhost" onclick="signOut()">Sign out</button></div></header>
   <div class="appLayout">
-    <aside class="sidebar">
-      <nav class="sideNav">
-        <button class="sideBtn active" data-page="dashboard" onclick="go('dashboard',this)">Dashboard</button>
-        <button class="sideBtn" data-page="sell" onclick="go('sell',this)">Sell</button>
-        <button class="sideBtn" data-page="inventory" onclick="go('inventory',this)">Inventory</button>
-        <button class="sideBtn" data-page="purchases" onclick="go('purchases',this)">Purchases</button>
-        <button class="sideBtn" data-page="expenses" onclick="go('expenses',this)">Expenses</button>
-        <button class="sideBtn" data-page="shows" onclick="go('shows',this)">Shows</button>
-        <button class="sideBtn" data-page="settings" onclick="go('settings',this)">Settings</button>
-      </nav>
-    </aside>
+    <aside id="sidebar" class="sidebar"><nav class="sideNav">
+      <button class="sideBtn active" data-page="dashboard" onclick="go('dashboard',this)">Dashboard</button>
+      <button class="sideBtn" data-page="sell" onclick="go('sell',this)">Sell</button>
+      <button class="sideBtn" data-page="inventory" onclick="go('inventory',this)">Inventory</button>
+      <button class="sideBtn" data-page="purchases" onclick="go('purchases',this)">Purchases</button>
+      <button class="sideBtn" data-page="expenses" onclick="go('expenses',this)">Expenses</button>
+      <button class="sideBtn" data-page="shows" onclick="go('shows',this)">Shows</button>
+      <button class="sideBtn" data-page="settings" onclick="go('settings',this)">Settings</button>
+    </nav></aside>
 
     <main class="main">
       <section id="dashboard" class="page active">
@@ -578,15 +526,42 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
       </section>
 
       <section id="sell" class="page">
-        <div class="pageHeader"><div><h1>Sell</h1><p>Log a sale in a few taps.</p></div></div>
+        <div class="pageHeader">
+          <div><h1>Sell</h1><p>Add multiple products to a cart and check out once.</p></div>
+          <div class="vendorModeBar">
+            <button class="btn vendorModeBtn" onclick="enterVendorMode()">⚡ Vendor Mode</button>
+            <button class="btn btnGhost vendorExit" onclick="exitVendorMode()">Exit Vendor Mode</button>
+          </div>
+        </div>
         <div class="panel">
           <div class="grid">
             <input id="saleSearch" class="input" placeholder="Search products..." oninput="renderSaleProducts()">
-            <input id="salePrice" class="input" type="number" step=".01" placeholder="Sale price (blank = default)">
-            <input id="saleQty" class="input" type="number" min="1" value="1">
+            <input id="salePrice" class="input" type="number" step=".01" placeholder="Override unit price (optional)">
+            <input id="saleQty" class="input" type="number" min="1" value="1" aria-label="Quantity to add">
           </div>
         </div>
-        <div id="saleProducts" class="productGrid" style="margin-top:14px"></div>
+        <div class="sellLayout">
+          <div id="saleProducts" class="productGrid" style="margin-top:14px"></div>
+          <aside class="cartPanel" style="margin-top:14px">
+            <div class="cartHead"><h3>Cart</h3><span id="cartCount" class="cartCount">0 items</span></div>
+            <div id="cartItems"><div class="empty" style="padding:18px">Cart is empty.</div></div>
+            <div class="cartTotals">
+              <div class="cartTotalRow"><span>Subtotal</span><strong id="cartSubtotal">$0.00</strong></div>
+              <div class="cartTotalRow"><span>Discount</span><input id="cartDiscount" class="input" type="number" min="0" step=".01" value="0" style="width:110px;padding:7px;text-align:right" oninput="renderCart()"></div>
+              <div class="cartTotalRow cartGrand"><span>Total</span><span id="cartTotal">$0.00</span></div>
+            </div>
+            <div class="small" style="margin-top:12px">Complete sale with:</div>
+            <div class="checkoutPayments">
+              <button class="cash" onclick="checkoutCart('Cash')">Cash</button>
+              <button class="cashapp" onclick="checkoutCart('Cash App')">Cash App</button>
+              <button class="zelle" onclick="checkoutCart('Zelle')">Zelle</button>
+              <button class="venmo" onclick="checkoutCart('Venmo')">Venmo</button>
+              <button class="applepay" onclick="checkoutCart('Apple Pay')">Apple Pay</button>
+              <button class="cardpay" onclick="checkoutCart('Card')">Card</button>
+            </div>
+            <button class="btn btnGhost" style="width:100%;margin-top:8px" onclick="clearCart()">Clear cart</button>
+          </aside>
+        </div>
       </section>
 
       <section id="inventory" class="page">
@@ -646,41 +621,24 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
       </section>
 
       <section id="purchases" class="page">
-        <div class="pageHeader"><div><h1>Purchases</h1><p>Track stock you buy and automatically increase inventory.</p></div></div>
-        <div class="panel">
-          <div class="grid">
-            <select id="buyProduct" class="input"></select>
-            <input id="buyName" class="input" placeholder="Or new product name">
-            <input id="buyQty" class="input" type="number" min="1" placeholder="Quantity">
-            <input id="buyTotal" class="input" type="number" step=".01" placeholder="Total cost">
-            <input id="buySource" class="input" placeholder="Seller / source">
-            <select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select>
-            <button class="btn btnPrimary" onclick="recordPurchase()">Record purchase</button>
-          </div>
-        </div>
+        <div class="pageHeader"><div><h1>Purchases</h1><p>Record new stock and update inventory automatically.</p></div></div>
+        <div class="panel"><div class="grid"><select id="buyProduct" class="input"></select><input id="buyName" class="input" placeholder="Or new product name"><input id="buyQty" class="input" type="number" min="1" placeholder="Quantity"><input id="buyTotal" class="input" type="number" step=".01" placeholder="Total paid"><input id="buySource" class="input" placeholder="Source / vendor"><select id="buyPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select><button class="btn btnPrimary" onclick="recordPurchase()">Record purchase</button></div></div>
         <div class="panel"><div id="purchaseTable"></div></div>
       </section>
 
       <section id="expenses" class="page">
-        <div class="pageHeader"><div><h1>Expenses</h1><p>Track booth fees, fuel, supplies and other costs.</p></div></div>
-        <div class="panel">
-          <div class="grid">
-            <input id="expName" class="input" placeholder="Expense">
-            <input id="expAmount" class="input" type="number" step=".01" placeholder="Amount">
-            <select id="expPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select>
-            <button class="btn btnPrimary" onclick="recordExpense()">Add expense</button>
-          </div>
-        </div>
+        <div class="pageHeader"><div><h1>Expenses</h1><p>Track table fees, travel and other operating costs.</p></div></div>
+        <div class="panel"><div class="grid"><input id="expName" class="input" placeholder="Expense description"><input id="expAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="expPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select><button class="btn btnPrimary" onclick="recordExpense()">Add expense</button></div></div>
         <div class="panel"><div id="expenseTable"></div></div>
       </section>
 
       <section id="shows" class="page">
-        <div class="pageHeader"><div><h1>Shows</h1><p>Review closed shows and their results.</p></div></div>
-        <div class="panel"><div id="showTable"></div></div>
+        <div class="pageHeader"><div><h1>Shows</h1><p>Review previous events and the profit from each one.</p></div></div>
+        <div id="showList"></div>
       </section>
 
       <section id="settings" class="page">
-        <div class="pageHeader"><div><h1>Settings</h1><p>Account and data tools.</p></div></div>
+        <div class="pageHeader"><div><h1>Settings</h1><p>Account and data controls.</p></div></div>
         <div class="panel">
           <div class="panelHead"><h3>Account</h3></div>
           <p id="settingsEmail"></p>
@@ -700,14 +658,9 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
   </div>
 
   <nav class="bottomNav">
-    <button class="active" data-page="dashboard" onclick="go('dashboard',this)">Dashboard</button>
-    <button data-page="sell" onclick="go('sell',this)">Sell</button>
-    <button data-page="inventory" onclick="go('inventory',this)">Inventory</button>
-    <button data-page="purchases" onclick="go('purchases',this)">Buy</button>
-    <button data-page="shows" onclick="go('shows',this)">Shows</button>
+    <button class="active" data-page="dashboard" onclick="go('dashboard',this)">Dashboard</button><button data-page="sell" onclick="go('sell',this)">Sell</button><button data-page="inventory" onclick="go('inventory',this)">Inventory</button><button data-page="purchases" onclick="go('purchases',this)">Purchases</button><button data-page="shows" onclick="go('shows',this)">Shows</button>
   </nav>
 </div>
-
 
 
 <div id="sealedLookupModal" class="modalBack hidden">
@@ -741,12 +694,11 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 <div id="toast" class="toast hidden"></div>
 
 <script>
-const PROJECT_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
-const PUBLISHABLE_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
-const SITE_URL="https://www.vendortracker.app/";
-const LOCAL_PREFIX="vendortracker_cache_";
-
-let sb=null,user=null,authMode="signin",saveTimer=null,lastCloudUpdate=null,isPulling=false;
+const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_0Eo__QsO3XmkkgpZZlgiwA_9C2TDQmp";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const LOCAL_PREFIX="vendortracker_data_v3_";
+let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
 let pendingPhotoData="";
@@ -755,6 +707,7 @@ let currentLookupResults=[];
 let inventoryType="card";
 let currentSealedResults=[];
 let pendingSealedData=null;
+let saleCart=[];
 
 function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null}}
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
@@ -765,6 +718,7 @@ function priceDateLabel(v){
   if(!v)return "Update time unavailable";
   const d=new Date(v);
   if(Number.isNaN(d.getTime())){
+    // Some feeds return YYYY/MM/DD or YYYY/MM/DD-like values.
     const cleaned=String(v).replace(/\//g,"-");
     const d2=new Date(cleaned);
     if(Number.isNaN(d2.getTime()))return `Updated ${v}`;
@@ -793,24 +747,32 @@ function deepClone(v){return JSON.parse(JSON.stringify(v))}
 function pushUndo(label){
   undoStack.push({label,state:deepClone(db)});
   if(undoStack.length>25)undoStack.shift();
-  const bar=document.getElementById("undoBar");
-  document.getElementById("undoText").textContent=label;
-  bar.classList.remove("hidden");
+  const bar=document.getElementById("undoBar"),txt=document.getElementById("undoText");
+  if(bar&&txt){txt.textContent=label;bar.classList.remove("hidden")}
 }
 function dismissUndo(){
   const bar=document.getElementById("undoBar");
   if(bar)bar.classList.add("hidden");
 }
 function undoLast(){
-  const item=undoStack.pop();
-  if(!item){document.getElementById("undoBar").classList.add("hidden");return}
-  db=item.state;
-  save();
-  toast("Reverted: "+item.label);
-  if(!undoStack.length)document.getElementById("undoBar").classList.add("hidden");
-  else document.getElementById("undoText").textContent=undoStack[undoStack.length-1].label;
+  const snap=undoStack.pop();if(!snap)return toast("Nothing to undo");
+  db=snap.state;save();toast("Undid: "+snap.label);
+  if(!undoStack.length)document.getElementById("undoBar")?.classList.add("hidden")
 }
-function clearUndo(){undoStack=[];const b=document.getElementById("undoBar");if(b)b.classList.add("hidden")}
+function dataUrlFromFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+async function previewProductPhoto(input){
+  const file=input.files?.[0];if(!file)return;
+  try{pendingPhotoData=await dataUrlFromFile(file);const img=document.getElementById("pPhotoPreview");img.src=pendingPhotoData;img.style.display="block"}catch(e){toast("Could not read photo")}
+}
+function clearProductPhotoForm(){
+  pendingPhotoData="";
+  pendingCardData=null;
+  const inp=document.getElementById("pPhoto");if(inp)inp.value="";
+  const img=document.getElementById("pPhotoPreview");if(img){img.src="";img.style.display="none"}
+  const finish=document.getElementById("pFinish");if(finish)finish.innerHTML='<option value="">Printing / finish</option>';
+  const market=document.getElementById("pMarketDisplay");if(market)market.textContent="—";
+  const updated=document.getElementById("pMarketUpdated");if(updated)updated.textContent="";
+}
 function tcgLookup(name, directUrl=""){
   // Only allow direct links that are actually on tcgplayer.com.
   try{
@@ -826,26 +788,6 @@ function tcgLookup(name, directUrl=""){
   // Safe fallback: search directly on TCGplayer.
   const q=encodeURIComponent(name);
   window.open("https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid","_blank","noopener");
-}
-async function fileToCompressedDataURL(file,maxSize=720,quality=.78){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onerror=reject;
-    reader.onload=()=>{
-      const img=new Image();
-      img.onerror=reject;
-      img.onload=()=>{
-        let w=img.width,h=img.height;
-        const scale=Math.min(1,maxSize/Math.max(w,h));
-        w=Math.round(w*scale);h=Math.round(h*scale);
-        const c=document.createElement("canvas");c.width=w;c.height=h;
-        c.getContext("2d").drawImage(img,0,0,w,h);
-        resolve(c.toDataURL("image/jpeg",quality));
-      };
-      img.src=reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
 function fullCardNumber(card){
@@ -871,7 +813,6 @@ function resetCardMetadata(){
   const d=document.getElementById("pMarketDisplay");if(d)d.textContent="—";
   const u=document.getElementById("pMarketUpdated");if(u)u.textContent="";
 }
-
 
 function setInventoryType(type){
   inventoryType=type;
@@ -936,7 +877,6 @@ function selectSealedProduct(i){
   document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}.`;
   closeSealedLookup();
 }
-
 function normalizeCardText(v){
   return String(v||"")
     .toLowerCase()
@@ -1272,7 +1212,6 @@ function selectPokemonCard(i){
   document.getElementById("cardLookupStatus").textContent=`Selected ${c.set?.name||""} #${fullCardNumber(c)}. Artwork and TCGplayer pricing loaded.`;
   closeCardLookup();
 }
-
 async function refreshCardMarketPrice(p){
   if(!p?.pokemonCardId)return false;
   try{
@@ -1281,13 +1220,16 @@ async function refreshCardMarketPrice(p){
     const j=await r.json();
     const c=j.data;
     if(!c)return false;
+
     p.tcgPrices=c.tcgplayer?.prices||p.tcgPrices||{};
     p.tcgUrl=c.tcgplayer?.url||p.tcgUrl||"";
     p.tcgUpdatedAt=latestCardPriceTimestamp(c);
     p.tcgMarket=currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket;
     p.lastMarketRefresh=new Date().toISOString();
     return true;
-  }catch(e){return false;}
+  }catch(e){
+    return false;
+  }
 }
 async function refreshSealedMarketPrice(p){
   if(!p || p.itemType!=="sealed" || !p.name)return false;
@@ -1296,12 +1238,16 @@ async function refreshSealedMarketPrice(p){
     if(error || !data?.success)return false;
     const results=data.results||[];
     let match=null;
-    if(p.tcgProductId!=null)match=results.find(x=>String(x.productId)===String(p.tcgProductId));
+
+    if(p.tcgProductId!=null){
+      match=results.find(x=>String(x.productId)===String(p.tcgProductId));
+    }
     if(!match){
       const wanted=String(p.name).toLowerCase().trim();
       match=results.find(x=>String(x.name||"").toLowerCase().trim()===wanted);
     }
     if(!match)return false;
+
     if(match.marketPrice!=null)p.tcgMarket=Number(match.marketPrice);
     p.tcgUrl=match.url||p.tcgUrl||"";
     p.photo=p.photo||match.imageUrl||"";
@@ -1309,7 +1255,9 @@ async function refreshSealedMarketPrice(p){
     p.tcgUpdatedAt=match.updatedAt||new Date().toISOString();
     p.lastMarketRefresh=new Date().toISOString();
     return true;
-  }catch(e){return false;}
+  }catch(e){
+    return false;
+  }
 }
 async function refreshStaleMarketPrices(force=false){
   if(!user || !db?.products?.length)return;
@@ -1317,9 +1265,14 @@ async function refreshStaleMarketPrices(force=false){
     const stamp=p.lastMarketRefresh||p.tcgUpdatedAt;
     return force || priceIsStale(stamp,24);
   });
-  if(!stale.length){if(force)toast("Market prices are already current");return;}
+  if(!stale.length){
+    if(force)toast("Market prices are already current");
+    return;
+  }
+
   setSync(true,"Updating prices…");
   let updated=0;
+  // Sequential to avoid hammering free/cached sources.
   for(const p of stale){
     let ok=false;
     if(p.itemType==="sealed")ok=await refreshSealedMarketPrice(p);
@@ -1327,8 +1280,12 @@ async function refreshStaleMarketPrices(force=false){
     if(ok)updated++;
     await new Promise(r=>setTimeout(r,120));
   }
-  if(updated){save();toast(`${updated} market price${updated===1?"":"s"} refreshed`);}
-  else if(force)toast("No prices could be refreshed");
+  if(updated){
+    save();
+    toast(`${updated} market price${updated===1?"":"s"} refreshed`);
+  }else if(force){
+    toast("No prices could be refreshed");
+  }
   setSync(true,"Synced");
 }
 
@@ -1338,7 +1295,6 @@ function updatePendingMarketFromFinish(){
   document.getElementById("pMarketDisplay").textContent=market!=null?money(market):"—";
   document.getElementById("pMarketUpdated").textContent=pendingCardData?.tcgUpdatedAt?`Price data updated ${pendingCardData.tcgUpdatedAt}`:"";
 }
-
 function updateInventoryCondition(id){
   const p=db.products.find(x=>x.id===id);if(!p)return;
   pushUndo("Update card condition");
@@ -1346,8 +1302,7 @@ function updateInventoryCondition(id){
   const finishEl=document.getElementById("inv_finish_"+id);
   if(finishEl)p.finish=finishEl.value;
   p.tcgMarket=currentMarketFromPrices(p.tcgPrices,p.finish);
-  save();
-  toast("Card condition updated");
+  save();toast("Card condition updated");
 }
 function useMarketAsSellPrice(id){
   const p=db.products.find(x=>x.id===id);if(!p||p.tcgMarket==null)return;
@@ -1356,222 +1311,38 @@ function useMarketAsSellPrice(id){
   save();toast("Sell price set to TCGplayer market");
 }
 
-async function previewProductPhoto(input){
-  const file=input.files?.[0];if(!file)return;
-  try{
-    pendingPhotoData=await fileToCompressedDataURL(file);
-    const img=document.getElementById("pPhotoPreview");
-    img.src=pendingPhotoData;img.style.display="block";
-  }catch(e){toast("Could not process photo")}
-}
-function clearProductPhotoForm(){
-  pendingPhotoData="";
-  pendingCardData=null;
-  const inp=document.getElementById("pPhoto");if(inp)inp.value="";
-  const img=document.getElementById("pPhotoPreview");if(img){img.src="";img.style.display="none"}
-  const finish=document.getElementById("pFinish");if(finish)finish.innerHTML='<option value="">Printing / finish</option>';
-  const market=document.getElementById("pMarketDisplay");if(market)market.textContent="—";
-  const updated=document.getElementById("pMarketUpdated");if(updated)updated.textContent="";
-}
-
-function showOnly(id){
- ["publicSite","authView","forgotView","recoveryView","app"].forEach(x=>document.getElementById(x).classList.add("hidden"));
- document.getElementById(id).classList.remove("hidden");
-}
-function backHome(){showOnly("publicSite")}
-function openAuth(mode="signin"){showOnly("authView");switchAuth(mode)}
-function switchAuth(mode){
- authMode=mode;
- document.getElementById("signinTab").classList.toggle("active",mode==="signin");
- document.getElementById("signupTab").classList.toggle("active",mode==="signup");
- document.getElementById("authTitle").textContent=mode==="signin"?"Welcome back":"Create your account";
- document.getElementById("authSubtitle").textContent=mode==="signin"?"Sign in to continue to your VendorTracker dashboard.":"Create an account and verify your email to get started.";
- document.getElementById("authSubmit").textContent=mode==="signin"?"Sign in":"Create account";
- document.getElementById("signinExtras").classList.toggle("hidden",mode!=="signin");
- document.getElementById("signupHelp").classList.toggle("hidden",mode!=="signup");
- document.getElementById("verifyActions").classList.add("hidden");
- setMsg(document.getElementById("authMsg"),"");
-}
-function showForgotPassword(){
- document.getElementById("forgotEmail").value=document.getElementById("email").value.trim();
- setMsg(document.getElementById("forgotMsg"),"");
- showOnly("forgotView");
-}
-function returnToSignin(){openAuth("signin")}
-
 async function init(){
- try{
-   if(!window.supabase) throw new Error("Secure login service did not load. Check your internet connection.");
-   sb=window.supabase.createClient(PROJECT_URL,PUBLISHABLE_KEY);
-
-   sb.auth.onAuthStateChange((event,session)=>{
-     if(event==="PASSWORD_RECOVERY"){
-       user=session?.user||null;
-       showOnly("recoveryView");
-     }
-   });
-
-   const {data:{session},error}=await sb.auth.getSession();
-   if(error) throw error;
-
-   const hashParams=new URLSearchParams(location.hash.replace(/^#/,""));
-   const isRecovery=hashParams.get("type")==="recovery";
-   const errorDesc=hashParams.get("error_description");
-
-   if(errorDesc){
-     openAuth("signin");
-     setMsg(document.getElementById("authMsg"),decodeURIComponent(errorDesc),"error");
-     history.replaceState({},document.title,location.pathname);
-     return;
-   }
-
-   if(session && isRecovery){
-     user=session.user;
-     showOnly("recoveryView");
-     return;
-   }
-
-   if(session?.user?.email_confirmed_at){
-     user=session.user;
-     history.replaceState({},document.title,location.pathname);
-     await enterApp();
-     return;
-   }
-
-   if(session && !session.user.email_confirmed_at) await sb.auth.signOut();
-   showOnly("publicSite");
- }catch(e){
-   showOnly("authView");
-   setMsg(document.getElementById("authMsg"),"Connection error: "+e.message,"error");
- }
+ const h=location.hash;
+ if(h.includes("type=recovery")||h.includes("access_token="))recoveryMode=true;
+ const {data:{session}}=await sb.auth.getSession();
+ sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;showReset()}else if(ev==="SIGNED_OUT"){user=null;showPublic()}else if(s?.user&&!recoveryMode){user=s.user;await enterApp()}});
+ if(recoveryMode&&session){user=session.user;showReset()}else if(session?.user){user=session.user;await enterApp()}else showPublic();
 }
-
-async function handleAuthSubmit(){authMode==="signin"?signIn():signUp()}
-
-async function signUp(){
- const msg=document.getElementById("authMsg");
- const email=document.getElementById("email").value.trim().toLowerCase();
- const password=document.getElementById("password").value;
- setMsg(msg,"");
-
- if(!email)return setMsg(msg,"Enter your email address.","error");
- if(password.length<6)return setMsg(msg,"Password must be at least 6 characters.","error");
-
- const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:SITE_URL}});
-
- if(error){
-   const t=(error.message||"").toLowerCase();
-   if(t.includes("already")||t.includes("registered")||t.includes("exists"))setMsg(msg,"That email is already in use. Try signing in instead.","error");
-   else setMsg(msg,error.message,"error");
-   return;
- }
-
- if(data?.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){
-   setMsg(msg,"That email is already in use. Try signing in instead.","error");return;
- }
-
- if(data?.session&&!data?.user?.email_confirmed_at)await sb.auth.signOut();
- document.getElementById("verifyActions").classList.remove("hidden");
- setMsg(msg,"Account created. Check your inbox and verify your email before signing in.","success");
-}
-
-async function resendVerification(){
- const msg=document.getElementById("authMsg");
- const email=document.getElementById("email").value.trim().toLowerCase();
- if(!email)return setMsg(msg,"Enter your email address first.","error");
- const {error}=await sb.auth.resend({type:"signup",email,options:{emailRedirectTo:SITE_URL}});
- if(error)return setMsg(msg,error.message,"error");
- setMsg(msg,"A new verification email was sent. Use the newest email in your inbox.","success");
-}
-
-async function signIn(){
- const msg=document.getElementById("authMsg");
- const email=document.getElementById("email").value.trim().toLowerCase();
- const password=document.getElementById("password").value;
- setMsg(msg,"");
-
- const {data,error}=await sb.auth.signInWithPassword({email,password});
- if(error){
-   const t=(error.message||"").toLowerCase();
-   if(t.includes("email")&&(t.includes("confirm")||t.includes("verified"))){
-     document.getElementById("verifyActions").classList.remove("hidden");
-     setMsg(msg,"Verify your email before signing in. You can resend the verification email below.","error");
-   }else setMsg(msg,error.message,"error");
-   return;
- }
-
- if(!data?.user?.email_confirmed_at){
-   await sb.auth.signOut();
-   document.getElementById("verifyActions").classList.remove("hidden");
-   setMsg(msg,"Verify your email before signing in.","error");
-   return;
- }
-
- user=data.user;
- await enterApp();
-}
-
-async function sendPasswordReset(){
- const msg=document.getElementById("forgotMsg");
- const email=document.getElementById("forgotEmail").value.trim().toLowerCase();
- if(!email)return setMsg(msg,"Enter your email address.","error");
- setMsg(msg,"Sending your secure reset link…");
- const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:SITE_URL});
- if(error)return setMsg(msg,error.message,"error");
- setMsg(msg,"Reset link sent. Check your inbox and use the newest password reset email.","success");
-}
-
-async function finishPasswordReset(){
- const msg=document.getElementById("resetMsg");
- const p1=document.getElementById("newPassword").value;
- const p2=document.getElementById("newPasswordConfirm").value;
- if(p1.length<6)return setMsg(msg,"Password must be at least 6 characters.","error");
- if(p1!==p2)return setMsg(msg,"The passwords do not match.","error");
- setMsg(msg,"Updating your password…");
- const {error}=await sb.auth.updateUser({password:p1});
- if(error)return setMsg(msg,error.message,"error");
- setMsg(msg,"Password updated successfully. Redirecting you to sign in…","success");
- setTimeout(async()=>{await sb.auth.signOut();history.replaceState({},document.title,location.pathname);openAuth("signin")},1200);
-}
+function showPublic(){publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
+function openAuth(mode){publicSite.classList.add("hidden");authOverlay.classList.remove("hidden");setAuthTab(mode)}
+function closeAuth(){authOverlay.classList.add("hidden");publicSite.classList.remove("hidden")}
+function setAuthTab(mode){authMode=mode;signInTab.classList.toggle("active",mode==="signin");signUpTab.classList.toggle("active",mode==="signup");authSubmit.textContent=mode==="signin"?"Sign in":"Create account";setMsg(authMsg,"")}
+async function submitAuth(e){e.preventDefault();const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;authSubmit.disabled=true;setMsg(authMsg,"Working…");let r;if(authMode==="signin")r=await sb.auth.signInWithPassword({email,password});else r=await sb.auth.signUp({email,password,options:{emailRedirectTo:"https://www.vendortracker.app/"}});authSubmit.disabled=false;if(r.error)return setMsg(authMsg,r.error.message,"error");if(authMode==="signup"&&!r.data.session)return setMsg(authMsg,"Account created. Check your email to confirm your address, then sign in.","success");user=r.data.user;await enterApp()}
+async function forgotPassword(){const email=document.getElementById("email").value.trim();if(!email)return setMsg(authMsg,"Enter your email address first.","error");const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://www.vendortracker.app/"});if(error)return setMsg(authMsg,error.message,"error");setMsg(authMsg,"Password reset email sent. Check your inbox.","success")}
+function showReset(){publicSite.classList.add("hidden");authOverlay.classList.add("hidden");app.classList.add("hidden");resetView.classList.remove("hidden")}
+async function completePasswordReset(e){e.preventDefault();const a=newPassword.value,b=confirmPassword.value;if(a!==b)return setMsg(resetMsg,"Passwords do not match.","error");const {error}=await sb.auth.updateUser({password:a});if(error)return setMsg(resetMsg,error.message,"error");setMsg(resetMsg,"Password updated successfully. Loading your dashboard…","success");recoveryMode=false;history.replaceState({},"",location.pathname);const {data:{user:u}}=await sb.auth.getUser();user=u;setTimeout(enterApp,700)}
+async function signOut(){await sb.auth.signOut();showPublic()}
 
 async function enterApp(){
- clearUndo();
- if(!user?.email_confirmed_at){await sb.auth.signOut();openAuth("signin");return}
- showOnly("app");
- document.getElementById("accountEmail").textContent=user.email;
- document.getElementById("settingsEmail").textContent="Signed in as "+user.email;
- setSync(true,"Syncing…");
+ publicSite.classList.add("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.remove("hidden");
+ accountEmail.textContent=user.email;settingsEmail.textContent=user.email;setSync(true,"Syncing…");
+ const key=localKey();if(key&&localStorage.getItem(key)){try{db=JSON.parse(localStorage.getItem(key))}catch{db=blankDB()}}
  await pullCloud(false);
  renderAll();
  setTimeout(()=>refreshStaleMarketPrices(false),500);
 }
-
-async function signOut(){
- clearUndo();
- db=blankDB();user=null;
- await sb.auth.signOut();
- showOnly("publicSite");
-}
-
-async function pullCloud(showMsg=false){
- if(!sb||!user||isPulling)return;
- isPulling=true;
+async function pullCloud(showToast=true){
+ if(!user)return;setSync(true,"Syncing…");
  const {data,error}=await sb.from("vendor_data").select("data,updated_at").eq("user_id",user.id).maybeSingle();
- isPulling=false;
- if(error){setSync(false,"Sync error");return}
- const key=localKey();
- if(data){
-   db=data.data||blankDB();lastCloudUpdate=data.updated_at;
-   if(key)localStorage.setItem(key,JSON.stringify(db));
- }else{
-   db=blankDB();lastCloudUpdate=null;
-   if(key)localStorage.setItem(key,JSON.stringify(db));
-   await pushCloud();
- }
- renderAll();setSync(true,"Synced");
- if(showMsg)toast("Cloud data refreshed");
+ if(error){setSync(false,"Sync error");if(showToast)toast(error.message);return}
+ if(data?.data){db=data.data;lastCloudUpdate=data.updated_at;localStorage.setItem(localKey(),JSON.stringify(db))}
+ setSync(true,"Synced");renderAll();if(showToast)toast("Cloud data refreshed");
 }
-
 function save(){
  db.shows.forEach(sh=>recalcClosedShow(sh.id));
  const key=localKey();
@@ -1689,6 +1460,83 @@ function addProduct(){
  save();toast("Inventory updated");
 }
 
+function enterVendorMode(){
+  document.body.classList.add("vendorMode");
+  go("sell");
+  setTimeout(()=>document.getElementById("saleSearch")?.focus(),50);
+}
+function exitVendorMode(){document.body.classList.remove("vendorMode")}
+function cartSubtotal(){return saleCart.reduce((a,x)=>a+x.price*x.qty,0)}
+function cartDiscount(){
+  const el=document.getElementById("cartDiscount");
+  return Math.max(0,Number(el?.value||0));
+}
+function addToCart(id){
+  const p=db.products.find(x=>x.id===id);if(!p)return;
+  const qty=Math.max(1,Number(document.getElementById("saleQty")?.value||1));
+  if(p.qty<=0)return toast("This item is sold out");
+  const existing=saleCart.find(x=>x.productId===id);
+  const inCart=existing?.qty||0;
+  if(inCart+qty>p.qty)return toast("Not enough inventory");
+  const override=document.getElementById("salePrice")?.value;
+  const unit=override!==""?Math.max(0,Number(override)):Number(p.price||0);
+  if(existing){existing.qty+=qty;if(override!=="")existing.price=unit}
+  else saleCart.push({productId:p.id,name:p.name,qty,price:unit,cost:Number(p.cost||0),photo:p.photo||"",condition:p.condition||"",finish:p.finish||""});
+  document.getElementById("salePrice").value="";
+  document.getElementById("saleQty").value=1;
+  renderCart();renderSaleProducts();toast("Added to cart");
+}
+function changeCartQty(id,delta){
+  const item=saleCart.find(x=>x.productId===id);if(!item)return;
+  const p=db.products.find(x=>x.id===id);
+  const next=item.qty+delta;
+  if(next<=0){saleCart=saleCart.filter(x=>x.productId!==id)}
+  else if(p && next<=p.qty)item.qty=next;
+  else if(p && next>p.qty)return toast("Not enough inventory");
+  renderCart();renderSaleProducts();
+}
+function removeCartItem(id){saleCart=saleCart.filter(x=>x.productId!==id);renderCart();renderSaleProducts()}
+function clearCart(){saleCart=[];const d=document.getElementById("cartDiscount");if(d)d.value=0;renderCart();renderSaleProducts()}
+function renderCart(){
+  const box=document.getElementById("cartItems");if(!box)return;
+  const count=saleCart.reduce((a,x)=>a+x.qty,0);
+  document.getElementById("cartCount").textContent=`${count} item${count===1?"":"s"}`;
+  if(!saleCart.length)box.innerHTML='<div class="empty" style="padding:18px">Cart is empty.</div>';
+  else box.innerHTML=saleCart.map(x=>`<div class="cartItem">
+    ${x.photo?`<img src="${x.photo}" alt="">`:`<div class="thumb"></div>`}
+    <div><div class="cartItemName">${esc(x.name)}</div><div class="cartItemMeta">${money(x.price)} each</div>
+      <div class="cartQty"><button onclick="changeCartQty('${x.productId}',-1)">−</button><span>${x.qty}</span><button onclick="changeCartQty('${x.productId}',1)">+</button></div>
+    </div>
+    <div style="text-align:right"><strong>${money(x.price*x.qty)}</strong><div><button class="linkBtn" onclick="removeCartItem('${x.productId}')">Remove</button></div></div>
+  </div>`).join("");
+  const sub=cartSubtotal(),disc=Math.min(cartDiscount(),sub),total=Math.max(0,sub-disc);
+  document.getElementById("cartSubtotal").textContent=money(sub);
+  document.getElementById("cartTotal").textContent=money(total);
+}
+function checkoutCart(payment){
+  if(!saleCart.length)return toast("Cart is empty");
+  for(const x of saleCart){
+    const p=db.products.find(p=>p.id===x.productId);
+    if(!p || p.qty<x.qty)return toast(`Not enough stock for ${x.name}`);
+  }
+  const subtotal=cartSubtotal(),discount=Math.min(cartDiscount(),subtotal),grand=Math.max(0,subtotal-discount);
+  pushUndo("Checkout cart");
+  const tx=uid(),time=new Date().toISOString();
+  let remainingDiscount=discount;
+  saleCart.forEach((x,i)=>{
+    const p=db.products.find(p=>p.id===x.productId);
+    p.qty-=x.qty;
+    const lineSubtotal=x.price*x.qty;
+    const lineDiscount=i===saleCart.length-1?remainingDiscount:(subtotal>0?Math.round((discount*(lineSubtotal/subtotal))*100)/100:0);
+    remainingDiscount=Math.max(0,remainingDiscount-lineDiscount);
+    const lineTotal=Math.max(0,lineSubtotal-lineDiscount);
+    db.sales.unshift({id:uid(),transactionId:tx,productId:p.id,name:p.name,qty:x.qty,price:x.price,total:lineTotal,cost:p.cost,payment,time,showId:db.currentShow?.id||null,discount:lineDiscount});
+  });
+  saleCart=[];
+  const d=document.getElementById("cartDiscount");if(d)d.value=0;
+  save();renderCart();toast(`Sale complete • ${money(grand)} ${payment}`);
+}
+
 function sell(id,payment){
  const p=db.products.find(x=>x.id===id),qty=Math.max(1,Number(document.getElementById("saleQty").value||1));
  if(!p||p.qty<qty)return toast("Not enough inventory");
@@ -1718,67 +1566,29 @@ function recordExpense(){
  document.getElementById("expName").value="";document.getElementById("expAmount").value="";save();toast("Expense added");
 }
 
-function updateRecentSale(id){
- const sale=db.sales.find(x=>x.id===id);if(!sale)return;
- pushUndo("Edit sale");
- const qty=Math.max(1,Number(document.getElementById("sale_qty_"+id).value||1)),total=Math.max(0,Number(document.getElementById("sale_total_"+id).value||0)),payment=document.getElementById("sale_payment_"+id).value;
- const product=db.products.find(p=>p.id===sale.productId);
- if(product){
-   const available=product.qty+sale.qty;
-   if(qty>available){toast("Not enough inventory for that quantity");renderAll();return}
-   product.qty=available-qty;
- }
- sale.qty=qty;sale.total=total;sale.price=qty?total/qty:0;sale.payment=payment;save();toast("Sale updated");
+function editSale(id){
+ const s=db.sales.find(x=>x.id===id);if(!s)return;
+ const newQty=Math.max(1,Number(document.getElementById("sale_qty_"+id).value||s.qty)),newTotal=Math.max(0,Number(document.getElementById("sale_total_"+id).value||s.total)),newPay=document.getElementById("sale_payment_"+id).value;
+ const p=db.products.find(x=>x.id===s.productId);if(p){const diff=newQty-s.qty;if(diff>0&&p.qty<diff)return toast("Not enough stock for that quantity");pushUndo("Edit sale");p.qty-=diff}else pushUndo("Edit sale");
+ s.qty=newQty;s.total=newTotal;s.price=newTotal/newQty;s.payment=newPay;save();toast("Sale updated");
 }
-
-function deleteRecentSale(id){
- const sale=db.sales.find(x=>x.id===id);if(!sale)return;
- if(!confirm("Delete this sale? The quantity will be returned to inventory."))return;
- pushUndo("Delete sale");
- const product=db.products.find(p=>p.id===sale.productId);if(product)product.qty+=sale.qty;
- db.sales=db.sales.filter(x=>x.id!==id);save();toast("Sale deleted");
+function deleteSale(id){
+ const i=db.sales.findIndex(x=>x.id===id);if(i<0)return;const s=db.sales[i],p=db.products.find(x=>x.id===s.productId);pushUndo("Delete sale");if(p)p.qty+=s.qty;db.sales.splice(i,1);save();toast("Sale deleted and stock restored")
 }
-
-function deleteProduct(id){
- const p=db.products.find(x=>x.id===id);if(!p)return;
- if(!confirm("Delete "+p.name+" from inventory?"))return;
- pushUndo("Delete inventory item");
- db.products=db.products.filter(x=>x.id!==id);save();
-}
+function deleteProduct(id){pushUndo("Delete inventory item");db.products=db.products.filter(x=>x.id!==id);save();toast("Product deleted")}
 function deletePurchase(id){
- const x=db.purchases.find(v=>v.id===id);if(!x||!confirm("Delete this purchase record? Inventory quantity will be reduced by the purchased amount."))return;
- pushUndo("Delete purchase");
- const p=db.products.find(v=>v.id===x.productId);if(p)p.qty=Math.max(0,p.qty-x.qty);
- db.purchases=db.purchases.filter(v=>v.id!==id);save();
+ const i=db.purchases.findIndex(x=>x.id===id);if(i<0)return;const x=db.purchases[i],p=db.products.find(p=>p.id===x.productId);pushUndo("Delete purchase");if(p)p.qty=Math.max(0,p.qty-x.qty);db.purchases.splice(i,1);save();toast("Purchase deleted")
 }
-function deleteExpense(id){
- if(!confirm("Delete this expense?"))return;
- pushUndo("Delete expense");db.expenses=db.expenses.filter(x=>x.id!==id);save();
-}
-function saveShowName(id){
- const sh=db.shows.find(x=>x.id===id);if(!sh)return;
- const input=document.getElementById("show_name_"+id);const name=input.value.trim();
- if(!name)return toast("Show name cannot be blank");
- pushUndo("Rename show");sh.name=name;save();toast("Show renamed");
+function deleteExpense(id){pushUndo("Delete expense");db.expenses=db.expenses.filter(x=>x.id!==id);save();toast("Expense deleted")}
+function editShowName(id){
+ const sh=db.shows.find(x=>x.id===id),input=document.getElementById("show_name_"+id);if(!sh||!input)return;const n=input.value.trim();if(!n)return toast("Show name cannot be blank");pushUndo("Edit show name");sh.name=n;save();toast("Show renamed")
 }
 function deleteShow(id){
- const sh=db.shows.find(x=>x.id===id);if(!sh)return;
- if(!confirm("Delete this show record? Transactions will remain in Sales/Purchases/Expenses, but they will no longer be grouped under this closed show."))return;
- pushUndo("Delete show");db.shows=db.shows.filter(x=>x.id!==id);save();toast("Show deleted");
-}
-function toggleShowDetails(id){
- const el=document.getElementById("show_details_"+id);if(el)el.classList.toggle("hidden");
+ const sh=db.shows.find(x=>x.id===id);if(!sh)return;pushUndo("Delete show");db.shows=db.shows.filter(x=>x.id!==id);db.sales.forEach(x=>{if(x.showId===id)x.showId=null});db.expenses.forEach(x=>{if(x.showId===id)x.showId=null});db.purchases.forEach(x=>{if(x.showId===id)x.showId=null});save();toast("Show deleted; transactions kept")
 }
 function recalcClosedShow(id){
- const sh=db.shows.find(x=>x.id===id);if(!sh)return;
- const sales=db.sales.filter(x=>x.showId===id),ex=db.expenses.filter(x=>x.showId===id),buys=db.purchases.filter(x=>x.showId===id);
- sh.revenue=sales.reduce((a,x)=>a+x.total,0);
- sh.cogs=sales.reduce((a,x)=>a+x.cost*x.qty,0);
- sh.expenses=ex.reduce((a,x)=>a+x.amount,0);
- sh.purchases=buys.reduce((a,x)=>a+x.total,0);
- sh.profit=sh.revenue-sh.cogs-sh.expenses;
+ const sh=db.shows.find(x=>x.id===id);if(!sh)return;const sales=db.sales.filter(x=>x.showId===id),ex=db.expenses.filter(x=>x.showId===id),buys=db.purchases.filter(x=>x.showId===id);sh.revenue=sales.reduce((a,x)=>a+x.total,0);sh.cogs=sales.reduce((a,x)=>a+x.cost*x.qty,0);sh.expenses=ex.reduce((a,x)=>a+x.amount,0);sh.purchases=buys.reduce((a,x)=>a+x.total,0);sh.profit=sh.revenue-sh.cogs-sh.expenses
 }
-
 
 function renderDashboard(){
  const revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=db.expenses.reduce((a,x)=>a+x.amount,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);
@@ -1803,8 +1613,7 @@ function renderDashboard(){
    <td data-label="Qty"><input class="input" style="width:80px;padding:7px" id="sale_qty_${x.id}" type="number" min="1" value="${x.qty}"></td>
    <td data-label="Total"><input class="input" style="width:100px;padding:7px" id="sale_total_${x.id}" type="number" min="0" step=".01" value="${Number(x.total).toFixed(2)}"></td>
    <td data-label="Payment"><select class="input" style="min-width:110px;padding:7px" id="sale_payment_${x.id}"><option ${x.payment==="Cash"?"selected":""}>Cash</option><option ${x.payment==="Cash App"?"selected":""}>Cash App</option><option ${x.payment==="Zelle"?"selected":""}>Zelle</option><option ${x.payment==="Venmo"?"selected":""}>Venmo</option><option ${x.payment==="Apple Pay"?"selected":""}>Apple Pay</option><option ${x.payment==="Card"?"selected":""}>Card</option></select></td>
-   <td data-label="Actions"><div class="actions"><button class="miniBtn btnSuccess" onclick="updateRecentSale('${x.id}')">Save</button><button class="miniBtn btnDanger" onclick="deleteRecentSale('${x.id}')">Delete</button></div></td>
- </tr>`).join("")}</table></div>`:`<div class="empty">No sales yet.</div>`;
+   <td data-label="Actions"><div class="actions"><button class="miniBtn btnSuccess" onclick="editSale('${x.id}')">Save</button><button class="miniBtn btnDanger" onclick="deleteSale('${x.id}')">Delete</button></div></td></tr>`).join("")}</table></div>`:`<div class="empty">No sales yet.</div>`;
 }
 
 function renderSaleProducts(){
@@ -1813,20 +1622,14 @@ function renderSaleProducts(){
  document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>{
    const sealed=p.itemType==="sealed";
    const market=sealed?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket);
+   const inCart=saleCart.find(x=>x.productId===p.id)?.qty||0;
    return `<div class="productCard">
    ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:10px;margin-bottom:10px">`:""}
    <h4>${esc(p.name)}</h4>
-   <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span></div>
+   <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span>${inCart?` • ${inCart} in cart`:""}</div>
    <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}</div>
-   <div style="margin-top:8px"><button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button></div>
-   <div class="paymentBtns" style="grid-template-columns:repeat(3,1fr)">
-<button class="cash" onclick="sell('${p.id}','Cash')">Cash</button>
-<button class="cashapp" onclick="sell('${p.id}','Cash App')">Cash App</button>
-<button class="zelle" onclick="sell('${p.id}','Zelle')">Zelle</button>
-<button class="venmo" onclick="sell('${p.id}','Venmo')">Venmo</button>
-<button class="applepay" onclick="sell('${p.id}','Apple Pay')">Apple Pay</button>
-<button class="cardpay" onclick="sell('${p.id}','Card')">Card</button>
-</div>
+   <button class="btn btnPrimary addCartBtn" onclick="addToCart('${p.id}')" ${p.qty<=inCart?"disabled":""}>${p.qty<=0?"Sold out":p.qty<=inCart?"All stock in cart":"Add to cart"}</button>
+   <div style="margin-top:7px;text-align:center"><button class="linkBtn" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button></div>
    </div>`;
  }).join(""):`<div class="empty">No matching products.</div>`;
 }
@@ -1873,10 +1676,7 @@ function renderInventory(){
        <input id="inv_qty_${p.id}" class="input" type="number" min="0" value="${p.qty}" style="width:82px;padding:7px">
        <button class="miniBtn btnSuccess" onclick="setInventoryQty('${p.id}')">Set</button>
      </div>
-     <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
-       <input id="inv_addqty_${p.id}" class="input" type="number" min="0" placeholder="+ stock" style="width:82px;padding:7px">
-       <button class="miniBtn btnSoft" onclick="addInventoryQty('${p.id}')">Add</button>
-     </div>
+
    </td>
    <td data-label="Cost">${money(p.cost)}</td>
    <td data-label="Your price">${money(p.price)}</td>
@@ -1892,38 +1692,22 @@ function renderInventory(){
 }
 
 function renderPurchases(){
- document.getElementById("buyProduct").innerHTML='<option value="">— New product —</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
- document.getElementById("purchaseTable").innerHTML=db.purchases.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Source</th><th>Payment</th><th></th></tr>${db.purchases.slice(0,100).map(x=>`<tr><td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td><td>${x.qty}</td><td>${money(x.total)}</td><td>${esc(x.source)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No purchases yet.</div>`;
+ buyProduct.innerHTML='<option value="">Select existing product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+ purchaseTable.innerHTML=db.purchases.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Source</th><th>Payment</th><th></th></tr>${db.purchases.slice(0,50).map(x=>`<tr><td data-label="Date">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td><td data-label="Qty">${x.qty}</td><td data-label="Total">${money(x.total)}</td><td data-label="Source">${esc(x.source)}</td><td data-label="Payment">${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No purchases yet.</div>`
 }
-
-function renderExpenses(){
- document.getElementById("expenseTable").innerHTML=db.expenses.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Payment</th><th></th></tr>${db.expenses.slice(0,100).map(x=>`<tr><td data-label="Time">${new Date(x.time).toLocaleString()}</td><td data-label="Product"><strong>${esc(x.name)}</strong></td><td>${money(x.amount)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No expenses yet.</div>`;
-}
-
+function renderExpenses(){expenseTable.innerHTML=db.expenses.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Description</th><th>Amount</th><th>Payment</th><th></th></tr>${db.expenses.slice(0,50).map(x=>`<tr><td data-label="Date">${new Date(x.time).toLocaleString()}</td><td data-label="Expense"><strong>${esc(x.name)}</strong></td><td data-label="Amount">${money(x.amount)}</td><td data-label="Payment">${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No expenses yet.</div>`}
 function renderShows(){
- if(!db.shows.length){
-   document.getElementById("showTable").innerHTML=`<div class="empty">No closed shows yet.</div>`;return;
- }
- document.getElementById("showTable").innerHTML=db.shows.map(sh=>{
-   const sales=db.sales.filter(x=>x.showId===sh.id),purchases=db.purchases.filter(x=>x.showId===sh.id),expenses=db.expenses.filter(x=>x.showId===sh.id);
+ showList.innerHTML=db.shows.length?db.shows.map(sh=>{
+   const sales=db.sales.filter(x=>x.showId===sh.id),ex=db.expenses.filter(x=>x.showId===sh.id),buys=db.purchases.filter(x=>x.showId===sh.id);
    const cash=sales.filter(x=>x.payment==="Cash").reduce((a,x)=>a+x.total,0);
    const ca=sales.filter(x=>x.payment==="Cash App").reduce((a,x)=>a+x.total,0);
    const zelle=sales.filter(x=>x.payment==="Zelle").reduce((a,x)=>a+x.total,0);
    const venmo=sales.filter(x=>x.payment==="Venmo").reduce((a,x)=>a+x.total,0);
    const applePay=sales.filter(x=>x.payment==="Apple Pay").reduce((a,x)=>a+x.total,0);
    const card=sales.filter(x=>x.payment==="Card").reduce((a,x)=>a+x.total,0);
-   return `<div class="panel" style="margin-top:0;margin-bottom:14px">
-    <div class="panelHead">
-      <div style="flex:1">
-        <input id="show_name_${sh.id}" class="input" value="${esc(sh.name)}" style="max-width:360px;font-weight:800">
-        <div class="small" style="margin-top:6px">${new Date(sh.start).toLocaleString()} → ${sh.end?new Date(sh.end).toLocaleString():""}</div>
-      </div>
-      <div class="showActions">
-        <button class="miniBtn btnSuccess" onclick="saveShowName('${sh.id}')">Save name</button>
-        <button class="miniBtn btnSoft" onclick="toggleShowDetails('${sh.id}')">Details</button>
-        <button class="miniBtn btnDanger" onclick="deleteShow('${sh.id}')">Delete</button>
-      </div>
-    </div>
+   return `<div class="panel">
+    <div class="panelHead"><div style="flex:1"><input class="input" id="show_name_${sh.id}" value="${esc(sh.name)}" style="max-width:360px;font-weight:850"></div><div class="showActions"><button class="miniBtn btnSuccess" onclick="editShowName('${sh.id}')">Save name</button><button class="miniBtn btnDanger" onclick="deleteShow('${sh.id}')">Delete show</button></div></div>
+    <div class="small">${new Date(sh.start).toLocaleString()} → ${sh.end?new Date(sh.end).toLocaleString():""}</div>
     <div class="cards" style="grid-template-columns:repeat(5,minmax(0,1fr))">
       <div class="metric"><div class="metricLabel">Sales</div><div class="metricValue">${money(sh.revenue)}</div></div>
       <div class="metric"><div class="metricLabel">Net profit</div><div class="metricValue">${money(sh.profit)}</div></div>
@@ -1935,28 +1719,20 @@ function renderShows(){
       <div class="metric"><div class="metricLabel">Card</div><div class="metricValue">${money(card)}</div></div>
       <div class="metric"><div class="metricLabel">Items sold</div><div class="metricValue">${sales.reduce((a,x)=>a+x.qty,0)}</div></div>
     </div>
-    <div id="show_details_${sh.id}" class="detailsBox hidden">
-      <h4>Sales</h4>
-      ${sales.length?`<div class="tableWrap"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th></th></tr>${sales.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteRecentSale('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">No sales.</div>`}
-      <h4>Purchases</h4>
-      ${purchases.length?`<div class="tableWrap"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th></th></tr>${purchases.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">No purchases.</div>`}
-      <h4>Expenses</h4>
-      ${expenses.length?`<div class="tableWrap"><table><tr><th>Expense</th><th>Amount</th><th>Payment</th><th></th></tr>${expenses.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">No expenses.</div>`}
-    </div>
-   </div>`;
- }).join("");
+    <details><summary>Show details</summary>
+      <div class="detailsBox"><strong>Sales</strong>${sales.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th></th></tr>${sales.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteSale('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
+      <div class="detailsBox"><strong>Expenses</strong>${ex.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Expense</th><th>Amount</th><th></th></tr>${ex.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
+      <div class="detailsBox"><strong>Purchases</strong>${buys.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th></th></tr>${buys.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
+    </details>
+   </div>`
+ }).join(""):`<div class="panel empty">No closed shows yet.</div>`
 }
-
-function exportJSON(){
- const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");
- a.href=URL.createObjectURL(blob);a.download="vendortracker-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(a.href);
-}
-
 function renderAll(){
  if(document.getElementById("app").classList.contains("hidden"))return;
- renderDashboard();renderSaleProducts();renderInventory();renderPurchases();renderExpenses();renderShows();
+ renderDashboard();renderSaleProducts();renderCart();renderInventory();renderPurchases();renderExpenses();renderShows();
 }
-
+function toggleMobileNav(){const s=document.getElementById("sidebar");s.style.display=s.style.display==="block"?"none":"block"}
+function exportJSON(){const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="vendortracker-backup.json";a.click();URL.revokeObjectURL(a.href)}
 init();
 </script>
 </body>
