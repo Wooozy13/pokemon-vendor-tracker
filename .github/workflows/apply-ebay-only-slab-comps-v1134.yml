@@ -1,0 +1,35 @@
+name: Apply eBay-only slab comps v11.34
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-ebay-only-slab-comps-v1134.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply eBay-only slab comps patch
+        run: python scripts/apply_ebay_only_slab_comps_v1134.py
+      - name: Verify
+        run: |
+          grep -q 'v11.34' index.html
+          grep -q 'eBay Slab Comps' index.html
+          grep -q 'Get last 4 eBay sold comps' index.html
+          ! grep -q 'gradedSourceAlt' index.html
+          ! grep -q 'gradedSourceCollectr' index.html
+      - name: Commit site
+        run: |
+          git config user.name "VendorTracker Updater"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes"
+          else
+            git add index.html
+            git commit -m "Simplify slab comps to eBay only v11.34"
+            git push
+          fi
