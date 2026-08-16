@@ -1,0 +1,38 @@
+name: Restore known-working auth v12.0.9
+on:
+  push:
+    paths:
+      - scripts/restore_known_working_auth_v1209.py
+      - .github/workflows/restore-known-working-auth-v1209.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python scripts/restore_known_working_auth_v1209.py
+      - name: Verify auth matches known-working build
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess,re
+          cur=Path('index.html').read_text();old=subprocess.check_output(['git','show','b72f87a3f8df790ceae7ef8180dec8ac009675cf:index.html'],text=True)
+          def client(s): return re.search(r'const SUPABASE_URL=.*?\nconst LOCAL_PREFIX=',s,re.S).group(0)
+          def auth(s):
+            a=s.index('async function init(){');b=s.index('async function enterApp(){',a);return s[a:b]
+          assert client(cur)==client(old), 'Supabase client init differs from known-working build'
+          assert auth(cur)==auth(old), 'Auth flow differs from known-working build'
+          assert 'v12.0.9' in cur
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',cur,re.S);Path('/tmp/vt.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/vt.js
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Restore last known-working auth flow v12.0.9'
+          git push
