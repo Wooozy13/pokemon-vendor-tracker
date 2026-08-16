@@ -1,0 +1,35 @@
+name: VendorTracker v12 UI revamp
+on:
+  push:
+    paths:
+      - scripts/apply_full_ui_revamp_v12.py
+      - .github/workflows/apply-full-ui-revamp-v12.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/apply_full_ui_revamp_v12.py
+      - name: Validate UI patch
+        run: |
+          grep -q 'v12.0' index.html
+          grep -q 'VendorTracker v12' index.html
+          grep -q 'v12 usability helpers' index.html
+          python - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('index.html').read_text()
+          assert s.count('<style>')==s.count('</style>')
+          assert s.count('<script')==s.count('</script>')
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',s,re.S)
+          pathlib.Path('/tmp/vt.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/vt.js
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Revamp VendorTracker UI for v12'
+          git push
