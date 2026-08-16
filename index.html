@@ -752,7 +752,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
         <div class="panel">
           <div class="gradedHeaderRow"><div><h3 style="margin:0">Card details</h3><div class="small">Enter the exact card and slab grade you are checking.</div></div><span class="comingSoonBadge">Automatic eBay comps coming soon</span></div>
           <div class="grid" style="margin-top:12px">
-            <input id="gradedCardName" class="input" placeholder="Card name / set / number, e.g. Charizard 199/165">
+            <input id="gradedCardName" class="input" placeholder="Card name + card number, e.g. Charizard 199/165">
             <select id="gradedCompany" class="input"><option>PSA</option><option>CGC</option><option>Beckett / BGS</option><option>SGC</option><option>ACE</option><option>Other</option></select>
             <input id="gradedGrade" class="input" placeholder="Grade, e.g. 10">
           </div>
@@ -760,7 +760,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
             <div class="gradedSourceTabs">
               <button id="gradedSourceEbay" class="gradedSourceBtn active" type="button" onclick="setGradedPriceSource('ebay')">eBay</button>
               <button id="gradedSourceAlt" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('alt')">ALT</button>
-              <button id="gradedSourceTcg" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('tcgplayer')">TCGplayer</button>
+              <button id="gradedSourceTcg" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('tcgplayer')">TCGPlayer</button>
               <button id="gradedSourceCollectr" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('collectr')">Collectr</button>
             </div>
             <div id="gradedSourceNote" class="gradedSourceNote small">eBay selected — enter the latest four matching sold prices below.</div>
@@ -824,7 +824,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.31</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.32</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -957,7 +957,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.31";
+const APP_VERSION="v11.32";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2126,7 +2126,7 @@ function clearTradeCalculator(){tradeYourItems=[];tradeTheirItems=[];renderTrade
 let gradedPriceSource='ebay';
 function setGradedPriceSource(source){
   gradedPriceSource=source;
-  const names={ebay:'eBay',alt:'ALT',tcgplayer:'TCGplayer',collectr:'Collectr'};
+  const names={ebay:'eBay',alt:'ALT',tcgplayer:'TCGPlayer',collectr:'Collectr'};
   const name=names[source]||'eBay';
   ['Ebay','Alt','Tcg','Collectr'].forEach(k=>document.getElementById('gradedSource'+k)?.classList.remove('active'));
   const id={ebay:'gradedSourceEbay',alt:'gradedSourceAlt',tcgplayer:'gradedSourceTcg',collectr:'gradedSourceCollectr'}[source];
@@ -2140,30 +2140,34 @@ function setGradedPriceSource(source){
   const autoBtn=document.getElementById('gradedAutoBtn');
   if(head)head.textContent=`Manual ${name} graded comps`;
   if(help)help.textContent=`Enter up to four matching graded-card prices from ${name}. VendorTracker calculates the total and average instantly.`;
-  if(open)open.textContent=`Open ${name} ↗`;
+  if(open)open.textContent=source==='ebay'?`Search ${name} sold comps ↗`:source==='alt'?`Open ${name} + copy search ↗`:`Search ${name} ↗`;
   if(note){
     if(source==='ebay')note.textContent='eBay selected — use recent sold listings for the strongest comp-based estimate.';
-    else if(source==='alt')note.textContent='ALT selected — use ALT graded-card market/sales data as your comp source.';
-    else if(source==='tcgplayer')note.textContent='TCGplayer selected — use any graded pricing/listing data available for the exact card and grade.';
-    else note.textContent='Collectr selected — use Collectr graded-card pricing as your reference source.';
+    else if(source==='alt')note.textContent='ALT selected — VendorTracker builds the exact card/slab/grade search and copies it for ALT because ALT does not publish a stable deep-link search URL.';
+    else if(source==='tcgplayer')note.textContent='TCGPlayer selected — the button automatically searches using the card name/number, slab company, and grade.';
+    else note.textContent='Collectr selected — the button automatically searches app.getcollectr.com using the card name/number, slab company, and grade.';
   }
   if(autoTitle)autoTitle.textContent=`Automatic ${name} graded pricing`;
   if(autoHelp)autoHelp.textContent=`Automatic ${name} lookup will be connected when the required API/integration is available. Manual comps above work now.`;
   if(autoBtn)autoBtn.textContent=`Automatic ${name} pricing — Coming Soon`;
 }
 function gradedSearchText(){
-  const name=document.getElementById('gradedCardName')?.value.trim()||'';
+  const card=document.getElementById('gradedCardName')?.value.trim()||'';
   const company=document.getElementById('gradedCompany')?.value||'';
   const grade=document.getElementById('gradedGrade')?.value.trim()||'';
-  return [name,company,grade].filter(Boolean).join(' ');
+  return [card,company,grade].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
 function openGradedSourceSearch(){
   const q=gradedSearchText();
-  if(!q)return toast('Enter the graded card first');
-  if(gradedPriceSource==='ebay')return window.open('https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(q)+'&LH_Sold=1&LH_Complete=1','_blank','noopener');
-  if(gradedPriceSource==='tcgplayer')return window.open('https://www.tcgplayer.com/search/all/product?q='+encodeURIComponent(q)+'&view=grid','_blank','noopener');
-  if(gradedPriceSource==='alt')return window.open('https://www.alt.xyz/','_blank','noopener');
-  return window.open('https://www.collectr.com/','_blank','noopener');
+  if(!q)return toast('Enter the card number, slab type, and grade first');
+  const encoded=encodeURIComponent(q);
+  if(gradedPriceSource==='ebay')return window.open('https://www.ebay.com/sch/i.html?_nkw='+encoded+'&LH_Sold=1&LH_Complete=1','_blank','noopener');
+  if(gradedPriceSource==='tcgplayer')return window.open('https://www.tcgplayer.com/search/all/product?q='+encoded+'&view=grid','_blank','noopener');
+  if(gradedPriceSource==='collectr')return window.open('https://app.getcollectr.com/?query='+encoded,'_blank','noopener');
+  // ALT supports searching graded cards by description/grade on web, but does not publish a stable deep-link query format.
+  // Open ALT and copy the exact generated search text so the user can paste it immediately without retyping.
+  if(navigator.clipboard?.writeText){navigator.clipboard.writeText(q).catch(()=>{});toast('ALT search copied — paste it into ALT search');}
+  return window.open('https://www.alt.xyz/','_blank','noopener');
 }
 
 function updateGradedCompAverage(){
