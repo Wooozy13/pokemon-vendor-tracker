@@ -1,0 +1,25 @@
+name: Collector number search v11.38.1
+on:
+  push:
+    paths:
+      - scripts/fix_collector_number_search_v11381.py
+      - .github/workflows/fix-collector-number-v11381.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/fix_collector_number_search_v11381.py
+      - name: Verify
+        run: |
+          grep -q 'v11.38.1' index.html
+          grep -q 'Collector-number search support v11.38.1' index.html
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Support exact collector number searches v11.38.1'
+          git push
