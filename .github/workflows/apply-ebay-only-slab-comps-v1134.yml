@@ -20,8 +20,9 @@ jobs:
           grep -q 'v11.34' index.html
           grep -q 'eBay Slab Comps' index.html
           grep -q 'Get last 4 eBay sold comps' index.html
-          ! grep -q 'gradedSourceAlt' index.html
-          ! grep -q 'gradedSourceCollectr' index.html
+          ! grep -q '>ALT<' index.html
+          ! grep -q '>Collectr<' index.html
+          ! grep -q 'Scan slab label' index.html
       - name: Commit site
         run: |
           git config user.name "VendorTracker Updater"
