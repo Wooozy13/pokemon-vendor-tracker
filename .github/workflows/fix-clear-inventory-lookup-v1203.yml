@@ -1,0 +1,32 @@
+name: Clear inventory lookup v12.0.3
+on:
+  push:
+    paths:
+      - scripts/fix_clear_inventory_lookup_v1203.py
+      - .github/workflows/fix-clear-inventory-lookup-v1203.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/fix_clear_inventory_lookup_v1203.py
+      - name: Validate
+        run: |
+          grep -q 'v12.0.3' index.html
+          grep -q 'Clear immediately after Find is pressed' index.html
+          python - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('index.html').read_text()
+          assert s.count('<script')==s.count('</script>')
+          pathlib.Path('/tmp/vt.js').write_text('\n'.join(re.findall(r'<script[^>]*>(.*?)</script>',s,re.S)))
+          PY
+          node --check /tmp/vt.js
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Clear inventory search immediately after Find v12.0.3'
+          git push
