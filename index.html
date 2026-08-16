@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.4</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.5</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1046,6 +1046,10 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 <div id="toast" class="toast hidden"></div>
 
 <script>
+// Canonical origin guard v12.0.5: keep Supabase auth storage on one origin.
+if(location.hostname==="vendortracker.app"){
+  location.replace("https://www.vendortracker.app"+location.pathname+location.search+location.hash);
+}
 const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}});
@@ -1054,7 +1058,7 @@ function vtSaveAuthBackup(session){try{if(session?.access_token&&session?.refres
 function vtReadAuthBackup(){try{return JSON.parse(localStorage.getItem(VT_AUTH_BACKUP_KEY)||"null")}catch(e){return null}}
 function vtClearAuthBackup(){try{localStorage.removeItem(VT_AUTH_BACKUP_KEY)}catch(e){}}
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.0.4";
+const APP_VERSION="v12.0.5";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
