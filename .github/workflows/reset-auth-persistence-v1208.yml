@@ -1,0 +1,33 @@
+name: Native auth persistence v12.0.8
+on:
+  push:
+    paths:
+      - scripts/reset_auth_persistence_v1208.py
+      - .github/workflows/reset-auth-persistence-v1208.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/reset_auth_persistence_v1208.py
+      - name: Validate auth cleanup
+        run: |
+          grep -q 'v12.0.8' index.html
+          grep -q 'storage:window.localStorage' index.html
+          ! grep -q 'vendortracker_auth_v1' index.html
+          ! grep -q 'vtIdbGet' index.html
+          python - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('index.html').read_text()
+          pathlib.Path('/tmp/vt.js').write_text('\n'.join(re.findall(r'<script[^>]*>(.*?)</script>',s,re.S)))
+          PY
+          node --check /tmp/vt.js
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Reset auth persistence to native Supabase storage v12.0.8'
+          git push
