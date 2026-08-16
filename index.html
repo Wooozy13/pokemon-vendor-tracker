@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.6</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.7</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1052,9 +1052,20 @@ if(location.hostname==="vendortracker.app"){
 }
 const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}});
+const VT_AUTH_DB="vendortracker_auth_v1";
+const VT_AUTH_STORE="kv";
+function vtAuthDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(VT_AUTH_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(VT_AUTH_STORE))r.result.createObjectStore(VT_AUTH_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function vtIdbGet(key){try{const db=await vtAuthDb();return await new Promise((resolve,reject)=>{const tx=db.transaction(VT_AUTH_STORE,'readonly'),r=tx.objectStore(VT_AUTH_STORE).get(key);r.onsuccess=()=>resolve(r.result??null);r.onerror=()=>reject(r.error)})}catch(e){return null}}
+async function vtIdbSet(key,value){try{const db=await vtAuthDb();await new Promise((resolve,reject)=>{const tx=db.transaction(VT_AUTH_STORE,'readwrite');tx.objectStore(VT_AUTH_STORE).put(value,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}catch(e){}}
+async function vtIdbRemove(key){try{const db=await vtAuthDb();await new Promise((resolve,reject)=>{const tx=db.transaction(VT_AUTH_STORE,'readwrite');tx.objectStore(VT_AUTH_STORE).delete(key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}catch(e){}}
+const vtAuthStorage={
+ async getItem(key){let v=null;try{v=localStorage.getItem(key)}catch(e){};if(v!=null){vtIdbSet(key,v);return v}v=await vtIdbGet(key);if(v!=null){try{localStorage.setItem(key,v)}catch(e){}}return v},
+ async setItem(key,value){try{localStorage.setItem(key,value)}catch(e){};await vtIdbSet(key,value)},
+ async removeItem(key){try{localStorage.removeItem(key)}catch(e){};await vtIdbRemove(key)}
+};
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:'vendortracker-auth-session'}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.0.6";
+const APP_VERSION="v12.0.7";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1683,28 +1694,22 @@ function useMarketAsSellPrice(id){
   save();toast("Sell price set to TCGplayer market");
 }
 
-function init(){
+async function init(){
  const h=location.hash;
  recoveryMode=h.includes("type=recovery")||h.includes("access_token=");
- let initialHandled=false;
- const applySession=(session)=>{
-   if(recoveryMode){if(session?.user){user=session.user;showReset()}else showPublic();return}
-   if(session?.user){user=session.user;setTimeout(()=>enterApp(),0)}else{user=null;showPublic()}
- };
- sb.auth.onAuthStateChange((ev,session)=>{
-   if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;if(session?.user)user=session.user;showReset();return}
-   if(ev==="INITIAL_SESSION"){initialHandled=true;applySession(session);return}
-   if(ev==="SIGNED_IN"||ev==="TOKEN_REFRESHED"||ev==="USER_UPDATED"){
-     if(session?.user&&!recoveryMode){user=session.user;if(document.getElementById("app").classList.contains("hidden"))setTimeout(()=>enterApp(),0)}
-     return
-   }
+ const {data:{session},error}=await sb.auth.getSession();
+ if(recoveryMode){
+   if(session?.user){user=session.user;showReset()}else showPublic();
+ }else if(session?.user){
+   user=session.user;await enterApp();
+ }else{
+   showPublic();
+ }
+ sb.auth.onAuthStateChange((ev,s)=>{
+   if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;if(s?.user)user=s.user;showReset();return}
+   if((ev==="SIGNED_IN"||ev==="TOKEN_REFRESHED"||ev==="USER_UPDATED")&&s?.user&&!recoveryMode){user=s.user;if(document.getElementById("app").classList.contains("hidden"))setTimeout(()=>enterApp(),0);return}
    if(ev==="SIGNED_OUT"){user=null;showPublic()}
  });
- // Fallback only if INITIAL_SESSION is unexpectedly delayed; do not manipulate tokens.
- setTimeout(()=>{
-   if(initialHandled)return;
-   sb.auth.getSession().then(({data})=>{initialHandled=true;applySession(data?.session||null)}).catch(()=>showPublic());
- },1200);
 }
 function showPublic(){publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
 function openAuth(mode){publicSite.classList.add("hidden");authOverlay.classList.remove("hidden");setAuthTab(mode)}
