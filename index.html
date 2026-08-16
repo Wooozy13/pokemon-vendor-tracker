@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.1</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.2</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1048,9 +1048,9 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 <script>
 const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.0.1";
+const APP_VERSION="v12.0.2";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1677,7 +1677,16 @@ async function init(){
  const h=location.hash;
  if(h.includes("type=recovery")||h.includes("access_token="))recoveryMode=true;
  const {data:{session}}=await sb.auth.getSession();
- sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;showReset()}else if(ev==="SIGNED_OUT"){user=null;showPublic()}else if(s?.user&&!recoveryMode){user=s.user;await enterApp()}});
+ sb.auth.onAuthStateChange(async(ev,s)=>{
+  if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;showReset();return}
+  if(ev==="SIGNED_OUT"){
+    await new Promise(r=>setTimeout(r,450));
+    const {data:{session:check}}=await sb.auth.getSession();
+    if(check?.user){user=check.user;if(!recoveryMode)await enterApp();return}
+    user=null;showPublic();return
+  }
+  if(s?.user&&!recoveryMode){user=s.user;await enterApp()}
+});
  if(recoveryMode&&session){user=session.user;showReset()}else if(session?.user){user=session.user;await enterApp()}else showPublic();
 }
 function showPublic(){publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
