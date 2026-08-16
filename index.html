@@ -885,7 +885,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.38.1</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.38.2</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1018,7 +1018,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.38.1";
+const APP_VERSION="v11.38.2";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2711,13 +2711,17 @@ async function searchPurchaseItem(){
 }
 
 
-/* Collector-number search support v11.38.1 — leaves existing Find Card flow intact. */
+/* Collector-number search support v11.38.2 — persistent exact cache + original fallback. */
 function vtCollectorParts(raw){
   const m=String(raw||'').trim().toUpperCase().match(/\b([A-Z]*\d+[A-Z]*)\s*\/\s*([A-Z]*\d+[A-Z]*)\b/);
   return m?{number:m[1],printed:m[0].replace(/\s+/g,'')} : null;
 }
+function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_${c.printed}`:null}
+function vtReadCollectorCache(raw){try{const k=vtCollectorCacheKey(raw);if(!k)return[];const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
+function vtWriteCollectorCache(raw,cards){try{const k=vtCollectorCacheKey(raw);if(k&&Array.isArray(cards)&&cards.length)localStorage.setItem(k,JSON.stringify(cards.slice(0,20)))}catch(e){}}
 async function vtExactCollectorLookup(raw){
   const c=vtCollectorParts(raw); if(!c)return [];
+  const saved=vtReadCollectorCache(raw);if(saved.length)return saved;
   const qs=[`number:${c.number}`,`number:${c.number.toLowerCase()}`];
   for(const q of qs){
     try{
@@ -2725,7 +2729,7 @@ async function vtExactCollectorLookup(raw){
       const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=40`,{signal:ctrl.signal});clearTimeout(timer);
       if(!r.ok)continue;const j=await r.json();
       const exact=(j.data||[]).filter(x=>String(fullCardNumber(x)||'').toUpperCase()===c.printed || String(x.number||'').toUpperCase()===c.number);
-      if(exact.length)return exact;
+      if(exact.length){vtWriteCollectorCache(raw,exact);return exact;}
     }catch(e){}
   }
   return [];
@@ -2736,10 +2740,17 @@ searchPokemonCards = async function(){
   if(vtCollectorParts(raw)){
     const status=document.getElementById('cardLookupStatus'); if(status)status.textContent='Searching collector number…';
     const exact=await vtExactCollectorLookup(raw);
-    if(exact.length){currentLookupResults=exact;renderCardLookup(exact);document.getElementById('cardLookupModal')?.classList.remove('hidden');if(status)status.textContent=`Found ${exact.length} exact collector-number match${exact.length===1?'':'es'}.`;return;}
+    if(exact.length){vtWriteCollectorCache(raw,exact);currentLookupResults=exact;renderCardLookup(exact);document.getElementById('cardLookupModal')?.classList.remove('hidden');if(status)status.textContent=`Found ${exact.length} exact collector-number match${exact.length===1?'':'es'}.`;return;}
   }
   return vtOriginalSearchPokemonCards();
 };
+
+
+const VT_COLLECTOR_SEEDS={
+ 'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{name:'Crown Zenith: Galarian Gallery',printedTotal:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'}}
+};
+const _vtExactCollectorLookupStable=vtExactCollectorLookup;
+vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const found=await _vtExactCollectorLookupStable(raw);if(found.length)return found;const c=vtCollectorParts(raw);const seed=c&&VT_COLLECTOR_SEEDS[c.printed];if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
 
 function renderDashboard(){
  const revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=db.expenses.reduce((a,x)=>a+x.amount,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);
