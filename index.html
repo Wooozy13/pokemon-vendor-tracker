@@ -428,7 +428,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
 /* Simplified navigation v11.28 */
 .navLabel{font-size:10px;font-weight:900;letter-spacing:.12em;color:#64748b;padding:8px 12px 5px}.navLabelMore{margin-top:14px}.simpleSideNav .sideBtn{display:flex;align-items:center;gap:10px;font-size:14px}.simpleSideNav .sideBtn span{display:inline}.secondarySide{color:#94a3b8}
 .quickActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.quickAction{border:1px solid var(--line);background:#fff;border-radius:16px;padding:16px;text-align:left;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(15,23,42,.03)}.quickAction>span{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#eff6ff;color:#1d4ed8;font-size:20px;font-weight:900}.quickAction strong,.quickAction small{display:block}.quickAction small{color:var(--muted);margin-top:2px}.quickAction.primary{background:#0f172a;color:#fff;border-color:#0f172a}.quickAction.primary>span{background:#fff;color:#0f172a}.quickAction.primary small{color:#cbd5e1}
-.simpleDashCards{grid-template-columns:repeat(4,minmax(0,1fr))}.simpleDetails{padding:0;overflow:hidden}.simpleDetails>summary{list-style:none;cursor:pointer;padding:17px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}.simpleDetails>summary::-webkit-details-marker{display:none}.simpleDetails>summary span:first-child{display:flex;flex-direction:column;gap:3px}.simpleDetails>summary small{color:var(--muted);font-size:12px;font-weight:500}.simpleDetails .chev{font-size:20px;color:#64748b;transition:.18s}.simpleDetails[open] .chev{transform:rotate(180deg)}.simpleDetails .detailsContent{padding:0 18px 18px}.inventoryAddDetails{margin-bottom:16px}.inventoryListPanel{margin-top:0}
+.simpleDashCards{grid-template-columns:repeat(3,minmax(0,1fr))}.simpleDetails{padding:0;overflow:hidden}.simpleDetails>summary{list-style:none;cursor:pointer;padding:17px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}.simpleDetails>summary::-webkit-details-marker{display:none}.simpleDetails>summary span:first-child{display:flex;flex-direction:column;gap:3px}.simpleDetails>summary small{color:var(--muted);font-size:12px;font-weight:500}.simpleDetails .chev{font-size:20px;color:#64748b;transition:.18s}.simpleDetails[open] .chev{transform:rotate(180deg)}.simpleDetails .detailsContent{padding:0 18px 18px}.inventoryAddDetails{margin-bottom:16px}.inventoryListPanel{margin-top:0}
 .stepHead{display:flex;align-items:center;gap:10px}.stepNum{width:30px;height:30px;border-radius:50%;background:#0f172a;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:900;flex:0 0 auto}.stepHead h3{margin:0}.stepHead .small{margin-top:2px}
 .moreMenu{position:fixed;inset:0;background:rgba(15,23,42,.38);z-index:120;display:flex;align-items:flex-end;justify-content:center}.moreSheet{background:#fff;width:min(520px,100%);border-radius:22px 22px 0 0;padding:10px 14px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -20px 55px rgba(15,23,42,.22)}.moreHandle{width:42px;height:4px;background:#cbd5e1;border-radius:99px;margin:2px auto 12px}.moreTitle{font-size:19px;font-weight:900;padding:0 5px 8px}.moreSheet>button{width:100%;border:0;background:#fff;border-bottom:1px solid #eef2f7;padding:13px 8px;display:flex;gap:12px;align-items:center;text-align:left}.moreSheet>button>span{width:36px;height:36px;border-radius:10px;background:#f1f5f9;display:grid;place-items:center;font-size:18px}.moreSheet>button strong,.moreSheet>button small{display:block}.moreSheet>button small{color:var(--muted);margin-top:2px}.moreSheet .moreCancel{justify-content:center;border:0;margin-top:7px;font-weight:850;color:#475569;background:#f8fafc;border-radius:10px}.moreMenuOpen{overflow:hidden}
 @media(max-width:1050px){.simpleDashCards{grid-template-columns:repeat(2,1fr)}}
@@ -461,6 +461,15 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
 .gradedSourceNote{margin-top:9px;padding:10px 12px;background:#f8fafc;border:1px solid var(--line);border-radius:10px}
 .gradedSourceActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 @media(max-width:620px){.gradedSourceTabs{grid-template-columns:1fr 1fr}}
+
+
+/* Graded slab camera scanner */
+.slabScanBox{margin-top:12px;padding:14px;border:1px solid #bfdbfe;background:#f8fbff;border-radius:14px}
+.slabScanActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.slabScanPreview{width:116px;height:84px;object-fit:cover;border:1px solid var(--line);border-radius:10px;background:#fff;display:none;margin-top:10px}
+.slabParsedGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.slabRaw{white-space:pre-wrap;max-height:130px;overflow:auto;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px;margin-top:8px}
+@media(max-width:620px){.slabParsedGrid{grid-template-columns:1fr}.slabScanActions .btn{width:100%}}
 
 </style>
 </head>
@@ -751,21 +760,33 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
         <div class="pageHeader"><div><h1>Graded Price Check</h1><p>Compare graded-card sold comps and calculate a clean four-sale average.</p></div></div>
         <div class="panel">
           <div class="gradedHeaderRow"><div><h3 style="margin:0">Card details</h3><div class="small">Enter the exact card and slab grade you are checking.</div></div><span class="comingSoonBadge">Automatic eBay comps coming soon</span></div>
+          <div class="slabScanBox">
+            <div class="gradedHeaderRow"><div><strong>📷 Scan slab label</strong><div class="small" style="margin-top:3px">Take a close photo of the grading label. VendorTracker will try to read the card, card number, slab company, grade, and cert/serial.</div></div><span class="comingSoonBadge" style="background:#ecfdf5;color:#166534;border-color:#bbf7d0">Camera ready</span></div>
+            <div class="slabScanActions" style="margin-top:10px">
+              <label class="btn btnPrimary">Take / choose slab photo<input id="gradedSlabPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="scanGradedSlab(this.files?.[0])"></label>
+              <button class="btn btnGhost" type="button" onclick="clearGradedSlabScan()">Clear scan</button>
+            </div>
+            <img id="gradedSlabPreview" class="slabScanPreview" alt="Slab label preview">
+            <div id="gradedScanStatus" class="small" style="margin-top:8px">Tip: fill the camera frame with the slab's top label and keep glare off the serial number.</div>
+            <details id="gradedRawWrap" class="hidden" style="margin-top:8px"><summary class="small" style="cursor:pointer;font-weight:800">View detected label text</summary><div id="gradedRawText" class="slabRaw"></div></details>
+          </div>
           <div class="grid" style="margin-top:12px">
-            <input id="gradedCardName" class="input" placeholder="Card name + card number, e.g. Charizard 199/165">
+            <input id="gradedCardName" class="input" placeholder="Card name / set, e.g. Charizard ex">
+            <input id="gradedCardNumber" class="input" placeholder="Card number, e.g. 199/165">
             <select id="gradedCompany" class="input"><option>PSA</option><option>CGC</option><option>Beckett / BGS</option><option>SGC</option><option>ACE</option><option>Other</option></select>
             <input id="gradedGrade" class="input" placeholder="Grade, e.g. 10">
+            <input id="gradedCert" class="input" placeholder="Cert / serial number">
           </div>
           <div style="margin-top:14px"><div class="small" style="font-weight:800">Pricing source</div>
             <div class="gradedSourceTabs">
               <button id="gradedSourceEbay" class="gradedSourceBtn active" type="button" onclick="setGradedPriceSource('ebay')">eBay</button>
               <button id="gradedSourceAlt" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('alt')">ALT</button>
-              <button id="gradedSourceTcg" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('tcgplayer')">TCGPlayer</button>
               <button id="gradedSourceCollectr" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('collectr')">Collectr</button>
             </div>
             <div id="gradedSourceNote" class="gradedSourceNote small">eBay selected — enter the latest four matching sold prices below.</div>
             <div class="gradedSourceActions">
               <button id="gradedOpenSourceBtn" class="btn btnGhost" onclick="openGradedSourceSearch()">Open eBay sold search ↗</button>
+              <button class="btn btnPrimary" type="button" onclick="openAllGradedSources()">Look up on ALT + eBay + Collectr ↗</button>
             </div>
           </div>
         </div>
@@ -824,7 +845,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.32</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.33</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -957,7 +978,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.32";
+const APP_VERSION="v11.33";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2123,13 +2144,121 @@ function clearTradeCalculator(){tradeYourItems=[];tradeTheirItems=[];renderTrade
 
 
 
+
+function normalizeSlabOcrText(text){return String(text||'').replace(/[|]/g,'I').replace(/\r/g,'').replace(/[ \t]+/g,' ').trim()}
+function detectSlabCompany(text){
+  const t=text.toUpperCase();
+  if(/\bPSA\b|PROFESSIONAL SPORTS AUTHENTICATOR/.test(t))return 'PSA';
+  if(/\bCGC\b|CERTIFIED GUARANTY/.test(t))return 'CGC';
+  if(/\bBGS\b|BECKETT/.test(t))return 'Beckett / BGS';
+  if(/\bSGC\b|SPORTSCARD GUARANTY/.test(t))return 'SGC';
+  if(/\bACE\b/.test(t))return 'ACE';
+  return '';
+}
+function detectSlabGrade(text){
+  const t=text.toUpperCase();
+  let m=t.match(/(?:GEM\s*(?:MT|MINT)|PRISTINE|MINT|NM[ -]?MT|NEAR MINT)[^0-9]{0,8}(10(?:\.0)?|9\.5|9|8\.5|8|7\.5|7|6\.5|6|5\.5|5|4\.5|4|3\.5|3|2\.5|2|1\.5|1)\b/);
+  if(m)return m[1];
+  m=t.match(/\b(?:GRADE|GRD)\s*[:#-]?\s*(10(?:\.0)?|9\.5|9|8\.5|8|7\.5|7|6\.5|6|5\.5|5|4\.5|4|3\.5|3|2\.5|2|1\.5|1)\b/);
+  if(m)return m[1];
+  const lines=t.split('\n').map(x=>x.trim()).filter(Boolean);
+  for(const line of lines){if(/^(10(?:\.0)?|9\.5|9|8\.5|8|7\.5|7|6\.5|6|5\.5|5|4\.5|4|3\.5|3|2\.5|2|1\.5|1)$/.test(line))return line}
+  return '';
+}
+function detectSlabCert(text){
+  const t=text.toUpperCase();
+  let m=t.match(/(?:CERT(?:IFICATION)?|SERIAL|CERT\s*#|NO\.?)[^0-9]{0,8}([0-9][0-9 .-]{5,13}[0-9])/);
+  if(m)return m[1].replace(/[^0-9]/g,'');
+  const candidates=(t.match(/\b\d{7,10}\b/g)||[]).filter(v=>!/^20\d{2}/.test(v));
+  return candidates.sort((a,b)=>b.length-a.length)[0]||'';
+}
+function detectSlabCardNumber(text){
+  const t=text.toUpperCase();
+  let m=t.match(/\b([A-Z]*\d{1,4}[A-Z]?\s*\/\s*[A-Z]*\d{1,4}[A-Z]?)\b/);
+  if(m)return m[1].replace(/\s+/g,'');
+  m=t.match(/(?:CARD\s*(?:NO|#)|#)\s*([A-Z]*\d{1,4}[A-Z]?)/);
+  return m?m[1]:'';
+}
+function detectSlabCardName(text,company,grade,cert,cardNumber){
+  const reject=/^(PSA|CGC|BGS|BECKETT|SGC|ACE|GEM|MINT|PRISTINE|NEAR MINT|NM|GRADE|CERT|CERTIFICATION|SERIAL|AUTHENTIC|POKEMON|POKÉMON)$/i;
+  const lines=String(text||'').split('\n').map(x=>x.trim().replace(/\s+/g,' ')).filter(x=>x.length>=3);
+  const filtered=lines.filter(line=>{
+    const up=line.toUpperCase();
+    if(reject.test(up))return false;
+    if(company && up.includes(company.split(' ')[0].toUpperCase()))return false;
+    if(cert && up.replace(/\D/g,'').includes(cert))return false;
+    if(cardNumber && up.replace(/\s/g,'').includes(cardNumber.toUpperCase()))return false;
+    if(/^\d+(?:\.\d+)?$/.test(line))return false;
+    if(/^(19|20)\d{2}$/.test(line))return false;
+    if(/CERT|SERIAL|GRADE|AUTHENTIC/i.test(line))return false;
+    return /[A-Za-z]{3}/.test(line);
+  });
+  if(!filtered.length)return '';
+  const scored=filtered.map((line,i)=>({line,score:(/[A-Za-z]{5}/.test(line)?20:0)+Math.min(line.length,45)-(i*0.5)})).sort((a,b)=>b.score-a.score);
+  return scored[0]?.line||'';
+}
+function applySlabOcrFields(text){
+  const cleaned=normalizeSlabOcrText(text);
+  const company=detectSlabCompany(cleaned);
+  const grade=detectSlabGrade(cleaned);
+  const cert=detectSlabCert(cleaned);
+  const number=detectSlabCardNumber(cleaned);
+  const name=detectSlabCardName(cleaned,company,grade,cert,number);
+  if(company){const sel=document.getElementById('gradedCompany');if(sel)sel.value=company}
+  if(grade)document.getElementById('gradedGrade').value=grade;
+  if(cert)document.getElementById('gradedCert').value=cert;
+  if(number)document.getElementById('gradedCardNumber').value=number;
+  if(name)document.getElementById('gradedCardName').value=name;
+  return {company,grade,cert,number,name};
+}
+async function scanGradedSlab(file){
+  if(!file)return;
+  const status=document.getElementById('gradedScanStatus');
+  const preview=document.getElementById('gradedSlabPreview');
+  const raw=document.getElementById('gradedRawText');
+  const rawWrap=document.getElementById('gradedRawWrap');
+  try{
+    if(preview){preview.src=URL.createObjectURL(file);preview.style.display='block'}
+    if(status)status.textContent='Reading slab label… keep this page open for a moment.';
+    if(!window.Tesseract)throw new Error('OCR engine unavailable');
+    const result=await Tesseract.recognize(file,'eng',{logger:m=>{if(status&&m.status==='recognizing text')status.textContent=`Reading slab label… ${Math.round((m.progress||0)*100)}%`;}});
+    const text=normalizeSlabOcrText(result?.data?.text||'');
+    if(raw)raw.textContent=text||'No text detected.';
+    if(rawWrap)rawWrap.classList.remove('hidden');
+    const found=applySlabOcrFields(text);
+    const count=[found.name,found.number,found.company,found.grade,found.cert].filter(Boolean).length;
+    if(status)status.textContent=count?`Scan complete — filled ${count} field${count===1?'':'s'}. Check the details below, then choose ALT, eBay, or Collectr.`:'Could not confidently read the label. Try a closer, glare-free photo.';
+    if(count)toast('Slab details detected');
+  }catch(e){
+    console.error(e);
+    if(status)status.textContent='Could not read that slab photo. Try a closer photo with better lighting and less glare.';
+  }
+}
+function clearGradedSlabScan(){
+  const ids=['gradedCardName','gradedCardNumber','gradedGrade','gradedCert'];ids.forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+  const f=document.getElementById('gradedSlabPhoto');if(f)f.value='';
+  const p=document.getElementById('gradedSlabPreview');if(p){p.removeAttribute('src');p.style.display='none'}
+  const r=document.getElementById('gradedRawText');if(r)r.textContent='';
+  document.getElementById('gradedRawWrap')?.classList.add('hidden');
+  const st=document.getElementById('gradedScanStatus');if(st)st.textContent="Tip: fill the camera frame with the slab's top label and keep glare off the serial number.";
+}
+function openAllGradedSources(){
+  const q=gradedSearchText();if(!q)return toast('Scan a slab or enter its details first');
+  const encoded=encodeURIComponent(q);
+  window.open('https://www.ebay.com/sch/i.html?_nkw='+encoded+'&LH_Sold=1&LH_Complete=1','_blank','noopener');
+  window.open('https://app.getcollectr.com/?query='+encoded,'_blank','noopener');
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(q).catch(()=>{});
+  window.open('https://www.alt.xyz/','_blank','noopener');
+  toast('Opened eBay + Collectr; ALT search copied');
+}
+
 let gradedPriceSource='ebay';
 function setGradedPriceSource(source){
   gradedPriceSource=source;
-  const names={ebay:'eBay',alt:'ALT',tcgplayer:'TCGPlayer',collectr:'Collectr'};
+  const names={ebay:'eBay',alt:'ALT',collectr:'Collectr'};
   const name=names[source]||'eBay';
-  ['Ebay','Alt','Tcg','Collectr'].forEach(k=>document.getElementById('gradedSource'+k)?.classList.remove('active'));
-  const id={ebay:'gradedSourceEbay',alt:'gradedSourceAlt',tcgplayer:'gradedSourceTcg',collectr:'gradedSourceCollectr'}[source];
+  ['Ebay','Alt','Collectr'].forEach(k=>document.getElementById('gradedSource'+k)?.classList.remove('active'));
+  const id={ebay:'gradedSourceEbay',alt:'gradedSourceAlt',collectr:'gradedSourceCollectr'}[source];
   document.getElementById(id)?.classList.add('active');
   const note=document.getElementById('gradedSourceNote');
   const head=document.getElementById('gradedCompHeading');
@@ -2144,7 +2273,6 @@ function setGradedPriceSource(source){
   if(note){
     if(source==='ebay')note.textContent='eBay selected — use recent sold listings for the strongest comp-based estimate.';
     else if(source==='alt')note.textContent='ALT selected — VendorTracker builds the exact card/slab/grade search and copies it for ALT because ALT does not publish a stable deep-link search URL.';
-    else if(source==='tcgplayer')note.textContent='TCGPlayer selected — the button automatically searches using the card name/number, slab company, and grade.';
     else note.textContent='Collectr selected — the button automatically searches app.getcollectr.com using the card name/number, slab company, and grade.';
   }
   if(autoTitle)autoTitle.textContent=`Automatic ${name} graded pricing`;
@@ -2153,19 +2281,19 @@ function setGradedPriceSource(source){
 }
 function gradedSearchText(){
   const card=document.getElementById('gradedCardName')?.value.trim()||'';
+  const number=document.getElementById('gradedCardNumber')?.value.trim()||'';
   const company=document.getElementById('gradedCompany')?.value||'';
   const grade=document.getElementById('gradedGrade')?.value.trim()||'';
-  return [card,company,grade].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+  const cert=document.getElementById('gradedCert')?.value.trim()||'';
+  const identity=[card,number].filter(Boolean).join(' ').trim() || cert;
+  return [identity,company,grade].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
 function openGradedSourceSearch(){
   const q=gradedSearchText();
-  if(!q)return toast('Enter the card number, slab type, and grade first');
+  if(!q)return toast('Scan a slab or enter the card, slab type, and grade first');
   const encoded=encodeURIComponent(q);
   if(gradedPriceSource==='ebay')return window.open('https://www.ebay.com/sch/i.html?_nkw='+encoded+'&LH_Sold=1&LH_Complete=1','_blank','noopener');
-  if(gradedPriceSource==='tcgplayer')return window.open('https://www.tcgplayer.com/search/all/product?q='+encoded+'&view=grid','_blank','noopener');
   if(gradedPriceSource==='collectr')return window.open('https://app.getcollectr.com/?query='+encoded,'_blank','noopener');
-  // ALT supports searching graded cards by description/grade on web, but does not publish a stable deep-link query format.
-  // Open ALT and copy the exact generated search text so the user can paste it immediately without retyping.
   if(navigator.clipboard?.writeText){navigator.clipboard.writeText(q).catch(()=>{});toast('ALT search copied — paste it into ALT search');}
   return window.open('https://www.alt.xyz/','_blank','noopener');
 }
