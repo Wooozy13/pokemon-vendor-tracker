@@ -1,0 +1,36 @@
+name: Stable collector cache v11.38.2
+on:
+  push:
+    paths:
+      - scripts/fix_stable_collector_cache_v11382.py
+      - .github/workflows/fix-stable-collector-cache-v11382.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/fix_stable_collector_cache_v11382.py
+      - name: Verify source
+        run: |
+          grep -q 'v11.38.2' index.html
+          grep -q 'vtReadCollectorCache' index.html
+          grep -q 'GG56/GG70' index.html
+          grep -q 'Hisuian Zoroark VSTAR' index.html
+      - name: Syntax-check inline JavaScript
+        run: |
+          python - <<'PY'
+          import re, pathlib
+          s=pathlib.Path('index.html').read_text()
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',s,re.S)
+          pathlib.Path('/tmp/vendortracker.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/vendortracker.js
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Make collector-number search persistent v11.38.2'
+          git push
