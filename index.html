@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.8</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.9</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1046,17 +1046,11 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 <div id="toast" class="toast hidden"></div>
 
 <script>
-// Canonical origin guard v12.0.5: keep Supabase auth storage on one origin.
-if(location.hostname==="vendortracker.app"){
-  location.replace("https://www.vendortracker.app"+location.pathname+location.search+location.hash);
-}
 const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
-const VT_AUTH_STORAGE_KEY="vendortracker-auth-session";
-// v12.0.8: use Supabase's native browser localStorage persistence only.
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:VT_AUTH_STORAGE_KEY}});
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.0.8";
+const APP_VERSION="v12.0.9";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1687,22 +1681,10 @@ function useMarketAsSellPrice(id){
 
 async function init(){
  const h=location.hash;
- recoveryMode=h.includes("type=recovery")||h.includes("access_token=");
- // Wait for the native Supabase client to recover the persisted browser session.
- const {data:{session},error}=await sb.auth.getSession();
- console.info("VendorTracker auth startup",{version:APP_VERSION,hasStoredSession:!!localStorage.getItem(VT_AUTH_STORAGE_KEY),hasSession:!!session,error:error?.message||null});
- if(recoveryMode){
-   if(session?.user){user=session.user;showReset()}else showPublic();
- }else if(session?.user){
-   user=session.user;await enterApp();
- }else{
-   showPublic();
- }
- sb.auth.onAuthStateChange((ev,s)=>{
-   if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;if(s?.user)user=s.user;showReset();return}
-   if((ev==="SIGNED_IN"||ev==="TOKEN_REFRESHED"||ev==="USER_UPDATED")&&s?.user&&!recoveryMode){user=s.user;if(document.getElementById("app").classList.contains("hidden"))setTimeout(()=>enterApp(),0);return}
-   if(ev==="SIGNED_OUT"){user=null;showPublic()}
- });
+ if(h.includes("type=recovery")||h.includes("access_token="))recoveryMode=true;
+ const {data:{session}}=await sb.auth.getSession();
+ sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;showReset()}else if(ev==="SIGNED_OUT"){user=null;showPublic()}else if(s?.user&&!recoveryMode){user=s.user;await enterApp()}});
+ if(recoveryMode&&session){user=session.user;showReset()}else if(session?.user){user=session.user;await enterApp()}else showPublic();
 }
 function showPublic(){publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
 function openAuth(mode){publicSite.classList.add("hidden");authOverlay.classList.remove("hidden");setAuthTab(mode)}
@@ -1712,7 +1694,7 @@ async function submitAuth(e){e.preventDefault();const email=document.getElementB
 async function forgotPassword(){const email=document.getElementById("email").value.trim();if(!email)return setMsg(authMsg,"Enter your email address first.","error");const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://www.vendortracker.app/"});if(error)return setMsg(authMsg,error.message,"error");setMsg(authMsg,"Password reset email sent. Check your inbox.","success")}
 function showReset(){publicSite.classList.add("hidden");authOverlay.classList.add("hidden");app.classList.add("hidden");resetView.classList.remove("hidden")}
 async function completePasswordReset(e){e.preventDefault();const a=newPassword.value,b=confirmPassword.value;if(a!==b)return setMsg(resetMsg,"Passwords do not match.","error");const {error}=await sb.auth.updateUser({password:a});if(error)return setMsg(resetMsg,error.message,"error");setMsg(resetMsg,"Password updated successfully. Loading your dashboard…","success");recoveryMode=false;history.replaceState({},"",location.pathname);const {data:{user:u}}=await sb.auth.getUser();user=u;setTimeout(enterApp,700)}
-async function signOut(){await sb.auth.signOut({scope:"local"});showPublic()}
+async function signOut(){await sb.auth.signOut();showPublic()}
 
 async function enterApp(){
  publicSite.classList.add("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.remove("hidden");
