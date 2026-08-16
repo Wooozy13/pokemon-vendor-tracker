@@ -757,57 +757,32 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
       </section>
 
       <section id="graded" class="page">
-        <div class="pageHeader"><div><h1>Graded Price Check</h1><p>Compare graded-card sold comps and calculate a clean four-sale average.</p></div></div>
+        <div class="pageHeader"><div><h1>eBay Slab Comps</h1><p>Check the 4 most recent matching eBay sold comps for a graded card.</p></div></div>
+
         <div class="panel">
-          <div class="gradedHeaderRow"><div><h3 style="margin:0">Card details</h3><div class="small">Enter the exact card and slab grade you are checking.</div></div><span class="comingSoonBadge">Automatic eBay comps coming soon</span></div>
-          <div class="slabScanBox">
-            <div class="gradedHeaderRow"><div><strong>📷 Scan slab label</strong><div class="small" style="margin-top:3px">Take a close photo of the grading label. VendorTracker will try to read the card, card number, slab company, grade, and cert/serial.</div></div><span class="comingSoonBadge" style="background:#ecfdf5;color:#166534;border-color:#bbf7d0">Camera ready</span></div>
-            <div class="slabScanActions" style="margin-top:10px">
-              <label class="btn btnPrimary">Take / choose slab photo<input id="gradedSlabPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="scanGradedSlab(this.files?.[0])"></label>
-              <button class="btn btnGhost" type="button" onclick="clearGradedSlabScan()">Clear scan</button>
-            </div>
-            <img id="gradedSlabPreview" class="slabScanPreview" alt="Slab label preview">
-            <div id="gradedScanStatus" class="small" style="margin-top:8px">Tip: fill the camera frame with the slab's top label and keep glare off the serial number.</div>
-            <details id="gradedRawWrap" class="hidden" style="margin-top:8px"><summary class="small" style="cursor:pointer;font-weight:800">View detected label text</summary><div id="gradedRawText" class="slabRaw"></div></details>
+          <div class="panelHead"><div><h3>Find graded card</h3><div class="small">Enter the exact card and slab details. VendorTracker will use these to find matching eBay sold listings.</div></div></div>
+          <div class="grid">
+            <input id="ebaySlabCard" class="input" placeholder="Card name, e.g. Charizard ex">
+            <input id="ebaySlabNumber" class="input" placeholder="Card number, e.g. 199/165">
+            <select id="ebaySlabCompany" class="input"><option>PSA</option><option>CGC</option><option>Beckett / BGS</option><option>SGC</option><option>ACE</option><option>Other</option></select>
+            <input id="ebaySlabGrade" class="input" placeholder="Grade, e.g. 10">
           </div>
-          <div class="grid" style="margin-top:12px">
-            <input id="gradedCardName" class="input" placeholder="Card name / set, e.g. Charizard ex">
-            <input id="gradedCardNumber" class="input" placeholder="Card number, e.g. 199/165">
-            <select id="gradedCompany" class="input"><option>PSA</option><option>CGC</option><option>Beckett / BGS</option><option>SGC</option><option>ACE</option><option>Other</option></select>
-            <input id="gradedGrade" class="input" placeholder="Grade, e.g. 10">
-            <input id="gradedCert" class="input" placeholder="Cert / serial number">
+          <div class="actions" style="margin-top:12px">
+            <button id="ebaySlabSearchBtn" class="btn btnPrimary" onclick="searchEbaySlabComps()">Get last 4 eBay sold comps</button>
+            <button class="btn btnGhost" onclick="openEbaySlabSoldSearch()">Open eBay sold search ↗</button>
           </div>
-          <div style="margin-top:14px"><div class="small" style="font-weight:800">Pricing source</div>
-            <div class="gradedSourceTabs">
-              <button id="gradedSourceEbay" class="gradedSourceBtn active" type="button" onclick="setGradedPriceSource('ebay')">eBay</button>
-              <button id="gradedSourceAlt" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('alt')">ALT</button>
-              <button id="gradedSourceCollectr" class="gradedSourceBtn" type="button" onclick="setGradedPriceSource('collectr')">Collectr</button>
-            </div>
-            <div id="gradedSourceNote" class="gradedSourceNote small">eBay selected — enter the latest four matching sold prices below.</div>
-            <div class="gradedSourceActions">
-              <button id="gradedOpenSourceBtn" class="btn btnGhost" onclick="openGradedSourceSearch()">Open eBay sold search ↗</button>
-              <button class="btn btnPrimary" type="button" onclick="openAllGradedSources()">Look up on ALT + eBay + Collectr ↗</button>
-            </div>
-          </div>
+          <div id="ebaySlabStatus" class="small" style="margin-top:10px">Automatic sold-comp lookup will activate once your eBay developer access is connected.</div>
         </div>
+
         <div class="panel">
-          <div class="panelHead"><div><h3 id="gradedCompHeading">Manual eBay last 4 sold</h3><div id="gradedCompHelp" class="small">Enter four matching sold prices from eBay. VendorTracker calculates the total and four-sale average instantly.</div></div></div>
-          <div class="gradedCompGrid">
-            <div class="gradedCompCard"><label>Sold comp 1</label><input id="gradedComp1" class="input" type="number" min="0" step=".01" placeholder="0.00" oninput="updateGradedCompAverage()"></div>
-            <div class="gradedCompCard"><label>Sold comp 2</label><input id="gradedComp2" class="input" type="number" min="0" step=".01" placeholder="0.00" oninput="updateGradedCompAverage()"></div>
-            <div class="gradedCompCard"><label>Sold comp 3</label><input id="gradedComp3" class="input" type="number" min="0" step=".01" placeholder="0.00" oninput="updateGradedCompAverage()"></div>
-            <div class="gradedCompCard"><label>Sold comp 4</label><input id="gradedComp4" class="input" type="number" min="0" step=".01" placeholder="0.00" oninput="updateGradedCompAverage()"></div>
+          <div class="panelHead"><div><h3>Last 4 sold</h3><div class="small">Newest matching eBay sold listings only.</div></div></div>
+          <div id="ebaySlabResults" class="gradedCompGrid">
+            <div class="empty" style="grid-column:1/-1">No eBay comps loaded yet.</div>
           </div>
-          <div class="gradedSummary">
-            <div class="metric"><div class="metricLabel">Total of 4 sold</div><div class="metricValue" id="gradedCompTotal">$0.00</div></div>
-            <div class="metric"><div class="metricLabel">4-sale average</div><div class="metricValue" id="gradedCompAverage">$0.00</div></div>
+          <div class="gradedSummary" style="margin-top:14px">
+            <div class="metric"><div class="metricLabel">4-sale total</div><div class="metricValue" id="ebaySlabTotal">$0.00</div></div>
+            <div class="metric"><div class="metricLabel">4-sale average</div><div class="metricValue" id="ebaySlabAverage">$0.00</div></div>
           </div>
-          <div class="small" id="gradedCompStatus" style="margin-top:9px">Enter all four sold prices for a complete 4-sale average.</div>
-          <div class="actions" style="margin-top:10px"><button class="btn btnGhost" onclick="clearGradedComps()">Clear comps</button></div>
-        </div>
-        <div class="comingSoonPanel">
-          <div class="gradedHeaderRow"><div><strong id="gradedAutoTitle">Automatic eBay graded pricing</strong><div id="gradedAutoHelp" class="small" style="margin-top:4px">Once the eBay integration is connected, this will automatically pull matching sold comps and calculate the four-sale average.</div></div><span class="comingSoonBadge">Coming Soon</span></div>
-          <button id="gradedAutoBtn" class="btn btnPrimary" style="margin-top:12px" disabled>Automatic eBay pricing — Coming Soon</button>
         </div>
       </section>
 
@@ -845,7 +820,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.33</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v11.34</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -865,7 +840,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
       <div class="moreHandle"></div><div class="moreTitle">More</div>
       <button onclick="openMorePage('shows')"><span>★</span><div><strong>Shows</strong><small>Event history & profit</small></div></button>
       <button onclick="openMorePage('expenses')"><span>⌁</span><div><strong>Expenses</strong><small>Fees, travel & costs</small></div></button>
-      <button onclick="openMorePage('graded')"><span>◈</span><div><strong>Graded Price Check</strong><small>Manual sold comps · Auto eBay coming soon</small></div><span class="comingSoonBadge">New</span></button>
+      <button onclick="openMorePage('graded')"><span>◈</span><div><strong>Graded Price Check</strong><small>Last 4 eBay sold comps</small></div><span class="comingSoonBadge">New</span></button>
       <button onclick="openMorePage('settings')"><span>⚙</span><div><strong>Settings</strong><small>Account, backups & version</small></div></button>
       <button class="moreCancel" onclick="toggleMoreMenu(false)">Cancel</button>
     </div>
@@ -978,7 +953,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v11.33";
+const APP_VERSION="v11.34";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2318,6 +2293,59 @@ function openManualEbaySoldSearch(){
   if(!name)return toast('Enter the graded card first');
   const q=encodeURIComponent([name,company,grade].filter(Boolean).join(' '));
   window.open('https://www.ebay.com/sch/i.html?_nkw='+q+'&LH_Sold=1&LH_Complete=1','_blank','noopener');
+}
+
+
+function ebaySlabQuery(){
+  const card=document.getElementById('ebaySlabCard')?.value.trim()||'';
+  const number=document.getElementById('ebaySlabNumber')?.value.trim()||'';
+  const company=document.getElementById('ebaySlabCompany')?.value||'';
+  const grade=document.getElementById('ebaySlabGrade')?.value.trim()||'';
+  return [card,number,company,grade].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+}
+function openEbaySlabSoldSearch(){
+  const q=ebaySlabQuery();
+  if(!q)return toast('Enter the card and slab details first');
+  window.open('https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(q)+'&LH_Sold=1&LH_Complete=1','_blank','noopener');
+}
+function renderEbaySlabComps(items){
+  const box=document.getElementById('ebaySlabResults');
+  const totalEl=document.getElementById('ebaySlabTotal');
+  const avgEl=document.getElementById('ebaySlabAverage');
+  const clean=(items||[]).slice(0,4).filter(x=>Number.isFinite(Number(x.price)));
+  if(!clean.length){
+    box.innerHTML='<div class="empty" style="grid-column:1/-1">No matching sold comps found.</div>';
+    totalEl.textContent=money(0);avgEl.textContent=money(0);return;
+  }
+  box.innerHTML=clean.map((x,i)=>`<div class="gradedCompCard">
+    <label>Sold comp ${i+1}</label>
+    ${x.image?`<img src="${esc(x.image)}" alt="" style="width:100%;aspect-ratio:1.35;object-fit:contain;border-radius:10px;background:#f8fafc;margin-bottom:8px">`:''}
+    <strong style="display:block;font-size:20px">${money(x.price)}</strong>
+    <div class="small" style="margin-top:5px">${esc(x.title||'eBay sold listing')}</div>
+    ${x.soldDate?`<div class="small" style="margin-top:4px">Sold ${esc(x.soldDate)}</div>`:''}
+    ${x.url?`<button class="miniBtn btnGhost" style="margin-top:8px" onclick="window.open('${esc(x.url)}','_blank','noopener')">View eBay ↗</button>`:''}
+  </div>`).join('');
+  const total=clean.reduce((a,x)=>a+Number(x.price||0),0);
+  totalEl.textContent=money(total);
+  avgEl.textContent=money(total/clean.length);
+}
+async function searchEbaySlabComps(){
+  const q=ebaySlabQuery();
+  const status=document.getElementById('ebaySlabStatus');
+  const btn=document.getElementById('ebaySlabSearchBtn');
+  if(!q){toast('Enter the card and slab details first');return}
+  status.textContent='Searching eBay sold comps…';btn.disabled=true;
+  try{
+    const {data,error}=await sb.functions.invoke('ebay-slab-comps',{body:{query:q,limit:4}});
+    if(error)throw error;
+    if(!data?.success)throw new Error(data?.error||'eBay sold comp lookup unavailable');
+    const items=(data.results||[]).slice(0,4);
+    renderEbaySlabComps(items);
+    status.textContent=items.length?`Loaded ${items.length} matching eBay sold comp${items.length===1?'':'s'}.`:'No matching eBay sold comps found.';
+  }catch(e){
+    renderEbaySlabComps([]);
+    status.textContent='Automatic eBay sold comps are not connected yet. Once your eBay developer credentials are approved and added to VendorTracker, this button will pull the newest 4 sold automatically.';
+  }finally{btn.disabled=false}
 }
 
 function renderDashboard(){
