@@ -1,0 +1,26 @@
+name: Apply ultra-fast search v11.39
+on:
+  push:
+    paths:
+      - scripts/apply_ultrafast_search_v1139.py
+      - .github/workflows/apply-ultrafast-search-v1139.yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: python scripts/apply_ultrafast_search_v1139.py
+      - name: Verify
+        run: |
+          grep -q 'v11.39' index.html
+          grep -q 'Ultra-fast lookup v11.39' index.html
+      - name: Commit site
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Make product lookup ultra-fast v11.39'
+          git push
