@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.2</span> · Updated Aug 15, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.0.3</span> · Updated Aug 15, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1050,7 +1050,7 @@ const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.0.2";
+const APP_VERSION="v12.0.3";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1192,7 +1192,13 @@ function setInventoryType(type){
   resetCardMetadata();
 }
 function runInventoryLookup(){
-  return inventoryType==="sealed"?searchSealedProducts():searchPokemonCards();
+  const input=document.getElementById("pName");
+  const submitted=input?.value||"";
+  if(!submitted.trim()) return inventoryType==="sealed"?searchSealedProducts():searchPokemonCards();
+  // Clear immediately after Find is pressed. Search functions already captured/read the submitted value synchronously.
+  const result=inventoryType==="sealed"?searchSealedProducts():searchPokemonCards();
+  if(input && input.value===submitted) input.value="";
+  return result;
 }
 async function searchSealedProducts(){
   const raw=document.getElementById("pName").value.trim();
