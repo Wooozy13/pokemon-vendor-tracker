@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.3.1</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.4.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.3.1";
+const APP_VERSION="v12.4.0";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1245,22 +1245,20 @@ async function searchSealedProducts(){
   const raw=document.getElementById("pName").value.trim();
   const status=document.getElementById("cardLookupStatus");
   if(!raw){status.textContent="Enter a sealed product name first.";return}
-  status.textContent="Searching TCGplayer sealed products…";
+  const cached=lookupCacheRead('sealed_'+fastCacheKey(raw),24*60*60*1000);
+  status.textContent=cached?.length?"Loading saved sealed results…":"Searching sealed products…";
   try{
-    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:raw}});
-    if(error)throw error;
-    if(!data?.success)throw new Error(data?.error||"Sealed lookup failed");
-    const items=data.results||[];
+    const items=cached?.length?cached:await fastSealedProductSearch(raw);
     currentSealedResults=items;
     if(!items.length){
       status.textContent="No sealed products found. Try a shorter search like “Prismatic Evolutions ETB” or “Surging Sparks Booster Box”.";
       return;
     }
-    status.textContent=`Found ${items.length} sealed product${items.length===1?"":"s"}. Best matches are shown first.`;
+    status.textContent=`Found ${items.length} sealed product${items.length===1?"":"s"}${cached?.length?" instantly":""}. Best matches are shown first.`;
     renderSealedLookup(items);
     document.getElementById("sealedLookupModal").classList.remove("hidden");
   }catch(e){
-    status.textContent="Sealed product search failed. You can still add it manually.";
+    status.textContent=e?.message==="SEALED_TIMEOUT"?"Sealed search timed out. Please try again.":"Sealed product search is temporarily unavailable. You can still add it manually.";
   }
 }
 function renderSealedLookup(items){
@@ -2761,10 +2759,17 @@ async function searchPokemonCards(){
   }catch(e){if(!cached)status.textContent='Card service is slow right now. Try again or use a more exact card number.'}
 }
 async function fastSealedProductSearch(q){
-  const key=fastCacheKey(q),persisted=lookupCacheRead('sealed_'+key,6*60*60*1000);
+  const key=fastCacheKey(q),persisted=lookupCacheRead('sealed_'+key,24*60*60*1000);
   if(persisted?.length)return persisted;
   if(fastSealedSearchCache.has(key))return fastSealedSearchCache.get(key);
-  const job=(async()=>{const {data,error}=await sb.functions.invoke('sealed-product-search',{body:{query:q}});if(error)throw error;const out=data?.results||[];if(out.length)lookupCacheWrite('sealed_'+key,out);return out})();
+  const job=(async()=>{
+    const response=await Promise.race([
+      sb.functions.invoke('sealed-product-search',{body:{query:q}}),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('SEALED_TIMEOUT')),18000))
+    ]);
+    const {data,error}=response;if(error)throw error;if(!data?.success)throw new Error(data?.error||'SEALED_FAILED');
+    const out=data.results||[];if(out.length)lookupCacheWrite('sealed_'+key,out);return out;
+  })();
   fastSealedSearchCache.set(key,job);
   try{return await job}catch(e){fastSealedSearchCache.delete(key);throw e}
 }
@@ -2782,7 +2787,7 @@ async function searchPurchaseItem(){
       status.textContent=`Found ${cards.length} card${cards.length===1?'':'s'}. Select the exact printing.`;
       box.innerHTML=cards.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||'')}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||'')} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):(c._vtPricePending?'Loading market price…':'Market unavailable')}</div></button>`}).join('');
     }else{
-      const key='sealed_'+fastCacheKey(q),cached=lookupCacheRead(key,6*60*60*1000);status.textContent=cached?.length?'Loading saved results…':'Searching sealed products…';
+      const key='sealed_'+fastCacheKey(q),cached=lookupCacheRead(key,24*60*60*1000);status.textContent=cached?.length?'Loading saved results…':'Searching sealed products…';
       const items=cached?.length?cached:await fastSealedProductSearch(q);purchaseLookupResults=items;
       if(!items.length){status.textContent='No sealed products found.';return}
       status.textContent=`Found ${items.length} sealed product${items.length===1?'':'s'}${cached?.length?' instantly':''}.`;
