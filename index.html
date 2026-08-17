@@ -1665,7 +1665,7 @@ async function scanImageSource(file){
 }
 const cardArtworkSignatureCache=new Map();
 let cardVisualIndexJob=null;
-const CARD_VISUAL_INDEX_URLS=Array.from({length:7},(_,index)=>`assets/pokemon-card-visual-index.part${index}.txt?v=${encodeURIComponent(APP_VERSION)}`);
+const CARD_VISUAL_INDEX_URLS=Array.from({length:7},(_,index)=>`pokemon-card-visual-index.part${index}.txt?v=${encodeURIComponent(APP_VERSION)}`);
 function estimatedCardBounds(image){
   const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
   const scale=Math.min(1,360/Math.max(width,height)),canvas=document.createElement("canvas");
