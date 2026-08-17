@@ -1801,7 +1801,7 @@ function parseCardVisualIndex(buffer){
   return {count,entries};
 }
 async function loadCardVisualIndex(){
-  if(!cardVisualIndexJob)cardVisualIndexJob=Promise.all(CARD_VISUAL_INDEX_URLS.map(url=>fetch(url,{cache:"force-cache"}).then(response=>{if(!response.ok)throw new Error("Artwork library unavailable");return response.text()}))).then(parts=>{const raw=atob(parts.join("")),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return parseCardVisualIndex(bytes.buffer)}).then(data=>{if(!data.entries.length)throw new Error("Artwork library unavailable");return data}).catch(error=>{cardVisualIndexJob=null;throw error});
+  if(!cardVisualIndexJob)cardVisualIndexJob=Promise.all(CARD_VISUAL_INDEX_URLS.map(url=>fetch(url,{cache:"force-cache"}).then(response=>{if(!response.ok)throw new Error("Artwork library unavailable");return response.text()}))).then(parts=>{const raw=atob(parts.join("").replace(/\s+/g,"")),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return parseCardVisualIndex(bytes.buffer)}).then(data=>{if(!data.entries.length)throw new Error("Artwork library unavailable");return data}).catch(error=>{cardVisualIndexJob=null;throw error});
   return cardVisualIndexJob;
 }
 function closestVisualIndexEntries(fingerprints,index,limit=18){
