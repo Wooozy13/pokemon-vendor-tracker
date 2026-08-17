@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.1</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.2</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.2.1";
+const APP_VERSION="v12.2.2";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2816,11 +2816,12 @@ function vtCollectorMatches(card,c){
 async function vtExactCollectorLookup(raw){
   const c=vtCollectorParts(raw); if(!c)return [];
   const saved=vtReadCollectorCache(raw);if(saved.length)return saved;
-  const qs=[`number:${c.number} set.printedTotal:${Number(c.totalDigits)}`,`number:${c.number}`];
+  // The public card API is occasionally slow or returns a transient 5xx, so retry the same exact query once.
+  const qs=[`number:${c.number}`,`number:${c.number}`];
   for(const q of qs){
     try{
-      const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),2800);
-      const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=100`,{signal:ctrl.signal});clearTimeout(timer);
+      const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),8000);
+      const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=40`,{signal:ctrl.signal});clearTimeout(timer);
       if(!r.ok)continue;const j=await r.json();
       const exact=(j.data||[]).filter(x=>vtCollectorMatches(x,c));
       if(exact.length){vtWriteCollectorCache(raw,exact);return exact;}
@@ -2841,6 +2842,7 @@ searchPokemonCards = async function(){
 
 
 const VT_COLLECTOR_SEEDS={
+ 'GG07/GG70':{id:'swsh12pt5gg-GG07',name:'Keldeo',number:'GG07',set:{name:'Crown Zenith: Galarian Gallery',printedTotal:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG07.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG07_hires.png'}},
  'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{name:'Crown Zenith: Galarian Gallery',printedTotal:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'}}
 };
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
