@@ -24,3 +24,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+VendorTracker's free on-device card matcher uses TensorFlow.js and the
+TensorFlow.js MobileNet model, Copyright 2019 Google LLC, distributed under the
+Apache License 2.0. The model runs in the user's browser; VendorTracker does not
+send scanned card photos to a paid recognition service.
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0

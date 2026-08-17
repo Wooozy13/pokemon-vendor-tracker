@@ -1,0 +1,44 @@
+name: Build free card scanner index
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 1 * *"
+  push:
+    paths:
+      - "scripts/build_card_embedding_index.mjs"
+      - ".github/workflows/build-free-card-embedding-index.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendortracker-card-embedding-index
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install pinned image-model tools
+        run: npm install --no-save --no-audit --no-fund @tensorflow/tfjs-node@4.22.0 @tensorflow-models/mobilenet@2.1.1 sharp@0.34.3
+      - name: Build official-card embedding index
+        env:
+          TF_CPP_MIN_LOG_LEVEL: "2"
+        run: node scripts/build_card_embedding_index.mjs
+      - name: Commit refreshed index
+        run: |
+          git config user.name "VendorTracker Scanner Index"
+          git config user.email "actions@users.noreply.github.com"
+          git add pokemon-card-embedding-index.bin
+          if git diff --cached --quiet; then
+            echo "The card embedding index is already current."
+          else
+            git commit -m "Refresh free card scanner embedding index [skip ci]"
+            git push
+          fi

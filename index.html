@@ -958,7 +958,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.11.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.12.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1119,7 +1119,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.11.0";
+const APP_VERSION="v12.12.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1740,7 +1740,7 @@ function scannerFrameDifference(left,right){
 async function openCardScanner(){
   if(inventoryType!=="card")setInventoryType("card");
   const modal=document.getElementById("cardScannerModal"),video=document.getElementById("cardScannerVideo");modal.classList.remove("hidden");document.body.style.overflow="hidden";
-  setScannerStatus("Starting camera…");loadCardVisualIndex().catch(()=>{});
+  setScannerStatus("Starting camera…");loadCardEmbeddingIndex().catch(()=>loadCardVisualIndex().catch(()=>{}));loadCardEmbeddingModel().catch(()=>{});
   if(!navigator.mediaDevices?.getUserMedia){setScannerStatus("Live camera is not supported here. Use a saved scan below.","bad");return}
   try{
     stopCardScannerStream();
@@ -1796,7 +1796,12 @@ async function captureScannerCard(manual=false){
 }
 const cardArtworkSignatureCache=new Map();
 let cardVisualIndexJob=null;
+let cardEmbeddingIndexJob=null;
+let cardEmbeddingModelJob=null;
+const cardEmbeddingScriptJobs=new Map();
 const CARD_VISUAL_INDEX_URLS=Array.from({length:7},(_,index)=>`pokemon-card-visual-index.part${index}.txt?v=${encodeURIComponent(APP_VERSION)}`);
+const CARD_EMBEDDING_INDEX_URL=`pokemon-card-embedding-index.bin?v=${encodeURIComponent(APP_VERSION)}`;
+const CARD_EMBEDDING_DIMENSION=256;
 function estimatedCardBounds(image){
   const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
   const scale=Math.min(1,360/Math.max(width,height)),canvas=document.createElement("canvas");
@@ -1983,6 +1988,48 @@ function closestVisualIndexEntries(fingerprints,index,limit=18){
   }
   return best;
 }
+function loadCardEmbeddingScript(url,globalName){
+  if(window[globalName])return Promise.resolve(window[globalName]);if(cardEmbeddingScriptJobs.has(url))return cardEmbeddingScriptJobs.get(url);
+  const job=new Promise((resolve,reject)=>{const script=document.createElement("script");script.src=url;script.async=true;script.crossOrigin="anonymous";script.onload=()=>window[globalName]?resolve(window[globalName]):reject(new Error(`${globalName} did not load`));script.onerror=()=>reject(new Error(`${globalName} could not load`));document.head.appendChild(script)}).catch(error=>{cardEmbeddingScriptJobs.delete(url);throw error});
+  cardEmbeddingScriptJobs.set(url,job);return job;
+}
+async function loadCardEmbeddingModel(){
+  if(!cardEmbeddingModelJob)cardEmbeddingModelJob=(async()=>{
+    await loadCardEmbeddingScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js","tf");
+    await loadCardEmbeddingScript("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js","mobilenet");
+    await window.tf.ready();return window.mobilenet.load({version:2,alpha:.5});
+  })().catch(error=>{cardEmbeddingModelJob=null;throw error});
+  return cardEmbeddingModelJob;
+}
+function parseCardEmbeddingIndex(buffer){
+  const bytes=new Uint8Array(buffer),view=new DataView(buffer);if(bytes.length<16||String.fromCharCode(...bytes.slice(0,4))!=="VTE1")throw new Error("Free scanner index format is invalid");
+  const count=view.getUint32(4,true),dimension=view.getUint16(8,true);if(!count||dimension!==CARD_EMBEDDING_DIMENSION)throw new Error("Free scanner index is incompatible");
+  const ids=new Array(count),norms=new Uint32Array(count),vectors=new Int8Array(count*dimension),decoder=new TextDecoder();let offset=16;
+  for(let row=0;row<count;row++){if(offset>=bytes.length)throw new Error("Free scanner index is incomplete");const length=bytes[offset++];ids[row]=decoder.decode(bytes.slice(offset,offset+length));offset+=length;if(offset+4+dimension>bytes.length)throw new Error("Free scanner index is incomplete");norms[row]=view.getUint32(offset,true);offset+=4;for(let column=0;column<dimension;column++)vectors[row*dimension+column]=view.getInt8(offset+column);offset+=dimension}
+  return {count,dimension,ids,norms,vectors};
+}
+async function loadCardEmbeddingIndex(){
+  if(!cardEmbeddingIndexJob)cardEmbeddingIndexJob=fetch(CARD_EMBEDDING_INDEX_URL,{cache:"no-cache"}).then(response=>{if(!response.ok)throw new Error("Free scanner index is still building");return response.arrayBuffer()}).then(parseCardEmbeddingIndex).catch(error=>{cardEmbeddingIndexJob=null;throw error});
+  return cardEmbeddingIndexJob;
+}
+function cardEmbeddingFeatureHash(index){let hash=Math.imul(index+1,0x9e3779b1)>>>0;hash^=hash>>>16;return hash>>>0}
+function quantizeCardEmbedding(values){
+  const projected=new Float32Array(CARD_EMBEDDING_DIMENSION);for(let index=0;index<values.length;index++){const hash=cardEmbeddingFeatureHash(index);projected[hash%CARD_EMBEDDING_DIMENSION]+=(hash&1?1:-1)*values[index]}
+  let magnitude=0;for(const value of projected)magnitude+=value*value;magnitude=Math.sqrt(magnitude)||1;const vector=new Int8Array(CARD_EMBEDDING_DIMENSION);let norm=0;
+  for(let index=0;index<projected.length;index++){const value=Math.max(-127,Math.min(127,Math.round(projected[index]/magnitude*127)));vector[index]=value;norm+=value*value}return {vector,norm};
+}
+async function cardEmbeddingVectorsForImage(image){
+  const model=await loadCardEmbeddingModel(),rectified=vtFindRectifiedCards(image),canvases=[];if(rectified[0])canvases.push(rectified[0]);canvases.push(normalizedCardCanvas(image,true),glareBalancedCardCanvas(image,true));
+  const input=window.tf.tidy(()=>window.tf.stack(canvases.map(canvas=>window.tf.browser.fromPixels(canvas))));const output=model.infer(input,true);
+  try{const values=await output.data(),dimension=output.shape[output.shape.length-1];return canvases.map((_,row)=>quantizeCardEmbedding(values.subarray(row*dimension,(row+1)*dimension)))}finally{input.dispose();output.dispose()}
+}
+function closestEmbeddingIndexEntries(queries,index,limit=56){
+  const best=[],dimension=index.dimension,vectors=index.vectors;
+  for(let row=0;row<index.count;row++){let cosine=-1,rowOffset=row*dimension;for(const query of queries){let dot=0;for(let column=0;column<dimension;column++)dot+=query.vector[column]*vectors[rowOffset+column];cosine=Math.max(cosine,dot/(Math.sqrt(query.norm*index.norms[row])||1))}const score=(cosine+1)/2,item={id:index.ids[row],score};
+    if(best.length<limit){best.push(item);best.sort((a,b)=>b.score-a.score)}else if(score>best[best.length-1].score){best[best.length-1]=item;best.sort((a,b)=>b.score-a.score)}
+  }
+  return best;
+}
 async function fetchVisualCandidateCards(candidates){
   const ids=candidates.map(candidate=>candidate.id).filter(Boolean);if(!ids.length)return[];
   const query=ids.map(id=>`id:${id}`).join(" OR "),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),9000);
@@ -2015,10 +2062,15 @@ async function readCardScanPhoto(entry){
   let image;
   try{
     image=await scanImageSource(entry.file);
-    entry.message="Loading the visual card library…";entry.progress=12;renderCardScanQueue();
-    const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
-    entry.message=`Comparing artwork against ${Number(index.count||index.entries.length).toLocaleString()} cards…`;entry.progress=42;renderCardScanQueue();
-    const nearest=closestVisualIndexEntries(fingerprints,index,56),scanSignatures=cardScanArtworkSignatures(image),stages=[[0,8,68],[8,24,84],[24,56,94]];let matches=[],artwork={verified:false,scored:[]};
+    entry.message="Starting the free on-device card matcher…";entry.progress=12;renderCardScanQueue();
+    let nearest,indexCount=0,scanEngine="embedding";
+    try{
+      const [queries,index]=await Promise.all([cardEmbeddingVectorsForImage(image),loadCardEmbeddingIndex()]);nearest=closestEmbeddingIndexEntries(queries,index,56);indexCount=index.count;
+    }catch(error){
+      scanEngine="visual fallback";entry.message="Using the compatibility artwork matcher…";renderCardScanQueue();const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);nearest=closestVisualIndexEntries(fingerprints,index,56);indexCount=index.count||index.entries.length;
+    }
+    entry.message=`Comparing artwork against ${Number(indexCount).toLocaleString()} cards on this device…`;entry.progress=42;renderCardScanQueue();
+    const scanSignatures=cardScanArtworkSignatures(image),stages=[[0,8,68],[8,24,84],[24,56,94]];let matches=[],artwork={verified:false,scored:[]};
     for(let stageIndex=0;stageIndex<stages.length;stageIndex++){
       const [start,end,progress]=stages[stageIndex];entry.message=stageIndex?"Checking more exact artwork because the first result was uncertain…":"Checking the closest official cards…";entry.progress=progress;renderCardScanQueue();
       try{matches=uniqueCards([...matches,...await fetchVisualCandidateCards(nearest.slice(start,end))])}catch(error){if(!matches.length)throw error}
@@ -2032,7 +2084,7 @@ async function readCardScanPhoto(entry){
     entry.artScore=artwork.score||0;entry.artMargin=artwork.margin||0;entry.artVerified=artwork.verified;
     const bestCard=artwork.card||entry.matches[0]||matches[0];
     if(bestCard&&artwork.verified){
-      entry.card=bestCard;entry.matches=uniqueCards([bestCard,...entry.matches]);entry.state="ready";entry.progress=100;entry.message=artwork.verified?"Scan matched":"Closest artwork match selected";
+      entry.card=bestCard;entry.matches=uniqueCards([bestCard,...entry.matches]);entry.state="ready";entry.progress=100;entry.message=scanEngine==="embedding"?"On-device artwork match verified":"Artwork match verified";
       const pricing=cardScanMarket(bestCard);entry.finish=entry.finish||pricing.finish;if(entry.price===""&&pricing.market!=null)entry.price=Number(pricing.market).toFixed(2);
       renderCardScanQueue();hydrateScannedCard(entry);
     }else if(bestCard&&(artwork.score||0)>=.56){
