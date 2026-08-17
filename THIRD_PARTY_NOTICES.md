@@ -1,7 +1,7 @@
 # Third-party notices
 
-The initial Pokémon perceptual-hash scan index in
-`assets/pokemon-card-visual-index.bin` was bootstrapped from the open-source
+The initial Pokémon perceptual-hash scan index in the
+`pokemon-card-visual-index.part*.txt` files was bootstrapped from the open-source
 Rarebox project by Nova (`novaoc/rarebox`) and is maintained with official
 Pokémon TCG API card images. Rarebox is distributed under the MIT License.
 
