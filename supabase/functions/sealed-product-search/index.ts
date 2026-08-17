@@ -105,9 +105,13 @@ async function fetchLowestActualListing(productId: number) {
       const candidates = raw.filter((listing: any) => {
         if (Number(listing?.productId) !== productId) return false
         if (String(listing?.listingType || "").toLowerCase() !== "standard") return false
+        // TCGplayer Direct channel offers appear in the pricing feed, but they
+        // cannot be opened through a seller-filtered marketplace URL.
+        if (listing?.channelId != null && Number(listing.channelId) !== 0) return false
         if (listing?.languageId != null && Number(listing.languageId) !== 1) return false
         if (listing?.language && String(listing.language).toLowerCase() !== "english") return false
         if (String(listing?.condition || "").toLowerCase() !== "unopened") return false
+        if (Number(listing?.quantity || 0) <= 0) return false
         return finiteMoney(listing?.price ?? listing?.sellerPrice) != null
       }).map((listing: any) => {
         const price = finiteMoney(listing.price ?? listing.sellerPrice)!
@@ -121,10 +125,11 @@ async function fetchLowestActualListing(productId: number) {
           sellerRating: finiteMoney(listing.sellerRating),
           sellerSales: String(listing.sellerSales || ""),
           quantity: Math.max(0, Number(listing.quantity || 0)),
+          channelId: Number(listing.channelId || 0),
           condition: "Unopened",
           listingId: listing.listingId ?? null,
           checkedAt: new Date().toISOString(),
-          source: "TCGplayer standard unopened listing",
+          source: "TCGplayer standard unopened marketplace listing",
         }
       }).sort((a: any, b: any) => a.delivered - b.delivered || a.price - b.price)
 
