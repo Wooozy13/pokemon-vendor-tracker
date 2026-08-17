@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.1.2</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.1.3</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1056,7 +1056,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.1.2";
+const APP_VERSION="v12.1.3";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2799,7 +2799,7 @@ vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw
 
 /* v12 usability helpers: preserve behavior, improve mobile semantics */
 function vtMobileTableLabels(){document.querySelectorAll('.tableWrap table').forEach(t=>{if(innerWidth<=820)t.classList.add('mobileCards');else t.classList.remove('mobileCards');const heads=[...t.querySelectorAll('thead th')].map(x=>x.textContent.trim());t.querySelectorAll('tbody tr').forEach(r=>[...r.children].forEach((td,i)=>{if(heads[i])td.dataset.label=heads[i]}))})}
-const _vtShowPageV12=showPage;showPage=function(name){const out=_vtShowPageV12(name);requestAnimationFrame(vtMobileTableLabels);return out};
+const _vtGoV12=go;go=function(name,btn){const out=_vtGoV12(name,btn);requestAnimationFrame(vtMobileTableLabels);return out};
 window.addEventListener('resize',vtMobileTableLabels);setTimeout(vtMobileTableLabels,400);
 
 
@@ -2807,7 +2807,7 @@ window.addEventListener('resize',vtMobileTableLabels);setTimeout(vtMobileTableLa
 function vtCloseMobileMenu(){document.querySelector('.sidebar')?.classList.remove('mobileOpen');document.body.classList.remove('vtMenuOpen')}
 function vtToggleMobileMenu(){const s=document.querySelector('.sidebar');if(!s)return;s.classList.toggle('mobileOpen');document.body.classList.toggle('vtMenuOpen',s.classList.contains('mobileOpen'))}
 document.addEventListener('click',e=>{if(innerWidth>820)return;const menu=e.target.closest('.menuBtn');if(menu){e.preventDefault();e.stopPropagation();vtToggleMobileMenu();return}if(e.target.closest('.sideBtn')){setTimeout(vtCloseMobileMenu,0);return}if(document.body.classList.contains('vtMenuOpen')&&!e.target.closest('.sidebar'))vtCloseMobileMenu()});
-const _vtShowPage1201=showPage;showPage=function(name){const out=_vtShowPage1201(name);if(innerWidth<=820)vtCloseMobileMenu();return out};
+const _vtGo1201=go;go=function(name,btn){const out=_vtGo1201(name,btn);if(innerWidth<=820)vtCloseMobileMenu();return out};
 function vtClearLookupInput(id){const el=document.getElementById(id);if(el)el.value=''}
 const _vtSearchPokemonCards1201=searchPokemonCards;searchPokemonCards=async function(){const el=document.getElementById('pName');const submitted=el?.value||'';try{return await _vtSearchPokemonCards1201()}finally{if(el&&el.value===submitted)el.value=''}};
 if(typeof searchSealedProducts==='function'){const _vtSearchSealed1201=searchSealedProducts;searchSealedProducts=async function(){const el=document.getElementById('sealedSearch')||document.getElementById('pName');const submitted=el?.value||'';try{return await _vtSearchSealed1201()}finally{if(el&&el.value===submitted)el.value=''}}}
