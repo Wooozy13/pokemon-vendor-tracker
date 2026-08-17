@@ -953,7 +953,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.1</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.2</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1092,7 +1092,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.5.1";
+const APP_VERSION="v12.5.2";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1230,12 +1230,47 @@ function lowestActualMarkup(target){
   const listing=target.tcgLowestActual;
   if(!listing)return `<div class="${target.tcgLowestCheckedAt?"lowestActualNone":"lowestActualLine"}">${esc(lowestActualText(target))}</div>`;
   const seller=listing.seller?` • ${esc(listing.seller)}`:"";
-  return `<div class="lowestActualLine"><a class="lowestActualLink" href="${esc(lowestActualHref(target))}" target="_blank" rel="noopener noreferrer" title="Open this lowest actual listing on TCGplayer">${esc(lowestActualText(target))}${seller} ↗</a></div>`;
+  const productId=target.tcgProductId||target.productId||"";
+  const directUrl=target.tcgUrl||target.url||"";
+  return `<div class="lowestActualLine"><a class="lowestActualLink" href="${esc(lowestActualHref(target))}" target="_blank" rel="noopener noreferrer" data-product-id="${esc(productId)}" data-product-name="${esc(target.name||"")}" data-product-url="${esc(directUrl)}" data-seller-key="${esc(listing.sellerKey||"")}" onclick="openLowestActual(event,this)" title="Open this exact seller listing on TCGplayer">${esc(lowestActualText(target))}${seller} ↗</a></div>`;
 }
-async function fetchSealedLowestActual(product){
+async function openLowestActual(event,link){
+  if(link?.dataset?.sellerKey)return;
+  event.preventDefault();
+  const productId=Number(link?.dataset?.productId);
+  if(!Number.isInteger(productId)||productId<=0){toast("Exact seller listing is unavailable for this item");return}
+  const popup=window.open("about:blank","_blank");
+  if(popup)popup.opener=null;
+  const original=link.innerHTML;
+  link.textContent="Opening exact seller listing…";
+  try{
+    const {listing,checkedAt}=await fetchSealedLowestActual({productId},true);
+    if(!listing?.sellerKey)throw new Error("Missing seller identifier");
+    const target={
+      name:link.dataset.productName||"",
+      tcgUrl:link.dataset.productUrl||"",
+      tcgProductId:productId,
+      itemType:"sealed"
+    };
+    setLowestActual(target,listing,checkedAt);
+    const href=lowestActualHref(target);
+    link.href=href;
+    link.dataset.sellerKey=String(listing.sellerKey);
+    link.innerHTML=`${esc(lowestActualText(target))}${listing.seller?` • ${esc(listing.seller)}`:""} ↗`;
+    const saved=db.products.find(p=>p.itemType==="sealed"&&String(p.tcgProductId||"")===String(productId));
+    if(saved){setLowestActual(saved,listing,checkedAt);save()}
+    if(popup)popup.location.replace(href);else window.location.href=href;
+  }catch(e){
+    if(popup)popup.close();
+    link.innerHTML=original;
+    toast("Could not open the exact seller listing. Please try again.");
+  }
+}
+async function fetchSealedLowestActual(product,force=false){
   const productId=Number(product?.productId??product?.tcgProductId);
   if(!Number.isInteger(productId)||productId<=0)throw new Error("Missing TCGplayer product ID");
   const key=String(productId);
+  if(force)sealedLowestListingCache.delete(key);
   if(sealedLowestListingCache.has(key))return sealedLowestListingCache.get(key);
   const job=(async()=>{
     const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{action:"lowest-listing",productId}});
@@ -1746,7 +1781,7 @@ async function refreshStaleMarketPrices(force=false){
   if(!user || !db?.products?.length)return;
   const stale=db.products.filter(p=>{
     const stamp=p.lastMarketRefresh||p.tcgUpdatedAt;
-    return force || priceIsStale(stamp,24) || (p.itemType==="sealed"&&!p.tcgLowestCheckedAt);
+    return force || priceIsStale(stamp,24) || (p.itemType==="sealed"&&(!p.tcgLowestCheckedAt||(p.tcgLowestActual&&!p.tcgLowestActual.sellerKey)));
   });
   if(!stale.length){
     if(force)toast("Market prices are already current");
