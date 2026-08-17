@@ -59,7 +59,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .cardPick img{width:100%;aspect-ratio:2.5/3.5;object-fit:contain;background:#f8fafc;border-radius:10px}.cardPick h4{margin:10px 0 3px}.cardPick .meta{font-size:12px;color:var(--muted);line-height:1.45}
 .priceBox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px}.priceBox strong{display:block;font-size:18px;margin-top:3px}.apiStatus{font-size:12px;color:var(--muted);margin-top:8px}
 .marketGood{color:#166534;font-weight:850}.marketNone{color:#94a3b8}
-.lowestActualLine{color:#075985;font-size:11px;font-weight:800;margin-top:5px;line-height:1.35}.lowestActualNone{color:#64748b;font-size:11px;margin-top:5px;line-height:1.35}
+.lowestActualLine{color:#075985;font-size:11px;font-weight:800;margin-top:5px;line-height:1.35}.lowestActualNone{color:#64748b;font-size:11px;margin-top:5px;line-height:1.35}.lowestActualLink{color:inherit;text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}.lowestActualLink:hover{color:#1d4ed8}
 
 .scanQueue{display:grid;gap:10px;margin-top:12px}.scanItem{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
 .scanItem img{width:76px;height:100px;object-fit:cover;border-radius:8px;background:#f8fafc}.scanStatus{font-size:12px;color:var(--muted);margin-top:4px}.scanGood{color:#166534;font-weight:800}.scanBad{color:#991b1b;font-weight:800}
@@ -814,7 +814,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               <span class="small">TCGplayer Market</span>
               <strong id="pMarketDisplay">—</strong>
               <span id="pMarketUpdated" class="small"></span>
-              <span id="pLowestDisplay" class="lowestActualLine hidden"></span>
+              <div id="pLowestDisplay" class="hidden"></div>
             </div>
             <label class="btn btnGhost" style="display:flex;align-items:center;justify-content:center">
               📷 Use own photo
@@ -953,7 +953,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.1</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1092,7 +1092,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.5.0";
+const APP_VERSION="v12.5.1";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1213,12 +1213,24 @@ function lowestActualText(target){
   const price=Number(listing.price||0),shipping=Math.max(0,Number(listing.shipping||0));
   return `Lowest actual: ${money(price)}${shipping>0?` + ${money(shipping)} shipping`:` • free shipping`}`;
 }
+function lowestActualHref(target){
+  const listing=target?.tcgLowestActual;
+  if(!listing)return "";
+  try{
+    const url=new URL(tcgPlayerHref(target.name||"",target.tcgUrl||target.url||"",target.tcgProductId||target.productId||""));
+    url.searchParams.set("Condition","Unopened");
+    url.searchParams.set("Language","English");
+    url.searchParams.set("page","1");
+    if(listing.sellerKey)url.searchParams.set("seller",String(listing.sellerKey));
+    return url.href;
+  }catch(e){return tcgPlayerHref(target.name||"",target.tcgUrl||target.url||"",target.tcgProductId||target.productId||"")}
+}
 function lowestActualMarkup(target){
   if(!target || (target.itemType!=="sealed"&&target.type!=="sealed"))return "";
   const listing=target.tcgLowestActual;
   if(!listing)return `<div class="${target.tcgLowestCheckedAt?"lowestActualNone":"lowestActualLine"}">${esc(lowestActualText(target))}</div>`;
   const seller=listing.seller?` • ${esc(listing.seller)}`:"";
-  return `<div class="lowestActualLine">${esc(lowestActualText(target))}${seller}</div>`;
+  return `<div class="lowestActualLine"><a class="lowestActualLink" href="${esc(lowestActualHref(target))}" target="_blank" rel="noopener noreferrer" title="Open this lowest actual listing on TCGplayer">${esc(lowestActualText(target))}${seller} ↗</a></div>`;
 }
 async function fetchSealedLowestActual(product){
   const productId=Number(product?.productId??product?.tcgProductId);
@@ -1334,7 +1346,7 @@ function selectSealedProduct(i){
     setLowestActual(p,listing,checkedAt);
     if(String(pendingSealedData?.productId||"")===selectedId){
       setLowestActual(pendingSealedData,listing,checkedAt);
-      if(lowestDisplay){lowestDisplay.textContent=lowestActualText(pendingSealedData);lowestDisplay.classList.remove("hidden")}
+      if(lowestDisplay){lowestDisplay.innerHTML=lowestActualMarkup({...pendingSealedData,itemType:"sealed"});lowestDisplay.classList.remove("hidden")}
       document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}. ${lowestActualText(pendingSealedData)}.`;
     }
     const saved=db.products.find(x=>x.itemType==="sealed"&&String(x.tcgProductId||"")===selectedId);
@@ -2129,7 +2141,7 @@ function selectPurchaseLookup(i){
   updatePurchaseSelectedMarket();
   const market=purchaseSelectedMarket();
   document.getElementById("buySellPrice").value=market!=null?Number(market).toFixed(2):"";
-  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`TCGplayer Market ${money(market)}`:"Market unavailable"}</div>${purchaseSelectedItem.type==="sealed"?`<div class="lowestActualLine" id="buySelectedLowest">${purchaseSelectedItem.tcgLowestActual?esc(lowestActualText(purchaseSelectedItem)):"Checking lowest actual unopened listing…"}</div>`:""}</div></div>`;
+  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`TCGplayer Market ${money(market)}`:"Market unavailable"}</div>${purchaseSelectedItem.type==="sealed"?`<div id="buySelectedLowest">${purchaseSelectedItem.tcgLowestActual?lowestActualMarkup(purchaseSelectedItem):'<div class="lowestActualLine">Checking lowest actual unopened listing…</div>'}</div>`:""}</div></div>`;
   fields.classList.remove("hidden");
   document.getElementById("buyLookupResults").innerHTML="";
   if(purchaseSelectedItem.type==="sealed"){
@@ -2137,7 +2149,7 @@ function selectPurchaseLookup(i){
     fetchSealedLowestActual(x).then(({listing,checkedAt})=>{
       if(String(purchaseSelectedItem?.tcgProductId||"")!==selectedId)return;
       setLowestActual(purchaseSelectedItem,listing,checkedAt);
-      const low=document.getElementById("buySelectedLowest");if(low)low.textContent=lowestActualText(purchaseSelectedItem);
+      const low=document.getElementById("buySelectedLowest");if(low)low.innerHTML=lowestActualMarkup(purchaseSelectedItem);
     }).catch(()=>{const low=document.getElementById("buySelectedLowest");if(low)low.textContent="Lowest actual listing temporarily unavailable"});
   }
 }

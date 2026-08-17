@@ -117,6 +117,7 @@ async function fetchLowestActualListing(productId: number) {
           shipping,
           delivered: Math.round((price + shipping) * 100) / 100,
           seller: String(listing.sellerName || ""),
+          sellerKey: String(listing.sellerKey || ""),
           sellerRating: finiteMoney(listing.sellerRating),
           sellerSales: String(listing.sellerSales || ""),
           quantity: Math.max(0, Number(listing.quantity || 0)),
