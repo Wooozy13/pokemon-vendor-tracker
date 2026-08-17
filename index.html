@@ -9,7 +9,6 @@
 <link rel="manifest" href="manifest.json">
 <title>VendorTracker — Inventory, Sales & Profit</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
   --bg:#f6f8fb;--panel:#ffffff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;
@@ -614,6 +613,19 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 }
 @media(max-width:380px){.cardPickGrid{grid-template-columns:1fr}.scanSessionBar>.scanActions,.scanItem>.scanActions{grid-template-columns:1fr}.scanSessionBar>.scanActions .miniBtn{grid-column:auto}.cards{grid-template-columns:1fr!important}}
 
+/* v12.8 compact mobile drawer and single-icon bottom navigation */
+@media(max-width:820px){
+  .sidebar.mobileOpen{
+    display:block!important;position:fixed;top:70px;left:8px;bottom:calc(80px + env(safe-area-inset-bottom));
+    width:min(72vw,272px);height:auto;max-height:calc(100dvh - 158px - env(safe-area-inset-bottom));
+    z-index:75;overflow-y:auto;border:1px solid rgba(255,255,255,.09);border-radius:0 20px 20px 0;
+    box-shadow:18px 16px 48px rgba(7,11,24,.34);overscroll-behavior:contain;
+  }
+  body.vtMenuOpen:after{inset:62px 0 calc(72px + env(safe-area-inset-bottom));background:rgba(7,11,24,.28)}
+  .simpleBottomNav button::before,.simpleBottomNav button::after{content:none!important;display:none!important}
+  .simpleBottomNav button>span:first-child{display:block!important;line-height:1;font-size:19px!important}
+}
+
 </style>
 </head>
 <body>
@@ -702,7 +714,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header class="appTop"><div class="appLeft"><button class="btn btnGhost menuBtn" onclick="toggleMobileNav()">☰</button><div class="brand"><span class="brandMark" aria-hidden="true"></span><span>VendorTracker</span></div><span id="syncBadge" class="syncPill">● Synced</span></div><div style="display:flex;align-items:center;gap:10px"><span id="accountEmail" class="small"></span><button class="btn btnGhost" onclick="signOut()">Sign out</button></div></header>
+  <header class="appTop"><div class="appLeft"><button id="mobileMenuBtn" class="btn btnGhost menuBtn" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation" onclick="toggleMobileNav(event)">☰</button><div class="brand"><span class="brandMark" aria-hidden="true"></span><span>VendorTracker</span></div><span id="syncBadge" class="syncPill">● Synced</span></div><div style="display:flex;align-items:center;gap:10px"><span id="accountEmail" class="small"></span><button class="btn btnGhost" onclick="signOut()">Sign out</button></div></header>
   <div class="appLayout">
     <aside id="sidebar" class="sidebar"><nav class="sideNav simpleSideNav">
       <div class="navLabel">MAIN</div>
@@ -798,10 +810,10 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
                 <label class="btn btnGhost">
-                  📸 Start / keep scanning
+                  📸 Scan card artwork
                   <input id="scanPhotos" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)">
                 </label>
-                <span class="small scanHint" style="align-self:center">Fill the frame with one straight, glare-free card. VendorTracker verifies the artwork against official images and never auto-adds an uncertain match.</span>
+                <span class="small scanHint" style="align-self:center">Fill the frame with one straight, glare-free card. The scanner matches the photographed artwork itself against the official visual library—no name or card-number reading.</span>
               </div>
               <div id="scanQueue" class="scanQueue"></div>
             </div>
@@ -939,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.7.1</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.8.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1078,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.7.1";
+const APP_VERSION="v12.8.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1645,132 +1657,180 @@ async function resolveCardText(raw, limit=8){
   cards.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));
   return cards.slice(0,limit);
 }
-function scanCollectorPart(value){
-  const compact=String(value||"").toUpperCase().replace(/\s+/g,"").replace(/[|]/g,"I");
-  const knownPrefixes=["PROMO","SWSH","HGSS","SVP","SMP","XYP","BWP","MEP","GG","TG","SV","SM","XY","BW","DP","RC","SH","H","P","M"];
-  const prefix=knownPrefixes.find(item=>compact.startsWith(item))||"";
-  if(prefix){
-    let rest=compact.slice(prefix.length),suffix="";
-    if(/[A-HJ-KM-NP-Z]$/.test(rest)&&/\d/.test(rest.slice(0,-1))){suffix=rest.slice(-1);rest=rest.slice(0,-1)}
-    const digits=rest.replace(/O/g,"0").replace(/[IL]/g,"1").replace(/[^0-9]/g,"");
-    return digits?`${prefix}${digits}${suffix}`:"";
-  }
-  const match=compact.match(/^([A-Z]{0,5})([0-9OIL]{1,4})([A-Z]?)$/);if(!match)return "";
-  const digits=match[2].replace(/O/g,"0").replace(/[IL]/g,"1");
-  return `${match[1]||""}${digits}${match[3]||""}`;
-}
-function extractCollectorNumberFromOcr(ocrText){
-  const text=String(ocrText||"").toUpperCase().replace(/[\\]/g,"/").replace(/[‐‑‒–—]/g,"-");
-  const candidates=[...text.matchAll(/\b([A-Z]{0,5}\s*[A-Z0-9]{1,8})\s*[\/|]\s*([A-Z]{0,5}\s*[A-Z0-9]{1,8})\b/g)];
-  for(const candidate of candidates){
-    const left=scanCollectorPart(candidate[1]),right=scanCollectorPart(candidate[2]);
-    if(left&&right)return `${left}/${right}`;
-  }
-  return "";
-}
-function extractCardNameFromOcr(ocrText){
-  const reject=/\b(BASIC|STAGE|TRAINER|ENERGY|ABILITY|WEAKNESS|RESISTANCE|RETREAT|ILLUS|RULE|POKEMON|POKÉMON|VSTAR|VMAX|EX RULE|HP)\b/i;
-  const lines=String(ocrText||"").split(/\n+/).map(line=>line.replace(/[^A-Za-z0-9'’ .-]/g," ").replace(/\s+/g," ").trim()).filter(Boolean);
-  const choices=lines.filter(line=>line.length>=3&&line.length<=32&&/[A-Za-z]{3}/.test(line)&&!reject.test(line)&&!/^\d/.test(line));
-  return choices.sort((a,b)=>{
-    const aPenalty=/\d/.test(a)?8:0,bPenalty=/\d/.test(b)?8:0;
-    return (Math.abs(a.length-12)+aPenalty)-(Math.abs(b.length-12)+bPenalty);
-  })[0]||"";
-}
 async function scanImageSource(file){
   if(window.createImageBitmap)return createImageBitmap(file);
   const src=URL.createObjectURL(file);
   try{return await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src})}
   finally{setTimeout(()=>URL.revokeObjectURL(src),0)}
 }
-function cardScanCrop(image,area,targetWidth,contrast=1.15){
-  const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
-  const sx=Math.max(0,Math.floor(width*area.x)),sy=Math.max(0,Math.floor(height*area.y));
-  const sw=Math.max(1,Math.floor(width*area.w)),sh=Math.max(1,Math.floor(height*area.h));
-  const canvas=document.createElement("canvas"),scale=Math.min(3,targetWidth/sw);
-  canvas.width=Math.max(600,Math.round(sw*scale));canvas.height=Math.max(110,Math.round(sh*scale));
-  const context=canvas.getContext("2d",{willReadFrequently:false});
-  context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";
-  context.filter=`grayscale(1) contrast(${contrast})`;
-  context.drawImage(image,sx,sy,Math.min(sw,width-sx),Math.min(sh,height-sy),0,0,canvas.width,canvas.height);
-  return canvas;
-}
 const cardArtworkSignatureCache=new Map();
-function normalizedCardCanvas(image){
+let cardVisualIndexJob=null;
+const CARD_VISUAL_INDEX_URLS=Array.from({length:7},(_,index)=>`assets/pokemon-card-visual-index.part${index}.txt?v=${encodeURIComponent(APP_VERSION)}`);
+function estimatedCardBounds(image){
+  const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+  const scale=Math.min(1,360/Math.max(width,height)),canvas=document.createElement("canvas");
+  canvas.width=Math.max(80,Math.round(width*scale));canvas.height=Math.max(112,Math.round(height*scale));
+  const context=canvas.getContext("2d",{willReadFrequently:true});context.drawImage(image,0,0,canvas.width,canvas.height);
+  const pixels=context.getImageData(0,0,canvas.width,canvas.height).data,gray=new Float32Array(canvas.width*canvas.height);
+  for(let i=0,p=0;i<pixels.length;i+=4,p++)gray[p]=.299*pixels[i]+.587*pixels[i+1]+.114*pixels[i+2];
+  const columns=new Float32Array(canvas.width),rows=new Float32Array(canvas.height);
+  for(let y=1;y<canvas.height-1;y++)for(let x=1;x<canvas.width-1;x++){
+    const p=y*canvas.width+x,gx=gray[p+1]-gray[p-1],gy=gray[p+canvas.width]-gray[p-canvas.width],edge=Math.abs(gx)+Math.abs(gy);
+    columns[x]+=edge;rows[y]+=edge;
+  }
+  const peak=(values,start,end)=>{let best=start,value=-1;for(let i=start;i<=end;i++)if(values[i]>value){value=values[i];best=i}return best};
+  let left=peak(columns,1,Math.floor(canvas.width*.34)),right=peak(columns,Math.ceil(canvas.width*.66),canvas.width-2);
+  let top=peak(rows,1,Math.floor(canvas.height*.30)),bottom=peak(rows,Math.ceil(canvas.height*.70),canvas.height-2);
+  let boxWidth=right-left,boxHeight=bottom-top,ratio=boxWidth/Math.max(1,boxHeight);
+  if(boxWidth<canvas.width*.48||boxHeight<canvas.height*.55||ratio<.52||ratio>.92)return {x:0,y:0,w:width,h:height};
+  const padX=boxWidth*.015,padY=boxHeight*.012;left=Math.max(0,left-padX);right=Math.min(canvas.width,right+padX);top=Math.max(0,top-padY);bottom=Math.min(canvas.height,bottom+padY);
+  return {x:left/scale,y:top/scale,w:(right-left)/scale,h:(bottom-top)/scale};
+}
+/* Artwork-only card localization: Sobel edges -> Hough border lines -> perspective-corrected card. */
+const VT_CARD_DETECT_WIDTH=360,VT_CARD_WARP_WIDTH=252,VT_CARD_WARP_HEIGHT=352,vtCardRectificationCache=new WeakMap();
+function vtCardGray(image,width,height){
+  const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;const context=canvas.getContext("2d",{willReadFrequently:true});context.drawImage(image,0,0,width,height);
+  const rgba=context.getImageData(0,0,width,height).data,gray=new Float32Array(width*height);for(let i=0;i<gray.length;i++)gray[i]=.299*rgba[i*4]+.587*rgba[i*4+1]+.114*rgba[i*4+2];return gray;
+}
+function vtCardEdges(gray,width,height,multiplier){
+  const magnitude=new Float32Array(width*height);let sum=0;for(let y=1;y<height-1;y++)for(let x=1;x<width-1;x++){const i=y*width+x;
+    const gx=-gray[i-width-1]-2*gray[i-1]-gray[i+width-1]+gray[i-width+1]+2*gray[i+1]+gray[i+width+1];
+    const gy=-gray[i-width-1]-2*gray[i-width]-gray[i-width+1]+gray[i+width-1]+2*gray[i+width]+gray[i+width+1];
+    const value=Math.hypot(gx,gy);magnitude[i]=value;sum+=value}
+  const threshold=Math.max(24,sum/((width-2)*(height-2))*multiplier),points=[];for(let y=1;y<height-1;y++)for(let x=1;x<width-1;x++)if(magnitude[y*width+x]>threshold)points.push(x,y);return points;
+}
+function vtCardHoughQuads(points,width,height){
+  const angles=[];for(let degrees=-28;degrees<=28;degrees++)angles.push(degrees*Math.PI/180);for(let degrees=62;degrees<=118;degrees++)angles.push(degrees*Math.PI/180);
+  const cosines=angles.map(Math.cos),sines=angles.map(Math.sin),diagonal=Math.ceil(Math.hypot(width,height)),rhoCount=2*diagonal+1,accumulator=new Int32Array(angles.length*rhoCount);
+  for(let p=0;p<points.length;p+=2)for(let t=0;t<angles.length;t++){const rho=Math.round(points[p]*cosines[t]+points[p+1]*sines[t])+diagonal;accumulator[t*rhoCount+rho]++}
+  const candidates={left:[],right:[],top:[],bottom:[]},middleX=width/2,middleY=height/2;
+  for(let t=0;t<angles.length;t++){const vertical=Math.abs(angles[t])<=Math.PI/6;for(let r=0;r<rhoCount;r++){const votes=accumulator[t*rhoCount+r];if(votes<25)continue;const rho=r-diagonal;
+    if(vertical){const position=(rho-middleY*sines[t])/cosines[t],line={theta:angles[t],rho,votes,pos:position};if(position>=-10&&position<width*.47)candidates.left.push(line);else if(position>width*.53&&position<=width+10)candidates.right.push(line)}
+    else{const position=(rho-middleX*cosines[t])/sines[t],line={theta:angles[t],rho,votes,pos:position};if(position>=-10&&position<height*.47)candidates.top.push(line);else if(position>height*.53&&position<=height+10)candidates.bottom.push(line)}}}
+  const pick=(list,mode,direction)=>{if(!list.length)return null;if(mode==="strongest")return list.reduce((a,b)=>b.votes>a.votes?b:a);const max=Math.max(...list.map(line=>line.votes)),strong=list.filter(line=>line.votes>=max*.55);strong.sort((a,b)=>direction==="min"?a.pos-b.pos:b.pos-a.pos);return strong[0]};
+  const hypotheses=[];for(const mode of ["strongest","outermost"]){const lines={left:pick(candidates.left,mode,"min"),right:pick(candidates.right,mode,"max"),top:pick(candidates.top,mode,"min"),bottom:pick(candidates.bottom,mode,"max")};if(lines.left&&lines.right&&lines.top&&lines.bottom)hypotheses.push(lines)}return hypotheses;
+}
+function vtCardLineIntersection(first,second){
+  const a1=Math.cos(first.theta),b1=Math.sin(first.theta),a2=Math.cos(second.theta),b2=Math.sin(second.theta),determinant=a1*b2-a2*b1;if(Math.abs(determinant)<1e-9)return null;
+  return {x:(first.rho*b2-second.rho*b1)/determinant,y:(a1*second.rho-a2*first.rho)/determinant};
+}
+function vtCardPointDistance(first,second){return Math.hypot(first.x-second.x,first.y-second.y)}
+function vtCardQuadArea(corners){const points=[corners.tl,corners.tr,corners.br,corners.bl];let area=0;for(let i=0;i<4;i++){const next=(i+1)%4;area+=points[i].x*points[next].y-points[next].x*points[i].y}return Math.abs(area)/2}
+function vtCardValidQuad(corners,width,height){
+  const area=vtCardQuadArea(corners);if(area<width*height*.12||area>width*height*.98)return false;const top=vtCardPointDistance(corners.tl,corners.tr),bottom=vtCardPointDistance(corners.bl,corners.br),left=vtCardPointDistance(corners.tl,corners.bl),right=vtCardPointDistance(corners.tr,corners.br);
+  if(Math.min(top,bottom)/Math.max(top,bottom)<.6||Math.min(left,right)/Math.max(left,right)<.6)return false;const aspect=((top+bottom)/2)/((left+right)/2),portrait=aspect>=.5&&aspect<=1.05,landscape=aspect>=1.15&&aspect<=2;if(!portrait&&!landscape)return false;corners.landscape=landscape;return true;
+}
+function vtCardHomography(corners,width,height){
+  const destination=[[0,0],[width,0],[width,height],[0,height]],source=[corners.tl,corners.tr,corners.br,corners.bl],matrix=[],values=[];
+  for(let i=0;i<4;i++){const [x,y]=destination[i],point=source[i];matrix.push([x,y,1,0,0,0,-point.x*x,-point.x*y]);values.push(point.x);matrix.push([0,0,0,x,y,1,-point.y*x,-point.y*y]);values.push(point.y)}
+  for(let column=0;column<8;column++){let pivot=column;for(let row=column+1;row<8;row++)if(Math.abs(matrix[row][column])>Math.abs(matrix[pivot][column]))pivot=row;if(Math.abs(matrix[pivot][column])<1e-9)return null;[matrix[column],matrix[pivot]]=[matrix[pivot],matrix[column]];[values[column],values[pivot]]=[values[pivot],values[column]];
+    for(let row=0;row<8;row++){if(row===column)continue;const factor=matrix[row][column]/matrix[column][column];for(let cell=column;cell<8;cell++)matrix[row][cell]-=factor*matrix[column][cell];values[row]-=factor*values[column]}}
+  return values.map((value,index)=>value/matrix[index][index]);
+}
+function vtWarpCard(image,corners,width=VT_CARD_WARP_WIDTH,height=VT_CARD_WARP_HEIGHT){
+  const transform=vtCardHomography(corners,width,height);if(!transform)return null;const [a,b,c,d,e,f,g,h]=transform,sourceWidth=image.naturalWidth||image.width,sourceHeight=image.naturalHeight||image.height,sourceCanvas=document.createElement("canvas");sourceCanvas.width=sourceWidth;sourceCanvas.height=sourceHeight;
+  const sourceContext=sourceCanvas.getContext("2d",{willReadFrequently:true});sourceContext.drawImage(image,0,0,sourceWidth,sourceHeight);const source=sourceContext.getImageData(0,0,sourceWidth,sourceHeight).data,output=document.createElement("canvas");output.width=width;output.height=height;const outputContext=output.getContext("2d"),frame=outputContext.createImageData(width,height),pixels=frame.data;
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){const denominator=g*x+h*y+1,sx=(a*x+b*y+c)/denominator,sy=(d*x+e*y+f)/denominator,index=(y*width+x)*4;if(sx<0||sy<0||sx>=sourceWidth-1||sy>=sourceHeight-1){pixels[index+3]=255;continue}const x0=sx|0,y0=sy|0,fx=sx-x0,fy=sy-y0,i00=(y0*sourceWidth+x0)*4,i10=i00+4,i01=i00+sourceWidth*4,i11=i01+4;for(let channel=0;channel<3;channel++)pixels[index+channel]=source[i00+channel]*(1-fx)*(1-fy)+source[i10+channel]*fx*(1-fy)+source[i01+channel]*(1-fx)*fy+source[i11+channel]*fx*fy;pixels[index+3]=255}
+  outputContext.putImageData(frame,0,0);return output;
+}
+function vtFindRectifiedCards(image){
+  if(vtCardRectificationCache.has(image))return vtCardRectificationCache.get(image);
+  const imageWidth=image.naturalWidth||image.width,imageHeight=image.naturalHeight||image.height,scale=VT_CARD_DETECT_WIDTH/imageWidth,width=VT_CARD_DETECT_WIDTH,height=Math.round(imageHeight*scale),gray=vtCardGray(image,width,height),quads=[];
+  for(const multiplier of [2.2,1.5,1]){const points=vtCardEdges(gray,width,height,multiplier);if(points.length<200||points.length>width*height)continue;for(const lines of vtCardHoughQuads(points,width,height)){const corners={tl:vtCardLineIntersection(lines.top,lines.left),tr:vtCardLineIntersection(lines.top,lines.right),br:vtCardLineIntersection(lines.bottom,lines.right),bl:vtCardLineIntersection(lines.bottom,lines.left)};if(Object.values(corners).some(value=>!value)||!vtCardValidQuad(corners,width,height))continue;if(!quads.some(other=>vtCardPointDistance(other.tl,corners.tl)<8&&vtCardPointDistance(other.br,corners.br)<8))quads.push(corners);if(quads.length>=4)break}if(quads.length>=4)break}
+  const results=[];for(const corners of quads){const full={tl:{x:corners.tl.x/scale,y:corners.tl.y/scale},tr:{x:corners.tr.x/scale,y:corners.tr.y/scale},br:{x:corners.br.x/scale,y:corners.br.y/scale},bl:{x:corners.bl.x/scale,y:corners.bl.y/scale}};if(corners.landscape){const clockwise=vtWarpCard(image,{tl:full.tr,tr:full.br,br:full.bl,bl:full.tl}),counter=vtWarpCard(image,{tl:full.bl,tr:full.tl,br:full.tr,bl:full.br});if(clockwise)results.push(clockwise);if(counter)results.push(counter)}else{const warped=vtWarpCard(image,full);if(warped)results.push(warped)}}vtCardRectificationCache.set(image,results);return results;
+}
+function normalizedCardCanvas(image,detectBounds=false){
   const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,cardRatio=2.5/3.5;
-  let sx=0,sy=0,sw=width,sh=height;
-  if(width/height>cardRatio){sw=height*cardRatio;sx=(width-sw)/2}else{sh=width/cardRatio;sy=(height-sh)/2}
+  const bounds=detectBounds?estimatedCardBounds(image):{x:0,y:0,w:width,h:height};
+  let sx=bounds.x,sy=bounds.y,sw=bounds.w,sh=bounds.h;
+  if(sw/sh>cardRatio){const next=sh*cardRatio;sx+=(sw-next)/2;sw=next}else{const next=sw/cardRatio;sy+=(sh-next)/2;sh=next}
   const canvas=document.createElement("canvas");canvas.width=420;canvas.height=588;
-  const context=canvas.getContext("2d",{willReadFrequently:true});
-  context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";
-  context.drawImage(image,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
-  return canvas;
+  const context=canvas.getContext("2d",{willReadFrequently:true});context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";
+  context.drawImage(image,sx,sy,sw,sh,0,0,canvas.width,canvas.height);return canvas;
 }
 function artworkSignature(canvas,area){
   const sample=document.createElement("canvas");sample.width=24;sample.height=18;
   const context=sample.getContext("2d",{willReadFrequently:true});
   context.drawImage(canvas,canvas.width*area.x,canvas.height*area.y,canvas.width*area.w,canvas.height*area.h,0,0,sample.width,sample.height);
-  const pixels=context.getImageData(0,0,sample.width,sample.height).data,luma=[],hist=new Array(64).fill(0);
-  let mean=0;
-  for(let i=0;i<pixels.length;i+=4){
-    const r=pixels[i],g=pixels[i+1],b=pixels[i+2],value=.299*r+.587*g+.114*b;
-    luma.push(value);mean+=value;hist[(r>>6)*16+(g>>6)*4+(b>>6)]++;
-  }
-  mean/=luma.length;let variance=0;for(const value of luma)variance+=(value-mean)**2;
-  const deviation=Math.sqrt(variance/luma.length)||1;
+  const pixels=context.getImageData(0,0,sample.width,sample.height).data,luma=[],hist=new Array(64).fill(0);let mean=0;
+  for(let i=0;i<pixels.length;i+=4){const r=pixels[i],g=pixels[i+1],b=pixels[i+2],value=.299*r+.587*g+.114*b;luma.push(value);mean+=value;hist[(r>>6)*16+(g>>6)*4+(b>>6)]++}
+  mean/=luma.length;let variance=0;for(const value of luma)variance+=(value-mean)**2;const deviation=Math.sqrt(variance/luma.length)||1;
   return {luma:luma.map(value=>(value-mean)/deviation),hist:hist.map(value=>value/luma.length)};
 }
-function artworkSignatureSet(image){
-  const card=normalizedCardCanvas(image);
-  return [
-    {x:.055,y:.135,w:.89,h:.48},
-    {x:.04,y:.09,w:.92,h:.64},
-    {x:.095,y:.17,w:.81,h:.40}
-  ].map(area=>artworkSignature(card,area));
+function artworkSignatureSet(image,detectBounds=false){
+  const card=normalizedCardCanvas(image,detectBounds);
+  return [{x:.055,y:.135,w:.89,h:.48},{x:.04,y:.09,w:.92,h:.64},{x:.095,y:.17,w:.81,h:.40}].map(area=>artworkSignature(card,area));
 }
 function artworkSignatureSimilarity(left,right){
-  let dot=0,leftSq=0,rightSq=0;
-  for(let i=0;i<left.luma.length;i++){dot+=left.luma[i]*right.luma[i];leftSq+=left.luma[i]**2;rightSq+=right.luma[i]**2}
-  const correlation=Math.max(-1,Math.min(1,dot/(Math.sqrt(leftSq*rightSq)||1)));
-  let histogram=0;for(let i=0;i<left.hist.length;i++)histogram+=Math.min(left.hist[i],right.hist[i]);
+  let dot=0,leftSq=0,rightSq=0;for(let i=0;i<left.luma.length;i++){dot+=left.luma[i]*right.luma[i];leftSq+=left.luma[i]**2;rightSq+=right.luma[i]**2}
+  const correlation=Math.max(-1,Math.min(1,dot/(Math.sqrt(leftSq*rightSq)||1)));let histogram=0;for(let i=0;i<left.hist.length;i++)histogram+=Math.min(left.hist[i],right.hist[i]);
   return .76*((correlation+1)/2)+.24*histogram;
 }
-function bestArtworkSimilarity(scanSignatures,referenceSignatures){
-  let best=0;for(const scan of scanSignatures)for(const reference of referenceSignatures)best=Math.max(best,artworkSignatureSimilarity(scan,reference));return best;
+function bestArtworkSimilarity(scanSignatures,referenceSignatures){let best=0;for(const scan of scanSignatures)for(const reference of referenceSignatures)best=Math.max(best,artworkSignatureSimilarity(scan,reference));return best}
+function visualRegionPixels(card,area,width,height){
+  const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;const context=canvas.getContext("2d",{willReadFrequently:true});
+  context.drawImage(card,card.width*area.x,card.height*area.y,card.width*area.w,card.height*area.h,0,0,width,height);
+  const rgba=context.getImageData(0,0,width,height).data,gray=new Float32Array(width*height);for(let i=0,p=0;i<rgba.length;i+=4,p++)gray[p]=.299*rgba[i]+.587*rgba[i+1]+.114*rgba[i+2];return gray;
+}
+function visualBitsHex(bits){let value=0n;for(let i=0;i<64;i++)value=(value<<1n)|(bits[i]?1n:0n);return value.toString(16).padStart(16,"0")}
+function visualDctHash(values){
+  const coefficients=new Float64Array(64),size=32;
+  for(let v=0;v<8;v++)for(let u=0;u<8;u++){let sum=0;for(let y=0;y<size;y++){const cy=Math.cos((2*y+1)*v*Math.PI/(2*size));for(let x=0;x<size;x++)sum+=values[y*size+x]*Math.cos((2*x+1)*u*Math.PI/(2*size))*cy}coefficients[v*8+u]=sum*(u?Math.sqrt(2/size):Math.sqrt(1/size))*(v?Math.sqrt(2/size):Math.sqrt(1/size))}
+  const sorted=Array.from(coefficients.slice(1)).sort((a,b)=>a-b),median=sorted[Math.floor(sorted.length/2)];return visualBitsHex(Array.from(coefficients,value=>value>median));
+}
+function visualDhash(values){const bits=[];for(let y=0;y<8;y++)for(let x=0;x<8;x++)bits.push(values[y*9+x]>values[y*9+x+1]);return visualBitsHex(bits)}
+function rotateCardImage(image,direction){
+  const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,canvas=document.createElement("canvas");canvas.width=height;canvas.height=width;
+  const context=canvas.getContext("2d");context.translate(height/2,width/2);context.rotate(direction*Math.PI/2);context.drawImage(image,-width/2,-height/2);return canvas;
+}
+function cardVisualFingerprintForCanvas(card){
+  const whole={x:0,y:0,w:1,h:1};return [visualDhash(visualRegionPixels(card,whole,9,8)),visualDctHash(visualRegionPixels(card,whole,32,32))];
+}
+function cardVisualFingerprints(image){
+  const rectified=vtFindRectifiedCards(image),sources=[image],width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,fingerprints=rectified.map(cardVisualFingerprintForCanvas);
+  if(width>height){sources.push(rotateCardImage(image,1),rotateCardImage(image,-1))}
+  for(const source of sources){fingerprints.push(cardVisualFingerprintForCanvas(normalizedCardCanvas(source,true)));fingerprints.push(cardVisualFingerprintForCanvas(normalizedCardCanvas(source,false)))}
+  return fingerprints.filter((item,index,all)=>all.findIndex(other=>other[0]===item[0]&&other[1]===item[1])===index);
+}
+function visualHamming(left,right){let value=BigInt(`0x${left}`)^BigInt(`0x${right}`),count=0;while(value){value&=value-1n;count++}return count}
+function parseCardVisualIndex(buffer){
+  const bytes=new Uint8Array(buffer),view=new DataView(buffer);if(bytes.length<8||String.fromCharCode(...bytes.slice(0,4))!=="RBX1")throw new Error("Artwork library format is invalid");
+  const count=view.getUint32(4,true),decoder=new TextDecoder(),entries=new Array(count);let offset=8;
+  const readHash=position=>(BigInt(view.getUint32(position,true))|(BigInt(view.getUint32(position+4,true))<<32n)).toString(16).padStart(16,"0");
+  for(let i=0;i<count;i++){if(offset>=bytes.length)throw new Error("Artwork library is incomplete");const length=bytes[offset++],id=decoder.decode(bytes.slice(offset,offset+length));offset+=length;const dhash=readHash(offset),phash=readHash(offset+8);offset+=16;entries[i]=[id,dhash,phash]}
+  return {count,entries};
+}
+async function loadCardVisualIndex(){
+  if(!cardVisualIndexJob)cardVisualIndexJob=Promise.all(CARD_VISUAL_INDEX_URLS.map(url=>fetch(url,{cache:"force-cache"}).then(response=>{if(!response.ok)throw new Error("Artwork library unavailable");return response.text()}))).then(parts=>{const raw=atob(parts.join("")),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return parseCardVisualIndex(bytes.buffer)}).then(data=>{if(!data.entries.length)throw new Error("Artwork library unavailable");return data}).catch(error=>{cardVisualIndexJob=null;throw error});
+  return cardVisualIndexJob;
+}
+function closestVisualIndexEntries(fingerprints,index,limit=18){
+  const best=[];
+  for(const row of index.entries){let distance=Infinity;for(const fingerprint of fingerprints)distance=Math.min(distance,visualHamming(fingerprint[0],row[1])+visualHamming(fingerprint[1],row[2]));const score=1-distance/128,item={id:row[0],score};
+    if(best.length<limit){best.push(item);best.sort((a,b)=>b.score-a.score)}else if(score>best[best.length-1].score){best[best.length-1]=item;best.sort((a,b)=>b.score-a.score)}
+  }
+  return best;
+}
+async function fetchVisualCandidateCards(candidates){
+  const ids=candidates.map(candidate=>candidate.id).filter(Boolean);if(!ids.length)return[];
+  const query=ids.map(id=>`id:${id}`).join(" OR "),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),9000);
+  try{
+    const response=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=${ids.length}`,{signal:controller.signal,cache:"force-cache"});
+    if(!response.ok)throw new Error("Official card lookup unavailable");const cards=(await response.json()).data||[],byId=new Map(cards.map(card=>[card.id,card]));
+    return candidates.map(candidate=>{const card=byId.get(candidate.id);if(card)card._vtVisualIndexScore=candidate.score;return card}).filter(Boolean);
+  }finally{clearTimeout(timer)}
 }
 async function officialCardArtworkSignatures(card){
-  const source=card?.images?.large||card?.images?.small||"";if(!source)throw new Error("Official artwork unavailable");
-  if(cardArtworkSignatureCache.has(source))return cardArtworkSignatureCache.get(source);
-  const job=(async()=>{
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
-    try{
-      const response=await fetch(source,{signal:controller.signal,cache:"force-cache"});if(!response.ok)throw new Error("Artwork unavailable");
-      const blob=await response.blob();const image=window.createImageBitmap?await createImageBitmap(blob):await new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Artwork unavailable"))};img.src=url});
-      try{return artworkSignatureSet(image)}finally{if(image?.close)image.close()}
-    }finally{clearTimeout(timer)}
-  })();
-  cardArtworkSignatureCache.set(source,job);
-  try{return await job}catch(error){cardArtworkSignatureCache.delete(source);throw error}
+  const source=card?.images?.small||card?.images?.large||"";if(!source)throw new Error("Official artwork unavailable");if(cardArtworkSignatureCache.has(source))return cardArtworkSignatureCache.get(source);
+  const job=(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);try{const response=await fetch(source,{signal:controller.signal,cache:"force-cache"});if(!response.ok)throw new Error("Artwork unavailable");const blob=await response.blob();const image=window.createImageBitmap?await createImageBitmap(blob):await new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Artwork unavailable"))};img.src=url});try{return artworkSignatureSet(image)}finally{if(image?.close)image.close()}}finally{clearTimeout(timer)}})();
+  cardArtworkSignatureCache.set(source,job);try{return await job}catch(error){cardArtworkSignatureCache.delete(source);throw error}
 }
-async function verifyCardArtwork(image,matches,entry){
-  const scanSignatures=artworkSignatureSet(image),limited=matches.slice(0,8);
-  const scored=(await Promise.all(limited.map(async card=>{
-    try{return {card,score:bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card))}}catch{return null}
-  }))).filter(Boolean).sort((a,b)=>b.score-a.score);
-  if(!scored.length)return {verified:false,reason:"Official artwork could not be loaded"};
-  const best=scored[0],second=scored[1],margin=second?best.score-second.score:1;
-  const collector=vtCollectorParts(entry.detectedNumber||"");
-  const collectorAgrees=!collector||vtCollectorMatches(best.card,collector);
-  const threshold=scored.length===1?.64:.68;
-  const verified=collectorAgrees&&best.score>=threshold&&(scored.length===1||margin>=.035);
-  return {verified,card:best.card,score:best.score,margin,scored,reason:verified?"":best.score<threshold?"Artwork similarity was too low":margin<.035?"Multiple cards have similar artwork":"Collector number conflicts with the artwork"};
-}
-async function getCardScanWorker(){
-  if(scanWorkerJob)return scanWorkerJob;
-  scanWorkerJob=Tesseract.createWorker("eng",1,{logger:message=>{
-    if(message.status==="recognizing text"&&scanWorkerProgress)scanWorkerProgress(Math.round((message.progress||0)*100));
-  }}).catch(error=>{scanWorkerJob=null;throw error});
-  return scanWorkerJob;
+async function verifyCardArtwork(image,matches){
+  const scanSignatures=[...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)],limited=matches.slice(0,12);
+  const scored=(await Promise.all(limited.map(async card=>{try{const detailScore=bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card)),indexScore=Number(card._vtVisualIndexScore||0);return {card,detailScore,indexScore,score:.62*detailScore+.38*indexScore}}catch{return null}}))).filter(Boolean).sort((a,b)=>b.score-a.score);
+  if(!scored.length)return {verified:false,reason:"Official artwork could not be loaded",scored:[]};
+  const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,verified=best.score>=.64&&(!second||margin>=.018);
+  return {verified,card:best.card,score:best.score,margin,scored,reason:verified?"":best.score<.64?"Photo and official artwork were not similar enough":"Two printings have nearly identical artwork"};
 }
 function cardScanMarket(card){
   const prices=card?.tcgplayer?.prices||{},finishes=Object.keys(prices);
@@ -1781,61 +1841,29 @@ function setScanProgress(entry,percent,label="Reading card number"){
   entry.progress=Math.max(0,Math.min(100,Number(percent)||0));entry.message=`${label}… ${entry.progress}%`;renderCardScanQueue();
 }
 async function readCardScanPhoto(entry){
-  entry.state="scanning";entry.error="";entry.message="Preparing photo…";entry.progress=2;renderCardScanQueue();
+  entry.state="scanning";entry.error="";entry.message="Preparing artwork scan…";entry.progress=2;entry.detectedName="";entry.detectedNumber="";renderCardScanQueue();
   let image;
   try{
-    if(!window.Tesseract)throw new Error("Card scanner did not load");
     image=await scanImageSource(entry.file);
-    const numberCrop=cardScanCrop(image,{x:0,y:.70,w:.64,h:.28},1800,1.05);
-    entry.message=scanWorkerJob?"Opening scanner…":"Loading scanner once for this session…";renderCardScanQueue();
-    const worker=await getCardScanWorker();
-    scanWorkerProgress=percent=>setScanProgress(entry,percent,"Reading bottom card number");
-    await worker.setParameters({tessedit_pageseg_mode:"11",tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/"});
-    const numberResult=await worker.recognize(numberCrop);
-    let number=extractCollectorNumberFromOcr(numberResult?.data?.text||"");
-    if(!number){
-      const rightNumberCrop=cardScanCrop(image,{x:.36,y:.70,w:.64,h:.28},1800,1.05);
-      const rightResult=await worker.recognize(rightNumberCrop);
-      number=extractCollectorNumberFromOcr(rightResult?.data?.text||"");
-    }
-    entry.detectedNumber=number;
-    entry.message=number?`Detected #${number}. Finding exact printing…`:"Card number unclear. Reading card name…";entry.progress=100;renderCardScanQueue();
-
-    let matches=[];
-    if(number&&typeof vtExactCollectorLookup==="function")matches=await vtExactCollectorLookup(number);
-    let name="";
-    if(matches.length!==1){
-      const nameCrop=cardScanCrop(image,{x:.02,y:.02,w:.96,h:.28},1500);
-      scanWorkerProgress=percent=>setScanProgress(entry,percent,"Reading card name");
-      await worker.setParameters({tessedit_pageseg_mode:"11",tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.'’- "});
-      const nameResult=await worker.recognize(nameCrop);
-      name=extractCardNameFromOcr(nameResult?.data?.text||"");entry.detectedName=name;
-      const query=[name,number].filter(Boolean).join(" ");
-      if(query){
-        entry.message=`Matching ${query}…`;renderCardScanQueue();
-        const resolved=await resolveCardText(query,8).catch(()=>[]);
-        matches=uniqueCards(matches.concat(resolved));
-      }
-    }
-    scanWorkerProgress=null;
-    if(!matches.length){
-      entry.state="error";entry.error=number||name?`No exact database match for ${[name,number].filter(Boolean).join(" #")}.`:`The card name and bottom collector number could not be read.`;renderCardScanQueue();return;
-    }
-    const parsed=parseCardSearch([name,number].filter(Boolean).join(" "));
-    matches.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));
-    entry.matches=matches;
-    entry.message=`Comparing artwork against ${matches.length} exact candidate${matches.length===1?"":"s"}…`;entry.progress=100;renderCardScanQueue();
-    const artwork=await verifyCardArtwork(image,matches,entry);
+    entry.message="Loading the visual card library…";entry.progress=12;renderCardScanQueue();
+    const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
+    entry.message=`Comparing artwork against ${Number(index.count||index.entries.length).toLocaleString()} cards…`;entry.progress=42;renderCardScanQueue();
+    const nearest=closestVisualIndexEntries(fingerprints,index,18);
+    entry.message="Loading the closest official card images…";entry.progress=66;renderCardScanQueue();
+    const matches=await fetchVisualCandidateCards(nearest.slice(0,14));
+    if(!matches.length){entry.state="error";entry.error="The official artwork matches could not be loaded. Check your connection and try again.";renderCardScanQueue();return}
+    entry.message=`Verifying ${matches.length} closest artwork match${matches.length===1?"":"es"}…`;entry.progress=84;renderCardScanQueue();
+    const artwork=await verifyCardArtwork(image,matches);entry.matches=(artwork.scored||[]).map(item=>item.card);
     entry.artScore=artwork.score||0;entry.artMargin=artwork.margin||0;entry.artVerified=artwork.verified;
     if(artwork.verified){
-      entry.card=artwork.card;entry.matches=uniqueCards([artwork.card,...matches]);entry.state="ready";entry.message="Artwork verified";
+      entry.card=artwork.card;entry.matches=uniqueCards([artwork.card,...entry.matches]);entry.state="ready";entry.progress=100;entry.message="Artwork identified and verified";
       renderCardScanQueue();hydrateScannedCard(entry);
     }else{
-      entry.card=null;entry.state="review";entry.message=`Artwork not confidently verified — ${artwork.reason||"choose the exact card"}`;
+      entry.card=null;entry.state="review";entry.progress=100;entry.message=`Artwork needs confirmation — ${artwork.reason||"choose the exact image"}`;
       renderCardScanQueue();
     }
   }catch(error){
-    scanWorkerProgress=null;entry.state="error";entry.error="Could not identify this photo. Try a closer, glare-free photo with the entire card straight in frame.";renderCardScanQueue();
+    scanWorkerProgress=null;entry.state="error";entry.error="Could not match this artwork. Retake it with one full card straight in frame, good lighting, and as little glare as possible.";renderCardScanQueue();
   }finally{if(image?.close)image.close()}
 }
 async function hydrateScannedCard(entry){
@@ -1848,18 +1876,17 @@ function renderCardScanQueue(){
   if(!cardScanQueue.length){queue.innerHTML="";return}
   const ready=cardScanQueue.filter(entry=>entry.state==="ready"&&entry.card),scanning=cardScanQueue.some(entry=>entry.state==="scanning");
   const totalQty=ready.reduce((sum,entry)=>sum+Math.max(1,Number(entry.qty)||1),0);
-  queue.innerHTML=`<div class="scanSessionBar"><div><strong>Card scan session</strong><div class="small">${ready.length} matched • ${cardScanQueue.length} photo${cardScanQueue.length===1?"":"s"} total</div></div><div class="scanActions"><label class="btn btnGhost" style="padding:8px 11px">📸 Scan another<input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)"></label><button class="btn btnPrimary" style="padding:8px 11px" onclick="completeCardScanSession()" ${!ready.length||scanning?"disabled":""}>Complete / Add ${totalQty||""}</button><button class="miniBtn btnDanger" onclick="clearCardScanQueue()">Clear</button></div></div>`+
+  queue.innerHTML=`<div class="scanSessionBar"><div><strong>Artwork scan session</strong><div class="small">${ready.length} matched • ${cardScanQueue.length} photo${cardScanQueue.length===1?"":"s"} total</div></div><div class="scanActions"><label class="btn btnGhost" style="padding:8px 11px">📸 Scan another<input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)"></label><button class="btn btnPrimary" style="padding:8px 11px" onclick="completeCardScanSession()" ${!ready.length||scanning?"disabled":""}>Complete / Add ${totalQty||""}</button><button class="miniBtn btnDanger" onclick="clearCardScanQueue()">Clear</button></div></div>`+
     cardScanQueue.map((entry,index)=>{
       const card=entry.card,market=cardScanMarket(card).market;
-      const detected=[entry.detectedName,entry.detectedNumber?`#${entry.detectedNumber}`:""] .filter(Boolean).join(" • ");
-      const artworkBadge=entry.artVerified?`<span class="artworkVerified">✓ Artwork verified ${Math.round((entry.artScore||0)*100)}%</span>`:entry.state==="ready"?`<span class="manualVerified">Manually confirmed</span>`:"";
+      const artworkBadge=entry.artVerified?`<span class="artworkVerified">✓ Image match ${Math.round((entry.artScore||0)*100)}%</span>`:entry.state==="ready"?`<span class="manualVerified">Manually confirmed</span>`:"";
       const status=entry.state==="ready"?`<span class="scanGood">${esc(card.name)} — ${esc(card.set?.name||"")} #${esc(fullCardNumber(card))}${market!=null?` • ${money(market)}`:""}</span>${artworkBadge}`:entry.state==="error"?`<span class="scanBad">${esc(entry.error)}</span>`:esc(entry.message||"Waiting…");
       const progress=entry.state==="scanning"?`<div class="scanProgress"><span style="width:${entry.progress||2}%"></span></div>`:"";
       let actions=`<button class="miniBtn btnDanger" onclick="removeCardScan('${entry.id}')">Remove</button>`;
       if(entry.state==="ready")actions=`<span class="small">Qty</span><input class="input scanQty" type="number" min="1" value="${Math.max(1,Number(entry.qty)||1)}" onchange="setCardScanQty('${entry.id}',this.value)">${entry.matches?.length>1?`<button class="miniBtn btnSoft" onclick="reviewScanMatches('${entry.id}')">Change</button>`:""}${actions}`;
       else if(entry.state==="review")actions=`<button class="miniBtn btnPrimary" onclick="reviewScanMatches('${entry.id}')">Choose match</button>${actions}`;
       else if(entry.state==="error")actions=`<button class="miniBtn btnSoft" onclick="retryCardScan('${entry.id}')">Retry</button>${actions}`;
-      return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Card scan ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${detected?`<div class="scanDetected">Read from photo: ${esc(detected)}</div>`:""}${progress}</div><div class="scanActions">${actions}</div></div>`;
+      return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Card scan ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${progress}</div><div class="scanActions">${actions}</div></div>`;
     }).join("");
 }
 async function scanCardPhotos(fileList){
@@ -1877,7 +1904,7 @@ function retryCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);if
 function reviewScanMatches(id){
   const entry=cardScanQueue.find(item=>item.id===id);if(!entry?.matches?.length)return toast("No alternate matches are available");
   scanReviewContextId=id;currentLookupResults=entry.matches;renderCardLookup(entry.matches);
-  document.getElementById("lookupSummary").textContent="Scanner found possible matches. Choose the exact artwork, set, and card number.";
+  document.getElementById("lookupSummary").textContent="The artwork scanner found these closest images. Choose the exact printing if confirmation is needed.";
   document.getElementById("cardLookupModal").classList.remove("hidden");
 }
 function completeCardScanSession(){
@@ -3321,9 +3348,9 @@ setInterval(()=>refreshVisibleLowestListings(false),2*60*1000);
 
 
 /* v12.0.1 mobile drawer + clear submitted lookup text */
-function vtCloseMobileMenu(){document.querySelector('.sidebar')?.classList.remove('mobileOpen');document.body.classList.remove('vtMenuOpen')}
-function vtToggleMobileMenu(){const s=document.querySelector('.sidebar');if(!s)return;s.classList.toggle('mobileOpen');document.body.classList.toggle('vtMenuOpen',s.classList.contains('mobileOpen'))}
-document.addEventListener('click',e=>{if(innerWidth>820)return;const menu=e.target.closest('.menuBtn');if(menu){e.preventDefault();e.stopPropagation();vtToggleMobileMenu();return}if(e.target.closest('.sideBtn')){setTimeout(vtCloseMobileMenu,0);return}if(document.body.classList.contains('vtMenuOpen')&&!e.target.closest('.sidebar'))vtCloseMobileMenu()});
+function vtCloseMobileMenu(){document.querySelector('.sidebar')?.classList.remove('mobileOpen');document.body.classList.remove('vtMenuOpen');const button=document.getElementById('mobileMenuBtn');if(button){button.setAttribute('aria-expanded','false');button.setAttribute('aria-label','Open navigation')}}
+function vtToggleMobileMenu(){const s=document.querySelector('.sidebar');if(!s)return;s.style.removeProperty('display');s.classList.toggle('mobileOpen');const open=s.classList.contains('mobileOpen');document.body.classList.toggle('vtMenuOpen',open);const button=document.getElementById('mobileMenuBtn');if(button){button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',open?'Close navigation':'Open navigation')}}
+document.addEventListener('click',e=>{if(innerWidth>820)return;if(e.target.closest('.menuBtn'))return;if(e.target.closest('.sideBtn')){setTimeout(vtCloseMobileMenu,0);return}if(document.body.classList.contains('vtMenuOpen')&&!e.target.closest('.sidebar'))vtCloseMobileMenu()});
 const _vtGo1201=go;go=function(name,btn){const out=_vtGo1201(name,btn);if(innerWidth<=820)vtCloseMobileMenu();return out};
 function vtClearLookupInput(id){const el=document.getElementById(id);if(el)el.value=''}
 const _vtSearchPokemonCards1201=searchPokemonCards;searchPokemonCards=async function(){const el=document.getElementById('pName');const submitted=el?.value||'';try{return await _vtSearchPokemonCards1201()}finally{if(el&&el.value===submitted)el.value=''}};
@@ -3507,7 +3534,7 @@ function renderAll(){
  if(document.getElementById("app").classList.contains("hidden"))return;
  renderDashboard();renderSaleProducts();renderCart();renderInventory();renderPurchases();renderExpenses();renderShows();loadPaymentSetupForm();
 }
-function toggleMobileNav(){const s=document.getElementById("sidebar");s.style.display=s.style.display==="block"?"none":"block"}
+function toggleMobileNav(event){event?.preventDefault();event?.stopPropagation();vtToggleMobileMenu()}
 function exportJSON(){const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="vendortracker-backup.json";a.click();URL.revokeObjectURL(a.href)}
 init();
 </script>
