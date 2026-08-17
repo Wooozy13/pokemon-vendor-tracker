@@ -72,8 +72,9 @@ async function fetchLowestActualListing(productId: number, force = false) {
   if (!Number.isInteger(productId) || productId <= 0) throw new Error("Invalid TCGplayer product ID")
   const cached = listingCache.get(productId)
   if (!force && cached && Date.now() - cached.time < LISTING_CACHE_MS) return cached.value
+  if (force) listingCache.delete(productId)
   const running = listingJobs.get(productId)
-  if (running) return running
+  if (!force && running) return running
 
   const job = (async () => {
     const controller = new AbortController()
@@ -88,10 +89,24 @@ async function fetchLowestActualListing(productId: number, force = false) {
           "Content-Type": "application/json",
           "Origin": "https://www.tcgplayer.com",
           "Referer": `https://www.tcgplayer.com/product/${productId}/`,
+          "Cache-Control": "no-cache, no-store",
+          "Pragma": "no-cache",
         },
         body: JSON.stringify({
           from: 0,
           size: 50,
+          context: { cart: {} },
+          filters: {
+            term: {
+              sellerStatus: "Live",
+              channelId: 0,
+              language: ["English"],
+              condition: ["Unopened"],
+              listingType: "standard",
+            },
+            range: { quantity: { gte: 1 } },
+            exclude: { channelExclusion: 0 },
+          },
           sort: { field: "price+shipping", order: "asc" },
         }),
       })

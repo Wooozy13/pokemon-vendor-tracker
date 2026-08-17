@@ -953,7 +953,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.4</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.5</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1092,7 +1092,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.5.4";
+const APP_VERSION="v12.5.5";
 const TCG_LOWEST_SOURCE="TCGplayer standard unopened marketplace listing";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
@@ -1181,12 +1181,19 @@ function clearProductPhotoForm(){
   const lowest=document.getElementById("pLowestDisplay");if(lowest){lowest.textContent="";lowest.classList.add("hidden")}
 }
 function tcgPlayerHref(name, directUrl="", productId=""){
-  // Only allow direct links that are actually on tcgplayer.com.
+  // Product buttons always open the full product page. TCGplayer remembers its
+  // last seller filter in the browser, so an explicit empty seller parameter is
+  // required to prevent a previous "Lowest actual" click from carrying over.
   try{
     if(directUrl){
       const u=new URL(directUrl,"https://www.tcgplayer.com");
       const host=u.hostname.toLowerCase();
       if(host==="tcgplayer.com" || host==="www.tcgplayer.com" || host.endsWith(".tcgplayer.com")){
+        if(/^\/product\/\d+/i.test(u.pathname)){
+          u.search="";
+          u.hash="";
+          u.searchParams.set("seller","");
+        }
         return u.href;
       }
     }
@@ -1194,7 +1201,7 @@ function tcgPlayerHref(name, directUrl="", productId=""){
   // Sealed products retain their TCGplayer product ID, so older saved items can
   // still open the exact listing even if their stored URL is missing.
   const exactId=String(productId||"").trim();
-  if(/^\d+$/.test(exactId))return `https://www.tcgplayer.com/product/${exactId}`;
+  if(/^\d+$/.test(exactId))return `https://www.tcgplayer.com/product/${exactId}?seller=`;
   // Safe fallback: search directly on TCGplayer.
   const q=encodeURIComponent(String(name||"Pokemon card").trim()||"Pokemon card").replace(/'/g,"%27");
   return "https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid";
@@ -1210,7 +1217,7 @@ function setLowestActual(target,listing,checkedAt){
 }
 function lowestActualText(target){
   const listing=target?.tcgLowestActual;
-  if(!listing)return target?.tcgLowestCheckedAt?"No standard unopened listing found":"Lowest actual listing pending";
+  if(!listing)return target?.tcgLowestCheckedAt?"No live standard unopened listing found":"Lowest actual listing pending";
   const price=Number(listing.price||0),shipping=Math.max(0,Number(listing.shipping||0));
   return `Lowest actual: ${money(price)}${shipping>0?` + ${money(shipping)} shipping`:` • free shipping`}`;
 }
@@ -1245,7 +1252,17 @@ async function openLowestActual(event,link){
   link.textContent="Opening exact seller listing…";
   try{
     const {listing,checkedAt}=await fetchSealedLowestActual({productId},true);
-    if(!listing?.sellerKey)throw new Error("Missing seller identifier");
+    const saved=db.products.find(p=>p.itemType==="sealed"&&String(p.tcgProductId||"")===String(productId));
+    if(!listing?.sellerKey){
+      if(saved){setLowestActual(saved,null,checkedAt);save()}
+      if(popup)popup.close();
+      const unavailable=document.createElement("span");
+      unavailable.className="lowestActualNone";
+      unavailable.textContent="No live standard unopened listing found";
+      link.replaceWith(unavailable);
+      toast("No live seller listing is currently available for this product");
+      return;
+    }
     const target={
       name:link.dataset.productName||"",
       tcgUrl:link.dataset.productUrl||"",
@@ -1258,7 +1275,6 @@ async function openLowestActual(event,link){
     link.dataset.sellerKey=String(listing.sellerKey);
     link.dataset.listingSource=String(listing.source||"");
     link.innerHTML=`${esc(lowestActualText(target))}${listing.seller?` • ${esc(listing.seller)}`:""} ↗`;
-    const saved=db.products.find(p=>p.itemType==="sealed"&&String(p.tcgProductId||"")===String(productId));
     if(saved){setLowestActual(saved,listing,checkedAt);save()}
     if(popup)popup.location.replace(href);else window.location.href=href;
   }catch(e){
