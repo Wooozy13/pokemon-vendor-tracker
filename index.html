@@ -392,7 +392,7 @@ body.vendorMode .appLayout{display:block}
 body.vendorMode .main{max-width:none;padding:14px}
 body.vendorMode .page:not(#sell){display:none!important}
 body.vendorMode #sell{display:block!important}
-body.vendorMode .vendorExit{display:inline-flex}
+body.vendorMode .vendorExit{display:inline-flex}body.vendorMode .vendorModeBtn{display:none!important}body.vendorMode .exitVendorModeBtn{background:#dc2626;color:#fff;border-color:#dc2626;box-shadow:0 8px 20px rgba(220,38,38,.2)}
 body.vendorMode .bottomNav{display:none!important}
 body.vendorMode .sellLayout{grid-template-columns:minmax(0,1fr) 400px}
 body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:20;padding:4px 0 10px}
@@ -626,6 +626,18 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
   .simpleBottomNav button>span:first-child{display:block!important;line-height:1;font-size:19px!important}
 }
 
+/* v12.9 continuous card scanner, staged inventory details, and expense dates */
+.inventoryItemFields{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch;padding-top:12px;border-top:1px solid var(--line)}
+.inventoryItemFields .priceBox{min-height:82px}.scannerBack{padding:0;background:#030712}.scannerModal{width:min(620px,100%);height:min(940px,100dvh);display:flex;flex-direction:column;background:#050a18;color:#fff;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:24px;box-shadow:0 32px 100px rgba(0,0,0,.55)}
+.scannerHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:rgba(5,10,24,.96);border-bottom:1px solid rgba(255,255,255,.1)}.scannerHead h2{margin:0;font-size:20px}.scannerHead .small{color:#a9b8d5}.scannerHead .btnGhost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:#fff}
+.scannerViewport{position:relative;flex:1;min-height:360px;overflow:hidden;background:#020617}.scannerViewport video{width:100%;height:100%;object-fit:cover;display:block}.scannerShade{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 39% 43% at 50% 47%,transparent 97%,rgba(2,6,23,.68) 100%)}
+.scannerGuide{position:absolute;left:50%;top:47%;height:min(68vh,72%);aspect-ratio:2.5/3.5;transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.92);border-radius:18px;box-shadow:0 0 0 999px rgba(2,6,23,.34),0 0 28px rgba(43,217,255,.24);pointer-events:none}.scannerGuide:before,.scannerGuide:after{content:"";position:absolute;width:42px;height:42px;border-color:#41e4ff}.scannerGuide:before{left:-3px;top:-3px;border-left:5px solid #41e4ff;border-top:5px solid #41e4ff;border-radius:16px 0 0}.scannerGuide:after{right:-3px;bottom:-3px;border-right:5px solid #41e4ff;border-bottom:5px solid #41e4ff;border-radius:0 0 16px}
+.scannerLiveStatus{position:absolute;left:14px;right:14px;bottom:14px;padding:10px 12px;text-align:center;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(5,10,24,.82);backdrop-filter:blur(12px);font-size:13px;font-weight:800}.scannerLiveStatus.good{background:rgba(6,78,59,.9);border-color:rgba(52,211,153,.55)}.scannerLiveStatus.bad{background:rgba(127,29,29,.9);border-color:rgba(248,113,113,.55)}
+.scanEntryFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}.scanEntryFields label{display:grid;gap:3px;color:#64748b;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.03em}.scanEntryFields .input{width:100%;min-height:34px;padding:6px 7px;font-size:12px;text-transform:none;letter-spacing:0}
+.scannerFooter{padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#091126;border-top:1px solid rgba(255,255,255,.1)}.scannerControls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.scannerControls .btn{width:100%}.scannerFooter .scanQueue{max-height:255px;overflow:auto}.scannerFooter .scanSessionBar,.scannerFooter .scanItem{background:#101a34;border-color:rgba(255,255,255,.12);color:#fff}.scannerFooter .small,.scannerFooter .scanStatus{color:#b9c6df}.scannerFooter .scanSessionBar{display:none}.scannerFallback{display:inline-flex;justify-content:center;margin-top:8px;width:100%;color:#a9b8d5;font-size:12px;font-weight:750;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.closestMatchBtn{background:#eef2ff;color:#3153d8}
+@media(max-width:820px){.inventoryItemFields{grid-template-columns:1fr}.scannerModal{width:100%;height:100dvh;border-radius:0;border:0}.scannerViewport{min-height:0}.scannerGuide{height:min(61vh,72%)}.scannerFooter .scanQueue{max-height:240px}.scannerFooter .scanEntryFields label{color:#b9c6df}}
+@media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -759,7 +771,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           <div><h1>Sell</h1><p>Add multiple products to a cart and check out once.</p></div>
           <div class="vendorModeBar">
             <button class="btn vendorModeBtn" onclick="enterVendorMode()">⚡ Vendor Mode</button>
-            <button class="btn btnSoft vendorExit" onclick="openTradeCalculator()">⇄ Trade calculator</button><button class="btn btnGhost vendorExit" onclick="exitVendorMode()">Exit Vendor Mode</button>
+            <button class="btn btnSoft vendorExit" onclick="openTradeCalculator()">⇄ Trade calculator</button><button class="btn btnDanger vendorExit exitVendorModeBtn" onclick="exitVendorMode()">Exit Vendor Mode</button>
           </div>
         </div>
         <div class="panel">
@@ -796,7 +808,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
       <section id="inventory" class="page">
         <div class="pageHeader"><div><h1>Inventory</h1><p>Add products and see what you currently have on hand.</p></div></div>
         <details class="panel simpleDetails inventoryAddDetails">
-          <summary><span><strong>＋ Add inventory item</strong><small>Search a card, sealed product, or scan photos</small></span><span class="chev">⌄</span></summary>
+          <summary><span><strong>＋ Add inventory item</strong><small>Search a card, sealed product, or scan cards</small></span><span class="chev">⌄</span></summary>
           <div class="detailsContent"><div class="grid">
             <div style="grid-column:span 2">
               <div class="typeToggle" style="margin-bottom:8px">
@@ -809,43 +821,38 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               </div>
               <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-                <label class="btn btnGhost">
-                  📸 Scan card artwork
-                  <input id="scanPhotos" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)">
-                </label>
-                <span class="small scanHint" style="align-self:center">Fill the frame with one straight, glare-free card. The scanner matches the photographed artwork itself against the official visual library—no name or card-number reading.</span>
+                <button class="btn btnPrimary" type="button" onclick="openCardScanner()">▣ Scan cards</button>
+                <span class="small scanHint" style="align-self:center">Hold one card inside the guide. It scans automatically, adds the closest artwork match, and stays open for the next card.</span>
               </div>
-              <div id="scanQueue" class="scanQueue"></div>
+              <div id="scanQueue" class="scanQueue" data-scan-queue></div>
             </div>
-            <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
-            <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
-            <input id="pPrice" class="input" type="number" step=".01" placeholder="Your sell price">
-            <div id="cardConditionWrap">
-            <select id="pCondition" class="input" style="width:100%">
-              <option>Near Mint</option>
-              <option>Lightly Played</option>
-              <option>Moderately Played</option>
-              <option>Heavily Played</option>
-              <option>Damaged</option>
-            </select>
+            <div id="inventoryItemFields" class="inventoryItemFields hidden">
+              <input id="pQty" class="input" type="number" min="0" placeholder="Quantity">
+              <input id="pCost" class="input" type="number" step=".01" placeholder="Cost each">
+              <input id="pPrice" class="input" type="number" step=".01" placeholder="Your sell price">
+              <div id="cardConditionWrap">
+              <select id="pCondition" class="input" style="width:100%">
+                <option>Near Mint</option>
+                <option>Lightly Played</option>
+                <option>Moderately Played</option>
+                <option>Heavily Played</option>
+                <option>Damaged</option>
+              </select>
+              </div>
+              <div id="cardFinishWrap">
+              <select id="pFinish" class="input" style="width:100%" onchange="updatePendingMarketFromFinish()">
+                <option value="">Printing / finish</option>
+              </select>
+              </div>
+              <div class="priceBox">
+                <span class="small">TCGplayer Market</span>
+                <strong id="pMarketDisplay">—</strong>
+                <span id="pMarketUpdated" class="small"></span>
+                <div id="pLowestDisplay" class="hidden"></div>
+              </div>
+              <img id="pPhotoPreview" class="photoPreview" alt="Selected product">
+              <button class="btn btnPrimary" onclick="addProduct()">Add / update product</button>
             </div>
-            <div id="cardFinishWrap">
-            <select id="pFinish" class="input" style="width:100%" onchange="updatePendingMarketFromFinish()">
-              <option value="">Printing / finish</option>
-            </select>
-            </div>
-            <div class="priceBox">
-              <span class="small">TCGplayer Market</span>
-              <strong id="pMarketDisplay">—</strong>
-              <span id="pMarketUpdated" class="small"></span>
-              <div id="pLowestDisplay" class="hidden"></div>
-            </div>
-            <label class="btn btnGhost" style="display:flex;align-items:center;justify-content:center">
-              📷 Use own photo
-              <input id="pPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="previewProductPhoto(this)">
-            </label>
-            <img id="pPhotoPreview" class="photoPreview" alt="Product preview">
-            <button class="btn btnPrimary" onclick="addProduct()">Add / update product</button>
           </div></div>
         </details>
         <div class="panel inventoryListPanel"><div class="panelHead"><div><h3>Your inventory</h3><div class="small">Tap an item to edit only when you need to.</div></div></div><div id="inventoryTable"></div></div>
@@ -903,7 +910,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 
       <section id="expenses" class="page">
         <div class="pageHeader"><div><h1>Expenses</h1><p>Track table fees, travel and other operating costs.</p></div></div>
-        <div class="panel"><div class="grid"><input id="expName" class="input" placeholder="Expense description"><input id="expAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="expPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select><button class="btn btnPrimary" onclick="recordExpense()">Add expense</button></div></div>
+        <div class="panel"><div class="grid"><input id="expName" class="input" placeholder="Expense description"><input id="expAmount" class="input" type="number" step=".01" placeholder="Amount"><div><label class="small" for="expDate">Show / expense date</label><input id="expDate" class="input" type="date" style="width:100%;margin-top:5px"></div><select id="expPayment" class="input"><option>Cash</option><option>Cash App</option><option>Zelle</option><option>Venmo</option><option>Apple Pay</option><option>Card</option></select><button class="btn btnPrimary" onclick="recordExpense()">Add expense</button></div></div>
         <div class="panel"><div id="expenseTable"></div></div>
       </section>
 
@@ -951,7 +958,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.8.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.9.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -994,10 +1001,33 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
   </div>
 </div>
 
+<div id="cardScannerModal" class="modalBack scannerBack hidden">
+  <div class="scannerModal" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
+    <div class="scannerHead">
+      <div><h2 id="scannerTitle">Scan cards</h2><div class="small">Automatic artwork matching</div></div>
+      <button class="btn btnGhost" type="button" onclick="closeCardScanner()">Done</button>
+    </div>
+    <div class="scannerViewport">
+      <video id="cardScannerVideo" autoplay muted playsinline></video>
+      <div class="scannerShade"></div>
+      <div class="scannerGuide" aria-hidden="true"></div>
+      <div id="scannerLiveStatus" class="scannerLiveStatus">Starting camera…</div>
+    </div>
+    <div class="scannerFooter">
+      <div class="scannerControls">
+        <button id="scanNowBtn" class="btn btnSoft" type="button" onclick="captureScannerCard(true)">Scan now</button>
+        <button id="scannerCompleteBtn" class="btn btnPrimary" type="button" onclick="completeCardScanSession()" disabled>Complete / Add</button>
+      </div>
+      <label class="scannerFallback">Use a saved scan<input id="scanPhotos" type="file" accept="image/*" multiple style="display:none" onchange="scanCardPhotos(this.files)"></label>
+      <div id="scannerModalQueue" class="scanQueue scannerModalQueue" data-scan-queue></div>
+    </div>
+  </div>
+</div>
+
 <div id="cardLookupModal" class="modalBack hidden">
   <div class="modal">
     <div class="modalHead">
-      <div><h2>Select the correct card</h2><div class="small" id="lookupSummary">Choose the matching artwork/set.</div></div>
+      <div><h2 id="cardLookupTitle">Select the correct card</h2><div class="small" id="lookupSummary">Choose the matching artwork/set.</div></div>
       <button class="btn btnGhost" onclick="closeCardLookup()">Close</button>
     </div>
     <div class="modalBody">
@@ -1090,7 +1120,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.8.0";
+const APP_VERSION="v12.9.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1112,6 +1142,14 @@ let cardScanQueue=[];
 let scanWorkerJob=null;
 let scanWorkerProgress=null;
 let scanReviewContextId=null;
+let scanCameraStream=null;
+let scanCameraTimer=null;
+let scanCameraBusy=false;
+let scanLastSample=null;
+let scanStableFrames=0;
+let scanAwaitingCardChange=false;
+let scanLastCaptureAt=0;
+let scanWakeLock=null;
 
 let tradeYourItems=[];
 let tradeTheirItems=[];
@@ -1187,6 +1225,7 @@ function clearProductPhotoForm(){
   const market=document.getElementById("pMarketDisplay");if(market)market.textContent="—";
   const updated=document.getElementById("pMarketUpdated");if(updated)updated.textContent="";
   const lowest=document.getElementById("pLowestDisplay");if(lowest){lowest.textContent="";lowest.classList.add("hidden")}
+  setInventoryItemReady(false);
 }
 function tcgPlayerHref(name, directUrl="", productId=""){
   // Product buttons always open the clean, full marketplace product page.
@@ -1386,6 +1425,11 @@ function resetCardMetadata(){
   const u=document.getElementById("pMarketUpdated");if(u)u.textContent="";
   const l=document.getElementById("pLowestDisplay");if(l){l.textContent="";l.classList.add("hidden")}
 }
+function setInventoryItemReady(ready){
+  const fields=document.getElementById("inventoryItemFields");if(!fields)return;
+  fields.classList.toggle("hidden",!ready);
+  if(ready&&!document.getElementById("pQty").value)document.getElementById("pQty").value="1";
+}
 
 function setInventoryType(type){
   inventoryType=type;
@@ -1401,11 +1445,13 @@ function setInventoryType(type){
   document.getElementById("cardFinishWrap").classList.toggle("hidden",!isCard);
   pendingSealedData=null;
   resetCardMetadata();
+  setInventoryItemReady(false);
 }
 function runInventoryLookup(){
   const input=document.getElementById("pName");
   const submitted=input?.value||"";
   if(!submitted.trim()) return inventoryType==="sealed"?searchSealedProducts():searchPokemonCards();
+  setInventoryItemReady(false);
   // Clear immediately after Find is pressed. Search functions already captured/read the submitted value synchronously.
   const result=inventoryType==="sealed"?searchSealedProducts():searchPokemonCards();
   if(input && input.value===submitted) input.value="";
@@ -1454,6 +1500,7 @@ function selectSealedProduct(i){
   const lowestDisplay=document.getElementById("pLowestDisplay");
   if(lowestDisplay){lowestDisplay.textContent="Checking lowest actual unopened listing…";lowestDisplay.classList.remove("hidden")}
   document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}. Checking the lowest actual listing…`;
+  setInventoryItemReady(true);
   closeSealedLookup();
   const selectedId=String(p.productId||"");
   fetchSealedLowestActual(p).then(({listing,checkedAt})=>{
@@ -1663,6 +1710,79 @@ async function scanImageSource(file){
   try{return await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src})}
   finally{setTimeout(()=>URL.revokeObjectURL(src),0)}
 }
+function setScannerStatus(message,tone=""){
+  const status=document.getElementById("scannerLiveStatus");if(!status)return;
+  status.textContent=message;status.classList.toggle("good",tone==="good");status.classList.toggle("bad",tone==="bad");
+}
+function scannerGuideCrop(video){
+  const width=video.videoWidth||0,height=video.videoHeight||0;if(!width||!height)return null;
+  const guide=document.querySelector(".scannerGuide"),videoRect=video.getBoundingClientRect(),guideRect=guide?.getBoundingClientRect();
+  if(guideRect?.width&&videoRect.width&&videoRect.height){
+    const scale=Math.max(videoRect.width/width,videoRect.height/height),renderedWidth=width*scale,renderedHeight=height*scale,offsetX=(videoRect.width-renderedWidth)/2,offsetY=(videoRect.height-renderedHeight)/2;
+    const x=Math.max(0,(guideRect.left-videoRect.left-offsetX)/scale),y=Math.max(0,(guideRect.top-videoRect.top-offsetY)/scale),w=Math.min(width-x,guideRect.width/scale),h=Math.min(height-y,guideRect.height/scale);
+    if(w>0&&h>0)return {x,y,w,h};
+  }
+  let cropHeight=height*.82,cropWidth=cropHeight*(2.5/3.5);
+  if(cropWidth>width*.86){cropWidth=width*.86;cropHeight=cropWidth/(2.5/3.5)}
+  return {x:(width-cropWidth)/2,y:(height-cropHeight)/2,w:cropWidth,h:cropHeight};
+}
+function scannerFrameSample(video){
+  const crop=scannerGuideCrop(video);if(!crop)return null;
+  const canvas=document.createElement("canvas");canvas.width=24;canvas.height=34;
+  const context=canvas.getContext("2d",{willReadFrequently:true});context.drawImage(video,crop.x,crop.y,crop.w,crop.h,0,0,canvas.width,canvas.height);
+  const pixels=context.getImageData(0,0,canvas.width,canvas.height).data,gray=new Uint8Array(canvas.width*canvas.height);let total=0,totalSq=0,edges=0;
+  for(let i=0,p=0;i<pixels.length;i+=4,p++){const value=.299*pixels[i]+.587*pixels[i+1]+.114*pixels[i+2];gray[p]=value;total+=value;totalSq+=value*value;if(p%canvas.width&&p>=canvas.width)edges+=Math.abs(value-gray[p-1])+Math.abs(value-gray[p-canvas.width])}
+  const mean=total/gray.length,contrast=Math.sqrt(Math.max(0,totalSq/gray.length-mean*mean)),edge=edges/(gray.length*2);
+  return {gray,mean,contrast,edge};
+}
+function scannerFrameDifference(left,right){
+  if(!left||!right||left.length!==right.length)return Infinity;let total=0;for(let i=0;i<left.length;i++)total+=Math.abs(left[i]-right[i]);return total/left.length;
+}
+async function openCardScanner(){
+  if(inventoryType!=="card")setInventoryType("card");
+  const modal=document.getElementById("cardScannerModal"),video=document.getElementById("cardScannerVideo");modal.classList.remove("hidden");document.body.style.overflow="hidden";
+  setScannerStatus("Starting camera…");loadCardVisualIndex().catch(()=>{});
+  if(!navigator.mediaDevices?.getUserMedia){setScannerStatus("Live camera is not supported here. Use a saved scan below.","bad");return}
+  try{
+    stopCardScannerStream();
+    scanCameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}});
+    video.srcObject=scanCameraStream;await video.play();scanLastSample=null;scanStableFrames=0;scanAwaitingCardChange=false;setScannerStatus("Hold one card inside the guide — scanning is automatic");
+    scanCameraTimer=setInterval(scannerAutoTick,420);
+    if(navigator.wakeLock?.request)scanWakeLock=await navigator.wakeLock.request("screen").catch(()=>null);
+  }catch(error){setScannerStatus("Camera access was not available. Allow camera access or use a saved scan.","bad")}
+}
+function stopCardScannerStream(){
+  if(scanCameraTimer){clearInterval(scanCameraTimer);scanCameraTimer=null}
+  scanCameraStream?.getTracks?.().forEach(track=>track.stop());scanCameraStream=null;
+  const video=document.getElementById("cardScannerVideo");if(video)video.srcObject=null;
+  scanWakeLock?.release?.().catch(()=>{});scanWakeLock=null;scanLastSample=null;scanStableFrames=0;
+}
+function closeCardScanner(){
+  stopCardScannerStream();document.getElementById("cardScannerModal")?.classList.add("hidden");document.body.style.overflow="";
+}
+function scannerAutoTick(){
+  const video=document.getElementById("cardScannerVideo");if(scanCameraBusy||!video||video.readyState<2)return;
+  const sample=scannerFrameSample(video);if(!sample)return;const difference=scannerFrameDifference(sample.gray,scanLastSample);scanLastSample=sample.gray;
+  if(scanAwaitingCardChange){if(difference>15){scanAwaitingCardChange=false;scanStableFrames=0;setScannerStatus("Next card detected — hold it steady")};return}
+  if(sample.mean<28||sample.mean>235||sample.contrast<24||sample.edge<12){scanStableFrames=0;setScannerStatus("Place one card inside the guide");return}
+  if(difference<7)scanStableFrames++;else scanStableFrames=0;
+  if(scanStableFrames>=2&&Date.now()-scanLastCaptureAt>1800)captureScannerCard(false);
+  else setScannerStatus(scanStableFrames?"Hold steady…":"Center the card and hold steady");
+}
+async function captureScannerCard(manual=false){
+  const video=document.getElementById("cardScannerVideo"),crop=scannerGuideCrop(video);if(scanCameraBusy||!crop||video.readyState<2){if(manual)setScannerStatus("Camera is still starting…");return}
+  scanCameraBusy=true;scanLastCaptureAt=Date.now();scanStableFrames=0;setScannerStatus("Matching card artwork…");
+  const button=document.getElementById("scanNowBtn");if(button)button.disabled=true;
+  try{
+    const canvas=document.createElement("canvas");canvas.width=700;canvas.height=980;const context=canvas.getContext("2d");context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";context.drawImage(video,crop.x,crop.y,crop.w,crop.h,0,0,canvas.width,canvas.height);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.9));if(!blob)throw new Error("capture");
+    const entry=createCardScanEntry(blob,URL.createObjectURL(blob));cardScanQueue.push(entry);renderCardScanQueue();await readCardScanPhoto(entry);
+    scanAwaitingCardChange=true;
+    if(entry.state==="ready"&&entry.card){navigator.vibrate?.(70);setScannerStatus(`${entry.card.name} matched — move to the next card`,"good")}
+    else setScannerStatus(entry.error||"Card was not clear enough. Hold it steady and try again.","bad");
+  }catch(error){setScannerStatus("Could not capture this card. Try again.","bad")}
+  finally{scanCameraBusy=false;if(button)button.disabled=false;renderCardScanQueue()}
+}
 const cardArtworkSignatureCache=new Map();
 let cardVisualIndexJob=null;
 const CARD_VISUAL_INDEX_URLS=Array.from({length:7},(_,index)=>`pokemon-card-visual-index.part${index}.txt?v=${encodeURIComponent(APP_VERSION)}`);
@@ -1793,6 +1913,7 @@ function cardVisualFingerprints(image){
   return fingerprints.filter((item,index,all)=>all.findIndex(other=>other[0]===item[0]&&other[1]===item[1])===index);
 }
 function visualHamming(left,right){let value=BigInt(`0x${left}`)^BigInt(`0x${right}`),count=0;while(value){value&=value-1n;count++}return count}
+function visualHammingBigInt(left,right){let value=left^right,count=0;while(value){value&=value-1n;count++}return count}
 function parseCardVisualIndex(buffer){
   const bytes=new Uint8Array(buffer),view=new DataView(buffer);if(bytes.length<8||String.fromCharCode(...bytes.slice(0,4))!=="RBX1")throw new Error("Artwork library format is invalid");
   const count=view.getUint32(4,true),decoder=new TextDecoder(),entries=new Array(count);let offset=8;
@@ -1805,8 +1926,8 @@ async function loadCardVisualIndex(){
   return cardVisualIndexJob;
 }
 function closestVisualIndexEntries(fingerprints,index,limit=18){
-  const best=[];
-  for(const row of index.entries){let distance=Infinity;for(const fingerprint of fingerprints)distance=Math.min(distance,visualHamming(fingerprint[0],row[1])+visualHamming(fingerprint[1],row[2]));const score=1-distance/128,item={id:row[0],score};
+  const best=[],prepared=fingerprints.map(item=>[BigInt(`0x${item[0]}`),BigInt(`0x${item[1]}`)]);
+  for(const row of index.entries){const rowDhash=row[3]??(row[3]=BigInt(`0x${row[1]}`)),rowPhash=row[4]??(row[4]=BigInt(`0x${row[2]}`));let distance=Infinity;for(const fingerprint of prepared)distance=Math.min(distance,visualHammingBigInt(fingerprint[0],rowDhash)+visualHammingBigInt(fingerprint[1],rowPhash));const score=1-distance/128,item={id:row[0],score};
     if(best.length<limit){best.push(item);best.sort((a,b)=>b.score-a.score)}else if(score>best[best.length-1].score){best[best.length-1]=item;best.sort((a,b)=>b.score-a.score)}
   }
   return best;
@@ -1826,19 +1947,16 @@ async function officialCardArtworkSignatures(card){
   cardArtworkSignatureCache.set(source,job);try{return await job}catch(error){cardArtworkSignatureCache.delete(source);throw error}
 }
 async function verifyCardArtwork(image,matches){
-  const scanSignatures=[...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)],limited=matches.slice(0,12);
+  const scanSignatures=[...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)],limited=matches.slice(0,7);
   const scored=(await Promise.all(limited.map(async card=>{try{const detailScore=bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card)),indexScore=Number(card._vtVisualIndexScore||0);return {card,detailScore,indexScore,score:.62*detailScore+.38*indexScore}}catch{return null}}))).filter(Boolean).sort((a,b)=>b.score-a.score);
   if(!scored.length)return {verified:false,reason:"Official artwork could not be loaded",scored:[]};
   const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,verified=best.score>=.64&&(!second||margin>=.018);
   return {verified,card:best.card,score:best.score,margin,scored,reason:verified?"":best.score<.64?"Photo and official artwork were not similar enough":"Two printings have nearly identical artwork"};
 }
-function cardScanMarket(card){
+function cardScanMarket(card,selectedFinish=""){
   const prices=card?.tcgplayer?.prices||{},finishes=Object.keys(prices);
-  const finish=finishes.includes("holofoil")?"holofoil":(finishes[0]||"");
+  const finish=selectedFinish&&prices[selectedFinish]?selectedFinish:(finishes.includes("holofoil")?"holofoil":(finishes[0]||""));
   return {prices,finish,market:currentMarketFromPrices(prices,finish)};
-}
-function setScanProgress(entry,percent,label="Reading card number"){
-  entry.progress=Math.max(0,Math.min(100,Number(percent)||0));entry.message=`${label}… ${entry.progress}%`;renderCardScanQueue();
 }
 async function readCardScanPhoto(entry){
   entry.state="scanning";entry.error="";entry.message="Preparing artwork scan…";entry.progress=2;entry.detectedName="";entry.detectedNumber="";renderCardScanQueue();
@@ -1848,19 +1966,20 @@ async function readCardScanPhoto(entry){
     entry.message="Loading the visual card library…";entry.progress=12;renderCardScanQueue();
     const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
     entry.message=`Comparing artwork against ${Number(index.count||index.entries.length).toLocaleString()} cards…`;entry.progress=42;renderCardScanQueue();
-    const nearest=closestVisualIndexEntries(fingerprints,index,18);
-    entry.message="Loading the closest official card images…";entry.progress=66;renderCardScanQueue();
-    const matches=await fetchVisualCandidateCards(nearest.slice(0,14));
+    const nearest=closestVisualIndexEntries(fingerprints,index,12);
+    entry.message="Checking the closest official cards…";entry.progress=66;renderCardScanQueue();
+    const matches=await fetchVisualCandidateCards(nearest.slice(0,9));
     if(!matches.length){entry.state="error";entry.error="The official artwork matches could not be loaded. Check your connection and try again.";renderCardScanQueue();return}
     entry.message=`Verifying ${matches.length} closest artwork match${matches.length===1?"":"es"}…`;entry.progress=84;renderCardScanQueue();
     const artwork=await verifyCardArtwork(image,matches);entry.matches=(artwork.scored||[]).map(item=>item.card);
     entry.artScore=artwork.score||0;entry.artMargin=artwork.margin||0;entry.artVerified=artwork.verified;
-    if(artwork.verified){
-      entry.card=artwork.card;entry.matches=uniqueCards([artwork.card,...entry.matches]);entry.state="ready";entry.progress=100;entry.message="Artwork identified and verified";
+    const bestCard=artwork.card||entry.matches[0]||matches[0];
+    if(bestCard&&(artwork.score||0)>=.42){
+      entry.card=bestCard;entry.matches=uniqueCards([bestCard,...entry.matches]);entry.state="ready";entry.progress=100;entry.message=artwork.verified?"Scan matched":"Closest artwork match selected";
+      const pricing=cardScanMarket(bestCard);entry.finish=entry.finish||pricing.finish;if(entry.price===""&&pricing.market!=null)entry.price=Number(pricing.market).toFixed(2);
       renderCardScanQueue();hydrateScannedCard(entry);
     }else{
-      entry.card=null;entry.state="review";entry.progress=100;entry.message=`Artwork needs confirmation — ${artwork.reason||"choose the exact image"}`;
-      renderCardScanQueue();
+      entry.card=null;entry.state="error";entry.progress=100;entry.error="No reliable card match was found. Center one clear card in the guide and scan again.";renderCardScanQueue();
     }
   }catch(error){
     scanWorkerProgress=null;entry.state="error";entry.error="Could not match this artwork. Retake it with one full card straight in frame, good lighting, and as little glare as possible.";renderCardScanQueue();
@@ -1872,39 +1991,54 @@ async function hydrateScannedCard(entry){
   if(rich&&entry.card?.id===card.id){entry.card=rich;entry.matches=uniqueCards([rich,...(entry.matches||[])]);renderCardScanQueue()}
 }
 function renderCardScanQueue(){
-  const queue=document.getElementById("scanQueue");if(!queue)return;
-  if(!cardScanQueue.length){queue.innerHTML="";return}
+  const queues=document.querySelectorAll("[data-scan-queue]");if(!queues.length)return;
+  const completeButton=document.getElementById("scannerCompleteBtn");
+  if(!cardScanQueue.length){queues.forEach(queue=>queue.innerHTML="");if(completeButton){completeButton.disabled=true;completeButton.textContent="Complete / Add"}return}
   const ready=cardScanQueue.filter(entry=>entry.state==="ready"&&entry.card),scanning=cardScanQueue.some(entry=>entry.state==="scanning");
   const totalQty=ready.reduce((sum,entry)=>sum+Math.max(1,Number(entry.qty)||1),0);
-  queue.innerHTML=`<div class="scanSessionBar"><div><strong>Artwork scan session</strong><div class="small">${ready.length} matched • ${cardScanQueue.length} photo${cardScanQueue.length===1?"":"s"} total</div></div><div class="scanActions"><label class="btn btnGhost" style="padding:8px 11px">📸 Scan another<input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)"></label><button class="btn btnPrimary" style="padding:8px 11px" onclick="completeCardScanSession()" ${!ready.length||scanning?"disabled":""}>Complete / Add ${totalQty||""}</button><button class="miniBtn btnDanger" onclick="clearCardScanQueue()">Clear</button></div></div>`+
+  const markup=`<div class="scanSessionBar"><div><strong>Card scanning</strong><div class="small">${ready.length} matched • ${cardScanQueue.length} card${cardScanQueue.length===1?"":"s"} scanned</div></div><div class="scanActions"><button class="btn btnGhost" style="padding:8px 11px" onclick="openCardScanner()">▣ Scan more</button><button class="btn btnPrimary" style="padding:8px 11px" onclick="completeCardScanSession()" ${!ready.length||scanning?"disabled":""}>Complete / Add ${totalQty||""}</button><button class="miniBtn btnDanger" onclick="clearCardScanQueue()">Clear</button></div></div>`+
     cardScanQueue.map((entry,index)=>{
-      const card=entry.card,market=cardScanMarket(card).market;
-      const artworkBadge=entry.artVerified?`<span class="artworkVerified">✓ Image match ${Math.round((entry.artScore||0)*100)}%</span>`:entry.state==="ready"?`<span class="manualVerified">Manually confirmed</span>`:"";
+      const card=entry.card,pricing=cardScanMarket(card,entry.finish),market=pricing.market;
+      const artworkBadge=entry.artVerified?`<span class="artworkVerified">✓ Scan match</span>`:entry.state==="ready"?`<span class="manualVerified">Closest match</span>`:"";
       const status=entry.state==="ready"?`<span class="scanGood">${esc(card.name)} — ${esc(card.set?.name||"")} #${esc(fullCardNumber(card))}${market!=null?` • ${money(market)}`:""}</span>${artworkBadge}`:entry.state==="error"?`<span class="scanBad">${esc(entry.error)}</span>`:esc(entry.message||"Waiting…");
       const progress=entry.state==="scanning"?`<div class="scanProgress"><span style="width:${entry.progress||2}%"></span></div>`:"";
+      const readyFields=entry.state==="ready"?`<div class="scanEntryFields">
+        <label>Quantity<input class="input" type="number" min="1" value="${Math.max(1,Number(entry.qty)||1)}" onchange="setCardScanQty('${entry.id}',this.value)"></label>
+        <label>Condition<select class="input" onchange="setCardScanCondition('${entry.id}',this.value)">${["Near Mint","Lightly Played","Moderately Played","Heavily Played","Damaged"].map(value=>`<option ${value===(entry.condition||"Near Mint")?"selected":""}>${value}</option>`).join("")}</select></label>
+        <label>Printing<select class="input" onchange="setCardScanFinish('${entry.id}',this.value)">${Object.keys(pricing.prices).map(value=>`<option value="${esc(value)}" ${value===pricing.finish?"selected":""}>${esc(prettyFinish(value))}</option>`).join("")||'<option value="">Default</option>'}</select></label>
+        <label>Cost each<input class="input" type="number" min="0" step=".01" value="${esc(entry.cost)}" placeholder="0.00" onchange="setCardScanCost('${entry.id}',this.value)"></label>
+        <label>Your price<input class="input" type="number" min="0" step=".01" value="${esc(entry.price)}" placeholder="${market!=null?Number(market).toFixed(2):"0.00"}" onchange="setCardScanPrice('${entry.id}',this.value)"></label>
+      </div>`:"";
       let actions=`<button class="miniBtn btnDanger" onclick="removeCardScan('${entry.id}')">Remove</button>`;
-      if(entry.state==="ready")actions=`<span class="small">Qty</span><input class="input scanQty" type="number" min="1" value="${Math.max(1,Number(entry.qty)||1)}" onchange="setCardScanQty('${entry.id}',this.value)">${entry.matches?.length>1?`<button class="miniBtn btnSoft" onclick="reviewScanMatches('${entry.id}')">Change</button>`:""}${actions}`;
-      else if(entry.state==="review")actions=`<button class="miniBtn btnPrimary" onclick="reviewScanMatches('${entry.id}')">Choose match</button>${actions}`;
+      if(entry.state==="ready")actions=`<button class="miniBtn closestMatchBtn" onclick="reviewScanMatches('${entry.id}')">Check match</button>${actions}`;
       else if(entry.state==="error")actions=`<button class="miniBtn btnSoft" onclick="retryCardScan('${entry.id}')">Retry</button>${actions}`;
-      return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Card scan ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${progress}</div><div class="scanActions">${actions}</div></div>`;
+      return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Scanned card ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${progress}${readyFields}</div><div class="scanActions">${actions}</div></div>`;
     }).join("");
+  queues.forEach(queue=>queue.innerHTML=markup);
+  if(completeButton){completeButton.disabled=!ready.length||scanning;completeButton.textContent=`Complete / Add${totalQty?` ${totalQty}`:""}`}
 }
+function createCardScanEntry(file,preview){return {id:`scan_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,file,preview,qty:1,condition:"Near Mint",finish:"",cost:"",price:"",state:"waiting",message:"Waiting to scan…",progress:0,matches:[],card:null,error:"",detectedName:"",detectedNumber:"",artScore:0,artMargin:0,artVerified:false}}
 async function scanCardPhotos(fileList){
   const files=Array.from(fileList||[]).filter(file=>String(file.type||"").startsWith("image/"));
-  document.querySelectorAll('#scanPhotos,#scanQueue input[type="file"]').forEach(input=>input.value="");
+  document.querySelectorAll('#scanPhotos,[data-scan-queue] input[type="file"]').forEach(input=>input.value="");
   if(!files.length)return;
-  const added=files.map((file,index)=>({id:`scan_${Date.now()}_${index}_${Math.random().toString(36).slice(2,7)}`,file,preview:URL.createObjectURL(file),qty:1,state:"waiting",message:"Waiting to scan…",progress:0,matches:[],card:null,error:"",detectedName:"",detectedNumber:"",artScore:0,artMargin:0,artVerified:false}));
+  const added=files.map(file=>createCardScanEntry(file,URL.createObjectURL(file)));
   cardScanQueue.push(...added);renderCardScanQueue();
-  for(const entry of added)await readCardScanPhoto(entry);
+  scanCameraBusy=true;try{for(const entry of added)await readCardScanPhoto(entry)}finally{scanCameraBusy=false;renderCardScanQueue()}
 }
 function setCardScanQty(id,value){const entry=cardScanQueue.find(item=>item.id===id);if(entry){entry.qty=Math.max(1,Number(value)||1);renderCardScanQueue()}}
+function setCardScanCondition(id,value){const entry=cardScanQueue.find(item=>item.id===id);if(entry)entry.condition=value||"Near Mint"}
+function setCardScanFinish(id,value){const entry=cardScanQueue.find(item=>item.id===id);if(entry){entry.finish=value;const market=cardScanMarket(entry.card,value).market;if(market!=null)entry.price=Number(market).toFixed(2);renderCardScanQueue()}}
+function setCardScanCost(id,value){const entry=cardScanQueue.find(item=>item.id===id);if(entry)entry.cost=value}
+function setCardScanPrice(id,value){const entry=cardScanQueue.find(item=>item.id===id);if(entry)entry.price=value}
 function removeCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);if(entry?.preview)URL.revokeObjectURL(entry.preview);cardScanQueue=cardScanQueue.filter(item=>item.id!==id);renderCardScanQueue()}
 function clearCardScanQueue(){cardScanQueue.forEach(entry=>entry.preview&&URL.revokeObjectURL(entry.preview));cardScanQueue=[];scanReviewContextId=null;renderCardScanQueue()}
 function retryCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);if(entry)readCardScanPhoto(entry)}
 function reviewScanMatches(id){
-  const entry=cardScanQueue.find(item=>item.id===id);if(!entry?.matches?.length)return toast("No alternate matches are available");
-  scanReviewContextId=id;currentLookupResults=entry.matches;renderCardLookup(entry.matches);
-  document.getElementById("lookupSummary").textContent="The artwork scanner found these closest images. Choose the exact printing if confirmation is needed.";
+  const entry=cardScanQueue.find(item=>item.id===id);if(!entry?.card&&!entry?.matches?.length)return toast("No scan match is available");
+  const closest=entry.card||entry.matches[0];scanReviewContextId=id;currentLookupResults=[closest];renderCardLookup([closest]);
+  document.getElementById("cardLookupTitle").textContent="Closest scan match";
+  document.getElementById("lookupSummary").textContent="This is the single closest artwork match. If it is wrong, close this view, remove it, and scan the card again.";
   document.getElementById("cardLookupModal").classList.remove("hidden");
 }
 function completeCardScanSession(){
@@ -1912,13 +2046,13 @@ function completeCardScanSession(){
   pushUndo(`Add ${ready.length} scanned card${ready.length===1?"":"s"}`);
   let added=0;
   for(const entry of ready){
-    const card=entry.card,qty=Math.max(1,Number(entry.qty)||1),pricing=cardScanMarket(card),cardNumber=fullCardNumber(card);
-    let product=db.products.find(item=>(item.itemType||"card")==="card"&&item.pokemonCardId===card.id&&item.condition==="Near Mint"&&item.finish===pricing.finish);
-    if(product){product.qty+=qty;if(!product.photo)product.photo=card.images?.large||card.images?.small||"";if(pricing.market!=null){product.tcgPrices=pricing.prices;product.tcgMarket=pricing.market;if(!product.price)product.price=pricing.market}}
-    else{product={id:uid(),name:`${card.name} — ${card.set?.name||""} #${cardNumber}`.trim(),qty,cost:0,price:pricing.market||0,photo:card.images?.large||card.images?.small||"",itemType:"card",condition:"Near Mint",finish:pricing.finish,pokemonCardId:card.id,cardBaseName:card.name||"",setName:card.set?.name||"",setId:card.set?.id||"",cardNumber,rarity:card.rarity||"",tcgUrl:card.tcgplayer?.url||"",tcgUpdatedAt:card.tcgplayer?.updatedAt||"",tcgPrices:pricing.prices,tcgMarket:pricing.market,lastMarketRefresh:new Date().toISOString()};db.products.push(product)}
+    const card=entry.card,qty=Math.max(1,Number(entry.qty)||1),condition=entry.condition||"Near Mint",pricing=cardScanMarket(card,entry.finish),cardNumber=fullCardNumber(card),cost=entry.cost===""?0:Math.max(0,Number(entry.cost)||0),sellPrice=entry.price===""?(pricing.market||0):Math.max(0,Number(entry.price)||0);
+    let product=db.products.find(item=>(item.itemType||"card")==="card"&&item.pokemonCardId===card.id&&(item.condition||"Near Mint")===condition&&item.finish===pricing.finish);
+    if(product){product.qty+=qty;if(entry.cost!=="")product.cost=cost;if(entry.price!=="")product.price=sellPrice;if(!product.photo)product.photo=card.images?.large||card.images?.small||"";if(pricing.market!=null){product.tcgPrices=pricing.prices;product.tcgMarket=pricing.market;if(!product.price)product.price=pricing.market}}
+    else{product={id:uid(),name:`${card.name} — ${card.set?.name||""} #${cardNumber}`.trim(),qty,cost,price:sellPrice,photo:card.images?.large||card.images?.small||"",itemType:"card",condition,finish:pricing.finish,pokemonCardId:card.id,cardBaseName:card.name||"",setName:card.set?.name||"",setId:card.set?.id||"",cardNumber,rarity:card.rarity||"",tcgUrl:card.tcgplayer?.url||"",tcgUpdatedAt:card.tcgplayer?.updatedAt||"",tcgPrices:pricing.prices,tcgMarket:pricing.market,lastMarketRefresh:new Date().toISOString()};db.products.push(product)}
     added+=qty;entry.preview&&URL.revokeObjectURL(entry.preview);
   }
-  cardScanQueue=cardScanQueue.filter(entry=>!ready.includes(entry));scanReviewContextId=null;save();renderCardScanQueue();toast(`${added} scanned card${added===1?"":"s"} added to inventory`);
+  cardScanQueue=cardScanQueue.filter(entry=>!ready.includes(entry));scanReviewContextId=null;save();renderCardScanQueue();closeCardScanner();toast(`${added} scanned card${added===1?"":"s"} added to inventory`);
 }
 
 function renderCardLookup(cards){
@@ -1934,7 +2068,7 @@ function renderCardLookup(cards){
     </button>`;
   }).join("");
 }
-function closeCardLookup(){document.getElementById("cardLookupModal").classList.add("hidden");scanReviewContextId=null}
+function closeCardLookup(){document.getElementById("cardLookupModal").classList.add("hidden");document.getElementById("cardLookupTitle").textContent="Select the correct card";scanReviewContextId=null}
 function selectPokemonCard(i){
   const c=currentLookupResults[i];if(!c)return;
   if(scanReviewContextId){
@@ -1966,6 +2100,7 @@ function selectPokemonCard(i){
   if(keys.length)f.value=keys.includes("holofoil")?"holofoil":keys[0];
   updatePendingMarketFromFinish();
   document.getElementById("cardLookupStatus").textContent=`Selected ${c.set?.name||""} #${fullCardNumber(c)}. Artwork and TCGplayer pricing loaded.`;
+  setInventoryItemReady(true);
   closeCardLookup();
 }
 async function refreshCardMarketPrice(p){
@@ -2536,12 +2671,25 @@ function savePurchaseBatch(){
 }
 function recordPurchase(){savePurchaseBatch()}
 
+function localDateInputValue(value=new Date()){
+ const date=value instanceof Date?value:new Date(value);if(Number.isNaN(date.getTime()))return "";
+ return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+function expenseDateValue(expense){return expense?.eventDate||localDateInputValue(expense?.time||new Date())}
+function ensureExpenseDateDefault(){const input=document.getElementById("expDate");if(input&&!input.value)input.value=localDateInputValue()}
 function recordExpense(){
- const name=document.getElementById("expName").value.trim(),amount=Number(document.getElementById("expAmount").value);
+ const name=document.getElementById("expName").value.trim(),amount=Number(document.getElementById("expAmount").value),eventDate=document.getElementById("expDate").value||localDateInputValue();
  if(!name||!amount)return toast("Enter expense and amount");
  pushUndo("Add expense");
- db.expenses.unshift({id:uid(),name,amount,payment:document.getElementById("expPayment").value,time:new Date().toISOString(),showId:db.currentShow?.id||null});
- document.getElementById("expName").value="";document.getElementById("expAmount").value="";save();toast("Expense added");
+ db.expenses.unshift({id:uid(),name,amount,payment:document.getElementById("expPayment").value,eventDate,time:new Date().toISOString(),showId:db.currentShow?.id||null});
+ document.getElementById("expName").value="";document.getElementById("expAmount").value="";save();ensureExpenseDateDefault();toast("Expense added");
+}
+
+function editExpense(id){
+ const expense=db.expenses.find(item=>item.id===id);if(!expense)return;
+ const name=document.getElementById(`expense_name_${id}`)?.value.trim(),amount=Number(document.getElementById(`expense_amount_${id}`)?.value),eventDate=document.getElementById(`expense_date_${id}`)?.value,payment=document.getElementById(`expense_payment_${id}`)?.value;
+ if(!name||!amount||!eventDate)return toast("Enter a date, description, and amount");
+ pushUndo("Edit expense");Object.assign(expense,{name,amount,eventDate,payment});save();toast("Expense updated");
 }
 
 function editSale(id){
@@ -3498,7 +3646,16 @@ function renderPurchases(){
  const table=document.getElementById("purchaseTable");if(!table)return;
  table.innerHTML=db.purchases.length?db.purchases.slice(0,50).map(x=>x.isBatch?`<div class="panel" style="margin:0 0 10px;padding:14px"><div class="panelHead"><div><strong>${esc(x.source||"Purchase batch")}</strong><div class="small">${new Date(x.time).toLocaleString()} • ${esc(x.payment||"")}${x.note?` • ${esc(x.note)}`:""}</div></div><div style="text-align:right"><strong>${money(x.total)}</strong><div class="small">${x.qty||0} total items</div></div></div><div class="purchaseBatchList">${(x.items||[]).map(it=>`<div class="purchaseBatchItem">${it.photo?`<img src="${esc(it.photo)}">`:`<div class="thumb"></div>`}<div><strong>${esc(it.name)}</strong></div><div><div class="small">Qty</div>${it.qty}</div><div><div class="small">Paid</div>${money(it.total)}</div><span></span></div>`).join("")}</div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete batch</button></div></div>`:`<div class="panel" style="margin:0 0 10px;padding:14px"><div class="panelHead"><div><strong>${esc(x.name)}</strong><div class="small">${new Date(x.time).toLocaleString()} • ${esc(x.source||"")} • ${esc(x.payment||"")}</div></div><div style="text-align:right"><strong>${money(x.total)}</strong><div class="small">Qty ${x.qty}</div></div></div><div style="display:flex;justify-content:flex-end"><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></div></div>`).join(""):'<div class="empty">No purchases yet.</div>';
 }
-function renderExpenses(){expenseTable.innerHTML=db.expenses.length?`<div class="tableWrap"><table><tr><th>Date</th><th>Description</th><th>Amount</th><th>Payment</th><th></th></tr>${db.expenses.slice(0,50).map(x=>`<tr><td data-label="Date">${new Date(x.time).toLocaleString()}</td><td data-label="Expense"><strong>${esc(x.name)}</strong></td><td data-label="Amount">${money(x.amount)}</td><td data-label="Payment">${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="empty">No expenses yet.</div>`}
+function renderExpenses(){
+ ensureExpenseDateDefault();
+ const payments=["Cash","Cash App","Zelle","Venmo","Apple Pay","Card"];
+ expenseTable.innerHTML=db.expenses.length?`<div class="tableWrap"><table><tr><th>Show / expense date</th><th>Description</th><th>Amount</th><th>Payment</th><th></th></tr>${db.expenses.slice(0,50).map(x=>`<tr>
+ <td data-label="Date"><input id="expense_date_${x.id}" class="input" type="date" value="${esc(expenseDateValue(x))}" style="min-width:145px;padding:7px"></td>
+ <td data-label="Expense"><input id="expense_name_${x.id}" class="input" value="${esc(x.name)}" style="min-width:190px;padding:7px"></td>
+ <td data-label="Amount"><input id="expense_amount_${x.id}" class="input" type="number" min="0" step=".01" value="${Number(x.amount||0).toFixed(2)}" style="width:110px;padding:7px"></td>
+ <td data-label="Payment"><select id="expense_payment_${x.id}" class="input" style="min-width:130px;padding:7px">${payments.map(payment=>`<option ${payment===(x.payment||"Cash")?"selected":""}>${payment}</option>`).join("")}</select></td>
+ <td data-label="Actions"><div class="actions"><button class="miniBtn btnSuccess" onclick="editExpense('${x.id}')">Save changes</button><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></div></td></tr>`).join("")}</table></div>`:`<div class="empty">No expenses yet.</div>`
+}
 function renderShows(){
  showList.innerHTML=db.shows.length?db.shows.map(sh=>{
    const sales=db.sales.filter(x=>x.showId===sh.id),ex=db.expenses.filter(x=>x.showId===sh.id),buys=db.purchases.filter(x=>x.showId===sh.id);
@@ -3524,7 +3681,7 @@ function renderShows(){
     </div>
     <details><summary>Show details</summary>
       <div class="detailsBox"><strong>Sales</strong>${sales.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th>Payment</th><th></th></tr>${sales.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td>${x.payment}</td><td><button class="miniBtn btnDanger" onclick="deleteSale('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
-      <div class="detailsBox"><strong>Expenses</strong>${ex.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Expense</th><th>Amount</th><th></th></tr>${ex.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
+      <div class="detailsBox"><strong>Expenses</strong>${ex.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Date</th><th>Expense</th><th>Amount</th><th></th></tr>${ex.map(x=>`<tr><td>${esc(expenseDateValue(x))}</td><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td><button class="miniBtn btnDanger" onclick="deleteExpense('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
       <div class="detailsBox"><strong>Purchases</strong>${buys.length?`<div class="tableWrap" style="margin-top:8px"><table><tr><th>Product</th><th>Qty</th><th>Total</th><th></th></tr>${buys.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td><td><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></td></tr>`).join("")}</table></div>`:`<div class="small">None</div>`}</div>
     </details>
    </div>`
@@ -3536,6 +3693,7 @@ function renderAll(){
 }
 function toggleMobileNav(event){event?.preventDefault();event?.stopPropagation();vtToggleMobileMenu()}
 function exportJSON(){const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="vendortracker-backup.json";a.click();URL.revokeObjectURL(a.href)}
+window.addEventListener("pagehide",stopCardScannerStream);
 init();
 </script>
 </body>
