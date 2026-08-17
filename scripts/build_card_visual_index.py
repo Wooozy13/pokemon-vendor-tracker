@@ -25,6 +25,7 @@ from PIL import Image
 API = "https://api.pokemontcg.io/v2/cards"
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "assets" / "pokemon-card-visual-index.bin"
+WEB_PART_PREFIX = ROOT / "pokemon-card-visual-index"
 CACHE_DIR = Path("/tmp/vendortracker-card-index-pages")
 FINGERPRINT_CACHE_DIR = Path("/tmp/vendortracker-card-rbx1-fingerprints")
 FAILED_OUTPUT = OUTPUT.with_name("pokemon-card-visual-index-failed.txt")
@@ -82,7 +83,7 @@ def load_existing() -> dict[str, tuple[int, int]]:
         data = OUTPUT.read_bytes()
     else:
         parts = sorted(
-            OUTPUT.parent.glob("pokemon-card-visual-index.part*.txt"),
+            ROOT.glob("pokemon-card-visual-index.part*.txt"),
             key=lambda path: int(path.stem.split("part")[-1]),
         )
         if not parts:
@@ -181,10 +182,10 @@ def write_index(records: dict[str, tuple[int, int]]) -> None:
     OUTPUT.write_bytes(output)
     encoded = base64.b64encode(output).decode("ascii")
     parts = [encoded[index:index + WEB_PART_SIZE] for index in range(0, len(encoded), WEB_PART_SIZE)]
-    for old_part in OUTPUT.parent.glob("pokemon-card-visual-index.part*.txt"):
+    for old_part in ROOT.glob("pokemon-card-visual-index.part*.txt"):
         old_part.unlink()
     for index, part in enumerate(parts):
-        OUTPUT.with_name(f"pokemon-card-visual-index.part{index}.txt").write_text(part, encoding="ascii")
+        WEB_PART_PREFIX.with_name(f"pokemon-card-visual-index.part{index}.txt").write_text(part, encoding="ascii")
     print(f"wrote {len(parts)} web parts", flush=True)
 
 
