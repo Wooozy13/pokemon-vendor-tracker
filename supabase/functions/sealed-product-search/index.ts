@@ -10,10 +10,13 @@ const UA = "VendorTracker/1.1 (sealed catalog search)"
 const TCGPLAYER_BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
 const CACHE_MS = 24 * 60 * 60 * 1000
 const LISTING_CACHE_MS = 90 * 1000
+const SELLER_STATUS_CACHE_MS = 45 * 1000
 const groupCatalogCache = new Map<number, { time: number; products: any[]; prices: any[] }>()
 const groupCatalogJobs = new Map<number, Promise<{ products: any[]; prices: any[] }>>()
 const listingCache = new Map<number, { time: number; value: any }>()
 const listingJobs = new Map<number, Promise<any>>()
+const sellerStatusCache = new Map<string, { time: number; value: any }>()
+const sellerStatusJobs = new Map<string, Promise<any>>()
 let groupsCache: { time: number; groups: any[] } | null = null
 let groupsJob: Promise<any[]> | null = null
 
@@ -91,6 +94,83 @@ async function fetchJson(url: string) {
 function finiteMoney(value: unknown) {
   const amount = Number(value)
   return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : null
+}
+
+async function fetchLiveSellerStatus(sellerKey: string, force = false) {
+  const key = String(sellerKey || "").trim()
+  if (!key) return { live: false, checkedAt: new Date().toISOString(), reason: "missing seller" }
+  const cached = sellerStatusCache.get(key)
+  if (!force && cached && Date.now() - cached.time < SELLER_STATUS_CACHE_MS) return cached.value
+  if (force) sellerStatusCache.delete(key)
+  const running = sellerStatusJobs.get(key)
+  if (!force && running) return running
+
+  const job = (async () => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8_000)
+    try {
+      // This is the live status source used by TCGplayer's seller page. The
+      // listings search can retain an offer after a seller is put on hold or
+      // their inventory is hidden, which makes the seller-product URL empty.
+      const response = await fetch(`https://seller-stores-backend.tcgplayer.com/sm/seller/${encodeURIComponent(key)}?updateLifetimeSales=true`, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": TCGPLAYER_BROWSER_UA,
+          "Accept": "application/json",
+          "Origin": "https://www.tcgplayer.com",
+          "Referer": "https://www.tcgplayer.com/",
+          "Cache-Control": "no-cache, no-store",
+          "Pragma": "no-cache",
+        },
+      })
+      if (!response.ok) throw new Error(`TCGplayer seller status ${response.status}`)
+      const seller = await response.json()
+      const status = String(seller?.sellerStatus?.status || "").toLowerCase()
+      const inventoryStatus = String(seller?.sellerStatus?.inventoryStatus || "").toLowerCase()
+      const sanctionsStatus = String(seller?.sanctionsStatus || "").toLowerCase()
+      const value = {
+        live: seller?.active !== false
+          && status === "live"
+          && inventoryStatus !== "hidden"
+          && sanctionsStatus !== "inreview"
+          && sanctionsStatus !== "rejected",
+        status,
+        inventoryStatus,
+        sanctionsStatus,
+        checkedAt: new Date().toISOString(),
+      }
+      sellerStatusCache.set(key, { time: Date.now(), value })
+      return value
+    } finally {
+      clearTimeout(timeout)
+    }
+  })().catch(() => ({ live: false, checkedAt: new Date().toISOString(), reason: "seller status unavailable" }))
+    .finally(() => sellerStatusJobs.delete(key))
+
+  sellerStatusJobs.set(key, job)
+  return job
+}
+
+async function firstVerifiedLiveListing(candidates: any[], force = false) {
+  // Validate a few lowest offers together for speed, then preserve the original
+  // delivered-price order when choosing the first seller TCGplayer says is live.
+  const shortlist = candidates.slice(0, 9)
+  for (let start = 0; start < shortlist.length; start += 3) {
+    const group = shortlist.slice(start, start + 3)
+    const checked = await Promise.all(group.map(async (listing: any) => ({
+      listing,
+      sellerStatus: await fetchLiveSellerStatus(listing.sellerKey, force),
+    })))
+    const match = checked.find((item: any) => item.sellerStatus?.live)
+    if (match) {
+      return {
+        ...match.listing,
+        sellerStatusCheckedAt: match.sellerStatus.checkedAt,
+        source: "TCGplayer verified live standard unopened marketplace listing",
+      }
+    }
+  }
+  return null
 }
 
 async function fetchLowestActualListing(productId: number, force = false) {
@@ -174,7 +254,7 @@ async function fetchLowestActualListing(productId: number, force = false) {
         }
       }).sort((a: any, b: any) => a.delivered - b.delivered || a.price - b.price)
 
-      const value = candidates[0] || null
+      const value = await firstVerifiedLiveListing(candidates, force)
       listingCache.set(productId, { time: Date.now(), value })
       return value
     } finally {

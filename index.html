@@ -939,7 +939,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.7.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.7.1</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1078,8 +1078,8 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.7.0";
-const TCG_LOWEST_SOURCE="TCGplayer standard unopened marketplace listing";
+const APP_VERSION="v12.7.1";
+const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
 const GRADED_PRICE_CHECK_ENABLED=false;
@@ -1212,16 +1212,16 @@ function setLowestActual(target,listing,checkedAt){
 }
 function lowestActualText(target){
   const listing=target?.tcgLowestActual;
-  if(!listing)return target?.tcgLowestCheckedAt?"No live standard unopened listing found":"Lowest actual listing pending";
+  if(!listing)return target?.tcgLowestCheckedAt?"No verified live standard unopened listing found":"Lowest actual listing pending";
   const price=Number(listing.price||0),shipping=Math.max(0,Number(listing.shipping||0));
   return `Lowest actual: ${money(price)}${shipping>0?` + ${money(shipping)} shipping`:` • free shipping`}`;
 }
 function listingFreshnessLabel(value){
   const age=Date.now()-Date.parse(value||"");
   if(!Number.isFinite(age)||age<0)return "Checking live availability";
-  if(age<45*1000)return "Checked just now";
-  if(age<90*1000)return "Checked 1 minute ago";
-  return `Checked ${Math.max(2,Math.floor(age/60000))} minutes ago`;
+  if(age<45*1000)return "Seller verified live just now";
+  if(age<90*1000)return "Seller verified live 1 minute ago";
+  return `Seller verified live ${Math.max(2,Math.floor(age/60000))} minutes ago`;
 }
 function lowestListingIsFresh(target){
   const checked=Date.parse(target?.tcgLowestCheckedAt||target?.tcgLowestActual?.checkedAt||"");
@@ -1245,7 +1245,7 @@ function lowestActualHref(target){
 function lowestActualMarkup(target){
   if(!target || (target.itemType!=="sealed"&&target.type!=="sealed"))return "";
   const listing=target.tcgLowestActual;
-  if(listing&&!lowestListingIsFresh(target))return `<div class="lowestActualLine listingRefreshing">Refreshing live seller…</div>`;
+  if(listing&&(listing.source!==TCG_LOWEST_SOURCE||!lowestListingIsFresh(target)))return `<div class="lowestActualLine listingRefreshing">Verifying live seller…</div>`;
   if(!listing)return `<div class="${target.tcgLowestCheckedAt?"lowestActualNone":"lowestActualLine"}">${esc(lowestActualText(target))}</div>`;
   const seller=listing.seller?` • ${esc(listing.seller)}`:"";
   const productId=target.tcgProductId||target.productId||"";
@@ -1268,7 +1268,7 @@ async function openLowestActual(event,link){
       if(popup)popup.close();
       const unavailable=document.createElement("span");
       unavailable.className="lowestActualNone";
-      unavailable.textContent="No live standard unopened listing found";
+      unavailable.textContent="No verified live standard unopened listing found";
       link.replaceWith(unavailable);
       toast("No live seller listing is currently available for this product");
       return;
@@ -1318,7 +1318,7 @@ async function fetchSealedLowestActual(product,force=false){
 }
 
 function lowestListingChanged(before,after){
-  const fields=["sellerKey","listingId","price","shipping","quantity","seller"];
+  const fields=["sellerKey","listingId","price","shipping","quantity","seller","source","sellerStatusCheckedAt"];
   if(!before&&!after)return false;
   if(!before||!after)return true;
   return fields.some(field=>String(before?.[field]??"")!==String(after?.[field]??""));
