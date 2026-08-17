@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b1220">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/vendortracker-icon-64.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/vendortracker-icon-180.png">
+<link rel="manifest" href="manifest.json">
 <title>VendorTracker — Inventory, Sales & Profit</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -540,7 +543,7 @@ body.vendorMode .pageHeader{position:sticky;top:0;background:var(--bg);z-index:2
 :root{--vt-ink:#111827;--vt-blue:#3157f6;--vt-violet:#7557ff;--vt-mint:#2dd4bf;--vt-canvas:#f3f6fb;--vt-card:rgba(255,255,255,.92)}
 body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radial-gradient(circle at 95% 10%,#eee9ff 0,transparent 24%),var(--vt-canvas)}
 .appTop{height:72px;padding:0 24px;background:rgba(255,255,255,.82);backdrop-filter:blur(18px);border-bottom:1px solid rgba(203,213,225,.7)}
-.brandMark{border-radius:12px;background:linear-gradient(145deg,var(--vt-blue),var(--vt-violet));box-shadow:0 8px 22px rgba(79,70,229,.28)}
+.brandMark{border-radius:12px;background:url('assets/vendortracker-icon-192.png') center/cover no-repeat;box-shadow:0 8px 22px rgba(79,70,229,.28);font-size:0}
 .syncPill{padding:6px 10px;background:#e8fff8;color:#08745f}.appLayout{grid-template-columns:218px minmax(0,1fr)}
 .sidebar{background:linear-gradient(180deg,#10182b,#111827 58%,#17203a);padding:20px 12px}.sideNav{gap:7px}.sideBtn{padding:12px 14px;border-radius:12px;font-size:14px}.sideBtn.active{background:linear-gradient(135deg,#3157f6,#6247e8);box-shadow:0 8px 24px rgba(49,87,246,.25)}
 .main{padding:30px 32px 44px;max-width:1500px}.pageHeader{margin-bottom:20px}.pageHeader h1{font-size:32px}.pageHeader p{font-size:14px}.panel,.metric,.productCard{background:var(--vt-card);border:1px solid rgba(203,213,225,.72);box-shadow:0 10px 32px rgba(15,23,42,.045)}
@@ -575,7 +578,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 <div id="publicSite">
   <nav class="publicNav">
     <div class="container">
-      <div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div>
+      <div class="brand"><span class="brandMark" aria-hidden="true"></span><span>VendorTracker</span></div>
       <div class="navLinks"><a href="#features">Features</a><a href="#how">How it works</a><a href="#about">Why VendorTracker</a></div>
       <div class="navActions">
         <button class="btn btnGhost" onclick="openAuth('signin')">Sign in</button>
@@ -595,7 +598,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
       </div>
       <div class="mockup">
         <div class="mockInner">
-          <div class="mockTop"><div class="brand"><span class="brandMark">V</span>VendorTracker</div><span class="syncPill">● Synced</span></div>
+          <div class="mockTop"><div class="brand"><span class="brandMark" aria-hidden="true"></span>VendorTracker</div><span class="syncPill">● Synced</span></div>
           <div class="mockCards"><div class="mockCard"><div class="mockLabel">Sales today</div><div class="mockValue">$2,460</div></div><div class="mockCard"><div class="mockLabel">Gross profit</div><div class="mockValue">$1,087</div></div><div class="mockCard"><div class="mockLabel">Inventory cost</div><div class="mockValue">$6,920</div></div></div>
           <div class="mockTable"><div class="mockRow head"><span>Recent sale</span><span>Qty</span><span>Total</span></div><div class="mockRow"><span>Premium Box</span><span>1</span><strong>$85</strong></div><div class="mockRow"><span>Collector Bundle</span><span>2</span><strong>$120</strong></div><div class="mockRow"><span>Single Item</span><span>4</span><strong>$48</strong></div></div>
         </div>
@@ -626,7 +629,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 <div id="authOverlay" class="authOverlay hidden">
   <div class="authShell">
     <aside class="authAside">
-      <div><div class="brand"><span class="brandMark">V</span>VendorTracker</div><h2>Your business,<br>organized.</h2><p>Everything you need to track inventory, transactions and event profitability without a complicated POS system.</p><div class="authPoint">✓ Data synced to your account</div><div class="authPoint">✓ Inventory adjusts after every sale</div><div class="authPoint">✓ Built for phones and desktops</div></div>
+      <div><div class="brand"><span class="brandMark" aria-hidden="true"></span>VendorTracker</div><h2>Your business,<br>organized.</h2><p>Everything you need to track inventory, transactions and event profitability without a complicated POS system.</p><div class="authPoint">✓ Data synced to your account</div><div class="authPoint">✓ Inventory adjusts after every sale</div><div class="authPoint">✓ Built for phones and desktops</div></div>
       <div class="small" style="color:#94a3b8">vendortracker.app</div>
     </aside>
     <main class="authMain">
@@ -647,7 +650,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 <!-- PASSWORD RESET -->
 <div id="resetView" class="authOverlay hidden">
   <div class="resetCard">
-    <div class="resetHeader"><div class="brand"><span class="brandMark">V</span>VendorTracker</div><span class="secureBadge">🔒 Secure account recovery</span><h1>Choose a new password</h1><p>Enter a new password for your VendorTracker account. After it is updated, you'll be returned to your dashboard.</p></div>
+    <div class="resetHeader"><div class="brand"><span class="brandMark" aria-hidden="true"></span>VendorTracker</div><span class="secureBadge">🔒 Secure account recovery</span><h1>Choose a new password</h1><p>Enter a new password for your VendorTracker account. After it is updated, you'll be returned to your dashboard.</p></div>
     <form onsubmit="completePasswordReset(event)"><div class="field"><label>New password</label><input id="newPassword" class="input" type="password" minlength="6" required placeholder="At least 6 characters"></div><div class="field"><label>Confirm new password</label><input id="confirmPassword" class="input" type="password" minlength="6" required placeholder="Re-enter password"></div><button class="btn btnPrimary" style="width:100%;margin-top:8px">Update password</button></form>
     <div id="resetMsg" class="authMsg"></div>
   </div>
@@ -655,7 +658,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header class="appTop"><div class="appLeft"><button class="btn btnGhost menuBtn" onclick="toggleMobileNav()">☰</button><div class="brand"><span class="brandMark">V</span><span>VendorTracker</span></div><span id="syncBadge" class="syncPill">● Synced</span></div><div style="display:flex;align-items:center;gap:10px"><span id="accountEmail" class="small"></span><button class="btn btnGhost" onclick="signOut()">Sign out</button></div></header>
+  <header class="appTop"><div class="appLeft"><button class="btn btnGhost menuBtn" onclick="toggleMobileNav()">☰</button><div class="brand"><span class="brandMark" aria-hidden="true"></span><span>VendorTracker</span></div><span id="syncBadge" class="syncPill">● Synced</span></div><div style="display:flex;align-items:center;gap:10px"><span id="accountEmail" class="small"></span><button class="btn btnGhost" onclick="signOut()">Sign out</button></div></header>
   <div class="appLayout">
     <aside id="sidebar" class="sidebar"><nav class="sideNav simpleSideNav">
       <div class="navLabel">MAIN</div>
