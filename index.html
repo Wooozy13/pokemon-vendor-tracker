@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.1</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.2.0";
+const APP_VERSION="v12.2.1";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1199,7 +1199,8 @@ function fullCardNumber(card){
   if(!total)return raw;
   // Pad purely numeric collector numbers to the width of the set total (32 -> 032/182).
   const shown=/^\d+$/.test(raw)?raw.padStart(String(total).length,"0"):raw;
-  return `${shown}/${total}`;
+  const specialPrefix=raw.match(/^(GG|TG|SV)/i)?.[1]||"";
+  return `${shown}/${specialPrefix}${total}`;
 }
 function prettyFinish(k){
   return ({normal:"Normal",holofoil:"Holofoil",reverseHolofoil:"Reverse Holofoil","1stEditionHolofoil":"1st Edition Holofoil","1stEditionNormal":"1st Edition Normal"})[k]||k;
@@ -2792,21 +2793,36 @@ async function searchPurchaseItem(){
 /* Collector-number search support v11.38.2 — persistent exact cache + original fallback. */
 function vtCollectorParts(raw){
   const m=String(raw||'').trim().toUpperCase().match(/\b([A-Z]*\d+[A-Z]*)\s*\/\s*([A-Z]*\d+[A-Z]*)\b/);
-  return m?{number:m[1],printed:m[0].replace(/\s+/g,'')} : null;
+  if(!m)return null;
+  const number=m[1],denominator=m[2];
+  return {number,denominator,totalDigits:(denominator.match(/\d+/)||[''])[0],printed:`${number}/${denominator}`};
 }
-function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_${c.printed}`:null}
+function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v2_${c.printed}`:null}
 function vtReadCollectorCache(raw){try{const k=vtCollectorCacheKey(raw);if(!k)return[];const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
 function vtWriteCollectorCache(raw,cards){try{const k=vtCollectorCacheKey(raw);if(k&&Array.isArray(cards)&&cards.length)localStorage.setItem(k,JSON.stringify(cards.slice(0,20)))}catch(e){}}
+function vtCollectorNumberEqual(a,b){
+  a=String(a||'').toUpperCase();b=String(b||'').toUpperCase();
+  if(a===b)return true;
+  const am=a.match(/^([A-Z]*)(\d+)([A-Z]*)$/),bm=b.match(/^([A-Z]*)(\d+)([A-Z]*)$/);
+  return !!(am&&bm&&am[1]===bm[1]&&Number(am[2])===Number(bm[2])&&am[3]===bm[3]);
+}
+function vtCollectorMatches(card,c){
+  if(!vtCollectorNumberEqual(card?.number,c.number))return false;
+  const total=Number(card?.set?.printedTotal||card?.set?.total||0);
+  if(!c.totalDigits||total!==Number(c.totalDigits))return false;
+  const numPrefix=(c.number.match(/^[A-Z]+/)||[''])[0],denomPrefix=(c.denominator.match(/^[A-Z]+/)||[''])[0];
+  return !denomPrefix||numPrefix===denomPrefix;
+}
 async function vtExactCollectorLookup(raw){
   const c=vtCollectorParts(raw); if(!c)return [];
   const saved=vtReadCollectorCache(raw);if(saved.length)return saved;
-  const qs=[`number:${c.number}`,`number:${c.number.toLowerCase()}`];
+  const qs=[`number:${c.number} set.printedTotal:${Number(c.totalDigits)}`,`number:${c.number}`];
   for(const q of qs){
     try{
       const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),2800);
-      const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=40`,{signal:ctrl.signal});clearTimeout(timer);
+      const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=100`,{signal:ctrl.signal});clearTimeout(timer);
       if(!r.ok)continue;const j=await r.json();
-      const exact=(j.data||[]).filter(x=>String(fullCardNumber(x)||'').toUpperCase()===c.printed || String(x.number||'').toUpperCase()===c.number);
+      const exact=(j.data||[]).filter(x=>vtCollectorMatches(x,c));
       if(exact.length){vtWriteCollectorCache(raw,exact);return exact;}
     }catch(e){}
   }
@@ -2829,6 +2845,8 @@ const VT_COLLECTOR_SEEDS={
 };
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
 vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const found=await _vtExactCollectorLookupStable(raw);if(found.length)return found;const c=vtCollectorParts(raw);const seed=c&&VT_COLLECTOR_SEEDS[c.printed];if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
+const _vtResolveCardTextExact=resolveCardText;
+resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);if(exact.length)return exact.slice(0,limit)}return _vtResolveCardTextExact(raw,limit)};
 
 
 /* v12 usability helpers: preserve behavior, improve mobile semantics */
