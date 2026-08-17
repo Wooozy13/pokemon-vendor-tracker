@@ -31,12 +31,12 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 
 /* Auth */
 .authOverlay{min-height:100vh;background:radial-gradient(circle at 15% 15%,#dbeafe 0,transparent 32%),#f8fafc;display:grid;place-items:center;padding:28px}.authShell{width:min(980px,100%);display:grid;grid-template-columns:.9fr 1.1fr;background:#fff;border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:var(--shadow)}.authAside{background:linear-gradient(160deg,#0f172a,#1e3a8a);color:#fff;padding:42px;display:flex;flex-direction:column;justify-content:space-between;min-height:620px}.authAside h2{font-size:34px;letter-spacing:-.04em;margin:28px 0 12px}.authAside p{color:#cbd5e1;line-height:1.6}.authPoint{display:flex;gap:10px;margin-top:16px;color:#dbeafe;font-size:14px}.authMain{padding:44px}.authMain h1{font-size:30px;letter-spacing:-.035em;margin:0 0 8px}.authTabs{display:flex;background:#f1f5f9;padding:4px;border-radius:12px;margin:26px 0}.authTab{flex:1;border:0;background:transparent;padding:10px;border-radius:9px;font-weight:800;color:#64748b}.authTab.active{background:#fff;color:#0f172a;box-shadow:0 2px 8px rgba(15,23,42,.08)}
-.field{margin:14px 0}.field label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.input{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px 13px;background:#fff;outline:none}.input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}.authRow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0 18px}.linkBtn{border:0;background:none;padding:0;color:var(--brand);font-weight:750;font-size:13px}.authMsg{margin-top:14px;border-radius:10px;padding:11px 12px;font-size:13px;background:#f8fafc;color:#475569;border:1px solid var(--line)}.authMsg:empty{display:none}.authMsg.error{background:#fff1f2;color:#9f1239;border-color:#fecdd3}.authMsg.success{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
+.field{margin:14px 0}.field label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.input{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px 13px;background:#fff;outline:none}.input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}.authRow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0 18px}.linkBtn{border:0;background:none;padding:0;color:var(--brand);font-weight:750;font-size:13px;text-decoration:none;cursor:pointer}.authMsg{margin-top:14px;border-radius:10px;padding:11px 12px;font-size:13px;background:#f8fafc;color:#475569;border:1px solid var(--line)}.authMsg:empty{display:none}.authMsg.error{background:#fff1f2;color:#9f1239;border-color:#fecdd3}.authMsg.success{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
 .resetCard{width:min(520px,100%);background:#fff;border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:var(--shadow)}.resetHeader{text-align:center}.resetHeader .brand{justify-content:center}.resetHeader h1{font-size:28px;margin:24px 0 8px}.resetHeader p{color:#64748b;line-height:1.55}.secureBadge{display:inline-flex;gap:7px;align-items:center;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:800;margin-top:10px}
 
 /* App shell */
 #app{min-height:100vh}.appTop{height:66px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:40}.appLeft{display:flex;align-items:center;gap:12px}.menuBtn{display:none}.syncPill{font-size:12px;font-weight:800;border-radius:999px;padding:7px 10px;background:#ecfdf5;color:#166534}.syncPill.bad{background:#fef2f2;color:#991b1b}.appLayout{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 66px)}.sidebar{background:#0f172a;color:#cbd5e1;padding:18px 14px;position:sticky;top:66px;height:calc(100vh - 66px)}.sideNav{display:flex;flex-direction:column;gap:4px}.sideBtn{border:0;background:transparent;color:#cbd5e1;text-align:left;padding:11px 12px;border-radius:9px;font-weight:700}.sideBtn:hover{background:#1e293b}.sideBtn.active{background:#1e3a8a;color:#fff}.sideBottom{position:absolute;bottom:18px;left:14px;right:14px}.main{padding:28px;max-width:1400px;width:100%}.page{display:none}.page.active{display:block}.pageHeader{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:22px}.pageHeader h1{font-size:30px;letter-spacing:-.04em;margin:0}.pageHeader p{margin:5px 0 0;color:#64748b}
-.cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.metric{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.metricLabel{font-size:12px;color:#64748b;font-weight:700}.metricValue{font-size:24px;font-weight:850;margin-top:5px;letter-spacing:-.03em}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px}.panelHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.panelHead h3{margin:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:720px;font-size:13px}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #edf2f7}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}tr:last-child td{border-bottom:0}.stockLow{color:#b45309;font-weight:800}.actions{display:flex;gap:6px;flex-wrap:wrap}.miniBtn{border:0;border-radius:8px;padding:7px 9px;font-size:12px;font-weight:800}.productGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}.productCard{border:1px solid var(--line);background:#fff;border-radius:14px;padding:15px}.productCard h4{margin:0 0 5px}.paymentBtns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.paymentBtns button{border:0;border-radius:8px;padding:10px 5px;font-weight:800}.cash{background:#dcfce7;color:#166534}.cashapp{background:#ecfccb;color:#3f6212}.zelle{background:#ede9fe;color:#5b21b6}.venmo{background:#e0f2fe;color:#075985}.applepay{background:#f1f5f9;color:#111827}.cardpay{background:#e2e8f0;color:#334155}.empty{padding:28px;text-align:center;color:#64748b}.bottomNav{display:none}
+.cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.metric{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.metricLabel{font-size:12px;color:#64748b;font-weight:700}.metricValue{font-size:24px;font-weight:850;margin-top:5px;letter-spacing:-.03em}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px}.panelHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.panelHead h3{margin:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:720px;font-size:13px}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #edf2f7}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}tr:last-child td{border-bottom:0}.stockLow{color:#b45309;font-weight:800}.actions{display:flex;gap:6px;flex-wrap:wrap}.miniBtn{border:0;border-radius:8px;padding:7px 9px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;cursor:pointer}.productGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}.productCard{border:1px solid var(--line);background:#fff;border-radius:14px;padding:15px}.productCard h4{margin:0 0 5px}.paymentBtns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.paymentBtns button{border:0;border-radius:8px;padding:10px 5px;font-weight:800}.cash{background:#dcfce7;color:#166534}.cashapp{background:#ecfccb;color:#3f6212}.zelle{background:#ede9fe;color:#5b21b6}.venmo{background:#e0f2fe;color:#075985}.applepay{background:#f1f5f9;color:#111827}.cardpay{background:#e2e8f0;color:#334155}.empty{padding:28px;text-align:center;color:#64748b}.bottomNav{display:none}
 .toast{position:fixed;right:18px;bottom:18px;background:#0f172a;color:#fff;padding:12px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:80;font-size:13px}
 
 /* Responsive */
@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.4.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.4.1</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.4.0";
+const APP_VERSION="v12.4.1";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1175,21 +1175,27 @@ function clearProductPhotoForm(){
   const market=document.getElementById("pMarketDisplay");if(market)market.textContent="—";
   const updated=document.getElementById("pMarketUpdated");if(updated)updated.textContent="";
 }
-function tcgLookup(name, directUrl=""){
+function tcgPlayerHref(name, directUrl="", productId=""){
   // Only allow direct links that are actually on tcgplayer.com.
   try{
     if(directUrl){
-      const u=new URL(directUrl);
+      const u=new URL(directUrl,"https://www.tcgplayer.com");
       const host=u.hostname.toLowerCase();
       if(host==="tcgplayer.com" || host==="www.tcgplayer.com" || host.endsWith(".tcgplayer.com")){
-        window.open(u.href,"_blank","noopener");
-        return;
+        return u.href;
       }
     }
   }catch(e){}
+  // Sealed products retain their TCGplayer product ID, so older saved items can
+  // still open the exact listing even if their stored URL is missing.
+  const exactId=String(productId||"").trim();
+  if(/^\d+$/.test(exactId))return `https://www.tcgplayer.com/product/${exactId}`;
   // Safe fallback: search directly on TCGplayer.
-  const q=encodeURIComponent(name);
-  window.open("https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid","_blank","noopener");
+  const q=encodeURIComponent(String(name||"Pokemon card").trim()||"Pokemon card").replace(/'/g,"%27");
+  return "https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid";
+}
+function tcgLookup(name, directUrl="", productId=""){
+  window.open(tcgPlayerHref(name,directUrl,productId),"_blank","noopener,noreferrer");
 }
 
 function fullCardNumber(card){
@@ -2993,7 +2999,7 @@ function renderSaleProducts(){
    <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span>${inCart?` • ${inCart} in cart`:""}</div>
    <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}</div>
    <button class="btn btnPrimary addCartBtn" onclick="addToCart('${p.id}')" ${p.qty<=inCart?"disabled":""}>${p.qty<=0?"Sold out":p.qty<=inCart?"All stock in cart":"Add to cart"}</button>
-   <div style="margin-top:7px;text-align:center"><button class="linkBtn" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button></div>
+   <div style="margin-top:7px;text-align:center"><a class="linkBtn" href="${esc(tcgPlayerHref(p.name,p.tcgUrl||"",p.tcgProductId||""))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a></div>
    </div>`;
  }).join(""):`<div class="empty">No matching products.</div>`;
 }
@@ -3087,7 +3093,7 @@ function renderInventory(){
    <td data-label="Actions"><div class="actions">
      <button class="miniBtn btnSuccess" onclick="saveInventoryChanges('${p.id}')">Save changes</button>
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
-     <button class="miniBtn btnSoft" onclick='tcgLookup(${JSON.stringify(p.name)}, ${JSON.stringify(p.tcgUrl||"")})'>TCGplayer ↗</button>
+     <a class="miniBtn btnSoft" href="${esc(tcgPlayerHref(p.name,p.tcgUrl||"",p.tcgProductId||""))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a>
      <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
    </div></td>
    </tr>`;
