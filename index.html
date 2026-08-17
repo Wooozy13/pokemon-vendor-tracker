@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.3</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.3.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.2.3";
+const APP_VERSION="v12.3.0";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2797,7 +2797,7 @@ function vtCollectorParts(raw){
   const number=m[1],denominator=m[2];
   return {number,denominator,totalDigits:(denominator.match(/\d+/)||[''])[0],printed:`${number}/${denominator}`};
 }
-function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v3_${c.printed}`:null}
+function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v4_${c.printed}`:null}
 function vtReadCollectorCache(raw){try{const k=vtCollectorCacheKey(raw);if(!k)return[];const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
 function vtWriteCollectorCache(raw,cards){try{const k=vtCollectorCacheKey(raw);if(k&&Array.isArray(cards)&&cards.length)localStorage.setItem(k,JSON.stringify(cards.slice(0,20)))}catch(e){}}
 function vtCollectorNumberEqual(a,b){
@@ -2813,29 +2813,72 @@ function vtCollectorMatches(card,c){
   const numPrefix=(c.number.match(/^[A-Z]+/)||[''])[0],denomPrefix=(c.denominator.match(/^[A-Z]+/)||[''])[0];
   return !denomPrefix||numPrefix===denomPrefix;
 }
+function vtTcgdexPriceMap(card){
+  const src=card?.pricing?.tcgplayer||{},out={};
+  const add=(key,v)=>{if(v)out[key]={low:v.lowPrice??null,mid:v.midPrice??null,high:v.highPrice??null,market:v.marketPrice??null,directLow:v.directLowPrice??null}};
+  add('normal',src.normal);add('holofoil',src.holofoil);add('reverseHolofoil',src['reverse-holofoil']||src.reverseHolofoil);
+  return out;
+}
+function vtFromTcgdex(card,brief){
+  const prices=vtTcgdexPriceMap(card),product=Object.values(card?.pricing?.tcgplayer||{}).find(v=>v&&typeof v==='object'&&v.productId)?.productId;
+  const image=card?.image||brief?.image||'';
+  return {id:card.id,name:card.name,number:String(card.localId||''),rarity:card.rarity||'',set:{id:card.set?.id||'',name:card.set?.name||'',printedTotal:card.set?.cardCount?.official||0,total:card.set?.cardCount?.total||0},images:{small:image?image+'/low.png':'',large:image?image+'/high.png':''},tcgplayer:{url:product?`https://www.tcgplayer.com/product/${product}`:'',updatedAt:card?.pricing?.tcgplayer?.updated||'',prices}};
+}
+let vtTcgdexSetsJob;
+function vtTcgdexSetId(brief){
+  const suffix=`-${brief?.localId||''}`;
+  return String(brief?.id||'').endsWith(suffix)?String(brief.id).slice(0,-suffix.length):'';
+}
+async function vtTcgdexSets(){
+  if(!vtTcgdexSetsJob)vtTcgdexSetsJob=fetch('https://api.tcgdex.net/v2/en/sets').then(r=>r.ok?r.json():[]).catch(()=>[]);
+  return vtTcgdexSetsJob;
+}
+async function vtTcgdexCollectorLookup(c){
+  try{
+    const numericOnly=/^\d+$/.test(c.number),lookup=numericOnly?String(Number(c.number)):c.number;
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
+    const [listRes,sets]=await Promise.all([fetch(`https://api.tcgdex.net/v2/en/cards?localId=${encodeURIComponent(lookup)}`,{signal:ctrl.signal}),vtTcgdexSets()]);clearTimeout(timer);
+    if(!listRes.ok){vtCollectorIssues.push(listRes.status===429?'rate':'service');return[]}
+    const matchingSets=new Set((sets||[]).filter(s=>Number(s.cardCount?.official||0)===Number(c.totalDigits)).map(s=>s.id));
+    const briefs=(await listRes.json()).filter(x=>vtCollectorNumberEqual(x.localId,c.number)&&(!matchingSets.size||matchingSets.has(vtTcgdexSetId(x)))).slice(0,20);
+    const details=await Promise.all(briefs.map(async brief=>{try{const r=await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(brief.id)}`);if(!r.ok)return null;const card=await r.json();return vtCollectorMatches({number:card.localId,set:{printedTotal:card.set?.cardCount?.official,total:card.set?.cardCount?.total}},c)?vtFromTcgdex(card,brief):null}catch(e){return null}}));
+    return details.filter(Boolean);
+  }catch(e){vtCollectorIssues.push(e?.name==='AbortError'?'timeout':'service');return[]}
+}
+let vtCollectorIssues=[];
+function vtCollectorFailureMessage(c){
+  if(vtCollectorIssues.includes('rate'))return 'Card search is temporarily busy. Please wait a moment and try again.';
+  if(vtCollectorIssues.includes('timeout'))return 'Card search timed out before the databases responded. Please try again.';
+  if(vtCollectorIssues.includes('service')&&vtCollectorIssues.length>=2)return 'Card search services are temporarily unavailable. Please try again shortly.';
+  return `Card not found for ${c.printed}. Check that both parts of the collector number are correct.`;
+}
+async function vtPrimaryCollectorLookup(c){
+  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
+  try{
+    const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(`number:${c.number}`)}&pageSize=40`,{signal:ctrl.signal});
+    if(!r.ok){vtCollectorIssues.push(r.status===429?'rate':'service');return[]}
+    const j=await r.json();return(j.data||[]).filter(x=>vtCollectorMatches(x,c));
+  }catch(e){vtCollectorIssues.push(e?.name==='AbortError'?'timeout':'service');return[]}
+  finally{clearTimeout(timer)}
+}
 async function vtExactCollectorLookup(raw){
   const c=vtCollectorParts(raw); if(!c)return [];
   const saved=vtReadCollectorCache(raw);if(saved.length)return saved;
-  // The public card API is occasionally slow or returns a transient 5xx, so retry the same exact query once.
-  const qs=[`number:${c.number}`,`number:${c.number}`];
-  for(const q of qs){
-    try{
-      const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),8000);
-      const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=40`,{signal:ctrl.signal});clearTimeout(timer);
-      if(!r.ok)continue;const j=await r.json();
-      const exact=(j.data||[]).filter(x=>vtCollectorMatches(x,c));
-      if(exact.length){vtWriteCollectorCache(raw,exact);return exact;}
-    }catch(e){}
-  }
-  return [];
+  vtCollectorIssues=[];
+  const exact=await firstNonEmpty([vtPrimaryCollectorLookup(c),vtTcgdexCollectorLookup(c)]);
+  if(exact.length){vtWriteCollectorCache(raw,exact);return exact}
+  return[];
 }
 const vtOriginalSearchPokemonCards = searchPokemonCards;
 searchPokemonCards = async function(){
   const raw=document.getElementById('pName')?.value?.trim()||'';
-  if(vtCollectorParts(raw)){
+  const collector=vtCollectorParts(raw);
+  if(collector){
     const status=document.getElementById('cardLookupStatus'); if(status)status.textContent='Searching collector number…';
     const exact=await vtExactCollectorLookup(raw);
     if(exact.length){vtWriteCollectorCache(raw,exact);currentLookupResults=exact;renderCardLookup(exact);document.getElementById('cardLookupModal')?.classList.remove('hidden');if(status)status.textContent=`Found ${exact.length} exact collector-number match${exact.length===1?'':'es'}.`;return;}
+    if(status)status.textContent=vtCollectorFailureMessage(collector);
+    return;
   }
   return vtOriginalSearchPokemonCards();
 };
@@ -2846,9 +2889,9 @@ const VT_COLLECTOR_SEEDS={
  'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG56',updatedAt:'2026/08/17',prices:{holofoil:{low:47,mid:53.59,high:459.99,market:51.11,directLow:57.98}}}}
 };
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
-vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const found=await _vtExactCollectorLookupStable(raw);if(found.length)return found;const c=vtCollectorParts(raw);const seed=c&&VT_COLLECTOR_SEEDS[c.printed];if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
+vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const c=vtCollectorParts(raw),seed=c&&VT_COLLECTOR_SEEDS[c.printed];const found=await _vtExactCollectorLookupStable(raw);if(found.length){if(seed)found.forEach(x=>{if(!Object.keys(x.tcgplayer?.prices||{}).length)x.tcgplayer=seed.tcgplayer});vtWriteCollectorCache(raw,found);return found}if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
 const _vtResolveCardTextExact=resolveCardText;
-resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);if(exact.length)return exact.slice(0,limit)}return _vtResolveCardTextExact(raw,limit)};
+resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);return exact.slice(0,limit)}return _vtResolveCardTextExact(raw,limit)};
 
 
 /* v12 usability helpers: preserve behavior, improve mobile semantics */
