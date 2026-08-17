@@ -958,7 +958,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.10.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.11.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1119,7 +1119,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.10.0";
+const APP_VERSION="v12.11.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1904,9 +1904,20 @@ function artworkSignature(canvas,area){
   mean/=count;let variance=0;for(let i=0;i<luma.length;i++)if(valid[i])variance+=(luma[i]-mean)**2;const deviation=Math.sqrt(variance/count)||1;
   return {key:area.key,luma:luma.map((value,index)=>valid[index]?(value-mean)/deviation:0),valid,hist:hist.map(value=>value/count)};
 }
+const VT_ARTWORK_AREAS=[
+  {key:"full",weight:.16,x:.025,y:.025,w:.95,h:.95},
+  {key:"art",weight:.24,x:.055,y:.135,w:.89,h:.48},
+  {key:"body",weight:.12,x:.04,y:.09,w:.92,h:.64},
+  {key:"center",weight:.08,x:.095,y:.17,w:.81,h:.40},
+  {key:"left",weight:.05,x:.055,y:.135,w:.47,h:.48},
+  {key:"right",weight:.05,x:.475,y:.135,w:.47,h:.48},
+  {key:"top",weight:.08,x:.05,y:.035,w:.90,h:.14},
+  {key:"lower",weight:.09,x:.055,y:.61,w:.89,h:.27},
+  {key:"footer",weight:.07,x:.05,y:.83,w:.90,h:.12},
+  {key:"number",weight:.06,x:.48,y:.79,w:.46,h:.16}
+];
 function artworkSignatureSet(image,detectBounds=false){
-  const card=normalizedCardCanvas(image,detectBounds);
-  return [{key:"art",x:.055,y:.135,w:.89,h:.48},{key:"body",x:.04,y:.09,w:.92,h:.64},{key:"center",x:.095,y:.17,w:.81,h:.40},{key:"left",x:.055,y:.135,w:.47,h:.48},{key:"right",x:.475,y:.135,w:.47,h:.48}].map(area=>artworkSignature(card,area));
+  const card=normalizedCardCanvas(image,detectBounds);return VT_ARTWORK_AREAS.map(area=>artworkSignature(card,area));
 }
 function artworkSignatureSimilarity(left,right){
   let dot=0,leftSq=0,rightSq=0,count=0;for(let i=0;i<left.luma.length;i++){if(left.valid?.[i]===false||right.valid?.[i]===false)continue;dot+=left.luma[i]*right.luma[i];leftSq+=left.luma[i]**2;rightSq+=right.luma[i]**2;count++}
@@ -1914,7 +1925,15 @@ function artworkSignatureSimilarity(left,right){
   const correlation=Math.max(-1,Math.min(1,dot/(Math.sqrt(leftSq*rightSq)||1)));let histogram=0;for(let i=0;i<left.hist.length;i++)histogram+=Math.min(left.hist[i],right.hist[i]);
   return .76*((correlation+1)/2)+.24*histogram;
 }
-function bestArtworkSimilarity(scanSignatures,referenceSignatures){let best=0;for(const scan of scanSignatures)for(const reference of referenceSignatures)if(!scan.key||!reference.key||scan.key===reference.key)best=Math.max(best,artworkSignatureSimilarity(scan,reference));return best}
+function bestArtworkSimilarity(scanSignatures,referenceSignatures){
+  let weighted=0,totalWeight=0;
+  for(const area of VT_ARTWORK_AREAS){
+    let regionBest=0;
+    for(const scan of scanSignatures){if(scan.key!==area.key)continue;for(const reference of referenceSignatures)if(reference.key===area.key)regionBest=Math.max(regionBest,artworkSignatureSimilarity(scan,reference))}
+    if(regionBest>0){weighted+=regionBest*area.weight;totalWeight+=area.weight}
+  }
+  return totalWeight?weighted/totalWeight:0;
+}
 function visualRegionPixels(card,area,width,height){
   const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;const context=canvas.getContext("2d",{willReadFrequently:true});
   context.drawImage(card,card.width*area.x,card.height*area.y,card.width*area.w,card.height*area.h,0,0,width,height);
@@ -1978,12 +1997,13 @@ async function officialCardArtworkSignatures(card){
   const job=(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);try{const response=await fetch(source,{signal:controller.signal,cache:"force-cache"});if(!response.ok)throw new Error("Artwork unavailable");const blob=await response.blob();const image=window.createImageBitmap?await createImageBitmap(blob):await new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Artwork unavailable"))};img.src=url});try{return artworkSignatureSet(image)}finally{if(image?.close)image.close()}}finally{clearTimeout(timer)}})();
   cardArtworkSignatureCache.set(source,job);try{return await job}catch(error){cardArtworkSignatureCache.delete(source);throw error}
 }
-async function verifyCardArtwork(image,matches,limit=7){
-  const scanSignatures=[...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)],limited=matches.slice(0,limit);
-  const scored=(await Promise.all(limited.map(async card=>{try{const detailScore=bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card)),indexScore=Number(card._vtVisualIndexScore||0);return {card,detailScore,indexScore,score:.62*detailScore+.38*indexScore}}catch{return null}}))).filter(Boolean).sort((a,b)=>b.score-a.score);
+function cardScanArtworkSignatures(image){return [...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)]}
+async function verifyCardArtwork(image,matches,limit=7,preparedSignatures=null){
+  const scanSignatures=preparedSignatures||cardScanArtworkSignatures(image),limited=matches.slice(0,limit);
+  const scored=(await Promise.all(limited.map(async card=>{try{const detailScore=bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card)),indexScore=Number(card._vtVisualIndexScore||0);return {card,detailScore,indexScore,score:.86*detailScore+.14*indexScore}}catch{return null}}))).filter(Boolean).sort((a,b)=>b.score-a.score);
   if(!scored.length)return {verified:false,reason:"Official artwork could not be loaded",scored:[]};
-  const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,verified=best.score>=.64&&(!second||margin>=.018);
-  return {verified,card:best.card,score:best.score,margin,scored,reason:verified?"":best.score<.64?"Photo and official artwork were not similar enough":"Two printings have nearly identical artwork"};
+  const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,verified=best.score>=.70&&best.detailScore>=.68&&(!second||margin>=.025);
+  return {verified,card:best.card,score:best.score,margin,scored,reason:verified?"":best.score<.70||best.detailScore<.68?"Photo and official artwork were not similar enough":"Two printings have nearly identical artwork"};
 }
 function cardScanMarket(card,selectedFinish=""){
   const prices=card?.tcgplayer?.prices||{},finishes=Object.keys(prices);
@@ -1991,30 +2011,32 @@ function cardScanMarket(card,selectedFinish=""){
   return {prices,finish,market:currentMarketFromPrices(prices,finish)};
 }
 async function readCardScanPhoto(entry){
-  entry.state="scanning";entry.error="";entry.message="Preparing artwork scan…";entry.progress=2;entry.detectedName="";entry.detectedNumber="";renderCardScanQueue();
+  entry.state="scanning";entry.card=null;entry.closestCard=null;entry.matches=[];entry.finish="";entry.price="";entry.error="";entry.message="Preparing artwork scan…";entry.progress=2;entry.detectedName="";entry.detectedNumber="";entry.artScore=0;entry.artMargin=0;entry.artVerified=false;renderCardScanQueue();
   let image;
   try{
     image=await scanImageSource(entry.file);
     entry.message="Loading the visual card library…";entry.progress=12;renderCardScanQueue();
     const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
     entry.message=`Comparing artwork against ${Number(index.count||index.entries.length).toLocaleString()} cards…`;entry.progress=42;renderCardScanQueue();
-    const nearest=closestVisualIndexEntries(fingerprints,index,24);
-    entry.message="Checking the closest official cards…";entry.progress=66;renderCardScanQueue();
-    let matches=await fetchVisualCandidateCards(nearest.slice(0,7));
-    if(!matches.length){entry.state="error";entry.error="The official artwork matches could not be loaded. Check your connection and try again.";renderCardScanQueue();return}
-    entry.message=`Verifying ${matches.length} closest artwork match${matches.length===1?"":"es"}…`;entry.progress=84;renderCardScanQueue();
-    let artwork=await verifyCardArtwork(image,matches,7);
-    if((!artwork.card||(artwork.score||0)<.62)&&nearest.length>7){
-      entry.message="Checking more artwork because of glare or angle…";entry.progress=90;renderCardScanQueue();
-      matches=uniqueCards([...matches,...await fetchVisualCandidateCards(nearest.slice(7,20))]);artwork=await verifyCardArtwork(image,matches,20);
+    const nearest=closestVisualIndexEntries(fingerprints,index,56),scanSignatures=cardScanArtworkSignatures(image),stages=[[0,8,68],[8,24,84],[24,56,94]];let matches=[],artwork={verified:false,scored:[]};
+    for(let stageIndex=0;stageIndex<stages.length;stageIndex++){
+      const [start,end,progress]=stages[stageIndex];entry.message=stageIndex?"Checking more exact artwork because the first result was uncertain…":"Checking the closest official cards…";entry.progress=progress;renderCardScanQueue();
+      try{matches=uniqueCards([...matches,...await fetchVisualCandidateCards(nearest.slice(start,end))])}catch(error){if(!matches.length)throw error}
+      if(!matches.length)continue;entry.message=`Verifying ${matches.length} exact artwork candidate${matches.length===1?"":"s"}…`;entry.progress=Math.min(98,progress+6);renderCardScanQueue();
+      artwork=await verifyCardArtwork(image,matches,matches.length,scanSignatures);
+      const fastCertain=stageIndex===0&&artwork.verified&&(artwork.score||0)>=.82&&(artwork.margin||0)>=.05;
+      if(fastCertain||(stageIndex>0&&artwork.verified))break;
     }
+    if(!matches.length){entry.state="error";entry.error="The official artwork matches could not be loaded. Check your connection and try again.";renderCardScanQueue();return}
     entry.matches=(artwork.scored||[]).map(item=>item.card);
     entry.artScore=artwork.score||0;entry.artMargin=artwork.margin||0;entry.artVerified=artwork.verified;
     const bestCard=artwork.card||entry.matches[0]||matches[0];
-    if(bestCard&&(artwork.score||0)>=.42){
+    if(bestCard&&artwork.verified){
       entry.card=bestCard;entry.matches=uniqueCards([bestCard,...entry.matches]);entry.state="ready";entry.progress=100;entry.message=artwork.verified?"Scan matched":"Closest artwork match selected";
       const pricing=cardScanMarket(bestCard);entry.finish=entry.finish||pricing.finish;if(entry.price===""&&pricing.market!=null)entry.price=Number(pricing.market).toFixed(2);
       renderCardScanQueue();hydrateScannedCard(entry);
+    }else if(bestCard&&(artwork.score||0)>=.56){
+      entry.card=null;entry.closestCard=bestCard;entry.matches=uniqueCards([bestCard,...entry.matches]);entry.state="review";entry.progress=100;entry.message="This scan was too close to call safely. Nothing was selected. Rescan, or check the single closest result.";renderCardScanQueue();
     }else{
       entry.card=null;entry.state="error";entry.progress=100;entry.error="No reliable card match was found. Center one clear card in the guide and scan again.";renderCardScanQueue();
     }
@@ -2036,8 +2058,8 @@ function renderCardScanQueue(){
   const markup=`<div class="scanSessionBar"><div><strong>Card scanning</strong><div class="small">${ready.length} matched • ${cardScanQueue.length} card${cardScanQueue.length===1?"":"s"} scanned</div></div><div class="scanActions"><button class="btn btnGhost" style="padding:8px 11px" onclick="openCardScanner()">▣ Scan more</button><button class="btn btnPrimary" style="padding:8px 11px" onclick="completeCardScanSession()" ${!ready.length||scanning?"disabled":""}>Complete / Add ${totalQty||""}</button><button class="miniBtn btnDanger" onclick="clearCardScanQueue()">Clear</button></div></div>`+
     cardScanQueue.map((entry,index)=>{
       const card=entry.card,pricing=cardScanMarket(card,entry.finish),market=pricing.market;
-      const artworkBadge=entry.artVerified?`<span class="artworkVerified">✓ Scan match</span>`:entry.state==="ready"?`<span class="manualVerified">Closest match</span>`:"";
-      const status=entry.state==="ready"?`<span class="scanGood">${esc(card.name)} — ${esc(card.set?.name||"")} #${esc(fullCardNumber(card))}${market!=null?` • ${money(market)}`:""}</span>${artworkBadge}`:entry.state==="error"?`<span class="scanBad">${esc(entry.error)}</span>`:esc(entry.message||"Waiting…");
+      const artworkBadge=entry.artVerified?`<span class="artworkVerified">✓ Scan match</span>`:entry.state==="ready"?`<span class="manualVerified">Confirmed by you</span>`:"";
+      const status=entry.state==="ready"?`<span class="scanGood">${esc(card.name)} — ${esc(card.set?.name||"")} #${esc(fullCardNumber(card))}${market!=null?` • ${money(market)}`:""}</span>${artworkBadge}`:entry.state==="review"?`<span class="scanBad">${esc(entry.message)}</span>`:entry.state==="error"?`<span class="scanBad">${esc(entry.error)}</span>`:esc(entry.message||"Waiting…");
       const progress=entry.state==="scanning"?`<div class="scanProgress"><span style="width:${entry.progress||2}%"></span></div>`:"";
       const readyFields=entry.state==="ready"?`<div class="scanEntryFields">
         <label>Quantity<input class="input" type="number" min="1" value="${Math.max(1,Number(entry.qty)||1)}" onchange="setCardScanQty('${entry.id}',this.value)"></label>
@@ -2048,13 +2070,14 @@ function renderCardScanQueue(){
       </div>`:"";
       let actions=`<button class="miniBtn btnDanger" onclick="removeCardScan('${entry.id}')">Remove</button>`;
       if(entry.state==="ready")actions=`<button class="miniBtn closestMatchBtn" onclick="reviewScanMatches('${entry.id}')">Check match</button>${card?.tcgplayer?.url?`<a class="miniBtn btnSoft" href="${esc(tcgPlayerHref(card.name,card.tcgplayer.url))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a>`:""}${actions}`;
+      else if(entry.state==="review")actions=`<button class="miniBtn closestMatchBtn" onclick="reviewScanMatches('${entry.id}')">Check closest result</button><button class="miniBtn btnSoft" onclick="retryCardScan('${entry.id}')">Rescan</button>${actions}`;
       else if(entry.state==="error")actions=`<button class="miniBtn btnSoft" onclick="retryCardScan('${entry.id}')">Retry</button>${actions}`;
       return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Scanned card ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${progress}${readyFields}</div><div class="scanActions">${actions}</div></div>`;
     }).join("");
   queues.forEach(queue=>queue.innerHTML=markup);
   if(completeButton){completeButton.disabled=!ready.length||scanning;completeButton.textContent=`Complete / Add${totalQty?` ${totalQty}`:""}`}
 }
-function createCardScanEntry(file,preview){return {id:`scan_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,file,preview,qty:1,condition:"Near Mint",finish:"",cost:"",price:"",state:"waiting",message:"Waiting to scan…",progress:0,matches:[],card:null,error:"",detectedName:"",detectedNumber:"",artScore:0,artMargin:0,artVerified:false}}
+function createCardScanEntry(file,preview){return {id:`scan_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,file,preview,qty:1,condition:"Near Mint",finish:"",cost:"",price:"",state:"waiting",message:"Waiting to scan…",progress:0,matches:[],card:null,closestCard:null,error:"",detectedName:"",detectedNumber:"",artScore:0,artMargin:0,artVerified:false}}
 async function scanCardPhotos(fileList){
   const files=Array.from(fileList||[]).filter(file=>String(file.type||"").startsWith("image/"));
   document.querySelectorAll('#scanPhotos,[data-scan-queue] input[type="file"]').forEach(input=>input.value="");
@@ -2072,10 +2095,10 @@ function removeCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);i
 function clearCardScanQueue(){cardScanQueue.forEach(entry=>entry.preview&&URL.revokeObjectURL(entry.preview));cardScanQueue=[];scanReviewContextId=null;renderCardScanQueue()}
 function retryCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);if(entry)readCardScanPhoto(entry)}
 function reviewScanMatches(id){
-  const entry=cardScanQueue.find(item=>item.id===id);if(!entry?.card&&!entry?.matches?.length)return toast("No scan match is available");
-  const closest=entry.card||entry.matches[0];scanReviewContextId=id;currentLookupResults=[closest];renderCardLookup([closest]);
+  const entry=cardScanQueue.find(item=>item.id===id);if(!entry?.card&&!entry?.closestCard&&!entry?.matches?.length)return toast("No scan match is available");
+  const closest=entry.card||entry.closestCard||entry.matches[0];scanReviewContextId=id;currentLookupResults=[closest];renderCardLookup([closest]);
   document.getElementById("cardLookupTitle").textContent="Closest scan match";
-  document.getElementById("lookupSummary").textContent="This is the single closest artwork match. If it is wrong, close this view, remove it, and scan the card again.";
+  document.getElementById("lookupSummary").textContent="This is the single closest artwork result. Tap it only if the artwork, set, and card number are correct; otherwise close this view and rescan.";
   document.getElementById("cardLookupModal").classList.remove("hidden");
 }
 function completeCardScanSession(){
@@ -2110,7 +2133,7 @@ function selectPokemonCard(i){
   const c=currentLookupResults[i];if(!c)return;
   if(scanReviewContextId){
     const entry=cardScanQueue.find(item=>item.id===scanReviewContextId);
-    if(entry){entry.card=c;entry.state="ready";entry.message="Card match manually confirmed";entry.artVerified=false;entry.matches=uniqueCards([c,...(entry.matches||[])]);hydrateScannedCard(entry)}
+    if(entry){entry.card=c;entry.closestCard=c;entry.state="ready";entry.message="Card match manually confirmed";entry.artVerified=false;entry.matches=uniqueCards([c,...(entry.matches||[])]);const pricing=cardScanMarket(c);entry.finish=entry.finish||pricing.finish;if(entry.price===""&&pricing.market!=null)entry.price=Number(pricing.market).toFixed(2);hydrateScannedCard(entry)}
     scanReviewContextId=null;closeCardLookup();renderCardScanQueue();return;
   }
   if(c._vtPricePending)return toast("TCGPlayer pricing is still loading…");
