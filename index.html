@@ -626,12 +626,12 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
   .simpleBottomNav button>span:first-child{display:block!important;line-height:1;font-size:19px!important}
 }
 
-/* v12.9 continuous card scanner, staged inventory details, and expense dates */
+/* v12.10 glare-tolerant continuous scanner, staged inventory details, and expense dates */
 .inventoryItemFields{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch;padding-top:12px;border-top:1px solid var(--line)}
 .inventoryItemFields .priceBox{min-height:82px}.scannerBack{padding:0;background:#030712}.scannerModal{width:min(620px,100%);height:min(940px,100dvh);display:flex;flex-direction:column;background:#050a18;color:#fff;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:24px;box-shadow:0 32px 100px rgba(0,0,0,.55)}
 .scannerHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:rgba(5,10,24,.96);border-bottom:1px solid rgba(255,255,255,.1)}.scannerHead h2{margin:0;font-size:20px}.scannerHead .small{color:#a9b8d5}.scannerHead .btnGhost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:#fff}
-.scannerViewport{position:relative;flex:1;min-height:360px;overflow:hidden;background:#020617}.scannerViewport video{width:100%;height:100%;object-fit:cover;display:block}.scannerShade{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 39% 43% at 50% 47%,transparent 97%,rgba(2,6,23,.68) 100%)}
-.scannerGuide{position:absolute;left:50%;top:47%;height:min(68vh,72%);aspect-ratio:2.5/3.5;transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.92);border-radius:18px;box-shadow:0 0 0 999px rgba(2,6,23,.34),0 0 28px rgba(43,217,255,.24);pointer-events:none}.scannerGuide:before,.scannerGuide:after{content:"";position:absolute;width:42px;height:42px;border-color:#41e4ff}.scannerGuide:before{left:-3px;top:-3px;border-left:5px solid #41e4ff;border-top:5px solid #41e4ff;border-radius:16px 0 0}.scannerGuide:after{right:-3px;bottom:-3px;border-right:5px solid #41e4ff;border-bottom:5px solid #41e4ff;border-radius:0 0 16px}
+.scannerViewport{position:relative;flex:1;min-height:360px;overflow:hidden;background:#020617}.scannerViewport video{width:100%;height:100%;object-fit:cover;display:block}
+.scannerGuide{position:absolute;left:50%;top:47%;height:min(68vh,72%);aspect-ratio:2.5/3.5;transform:translate(-50%,-50%);pointer-events:none}.scannerCorner{position:absolute;width:42px;height:42px;border-color:#41e4ff;filter:drop-shadow(0 2px 7px rgba(0,0,0,.7))}.scannerCorner.tl{left:0;top:0;border-left:5px solid #41e4ff;border-top:5px solid #41e4ff;border-radius:12px 0 0}.scannerCorner.tr{right:0;top:0;border-right:5px solid #41e4ff;border-top:5px solid #41e4ff;border-radius:0 12px 0 0}.scannerCorner.bl{left:0;bottom:0;border-left:5px solid #41e4ff;border-bottom:5px solid #41e4ff;border-radius:0 0 0 12px}.scannerCorner.br{right:0;bottom:0;border-right:5px solid #41e4ff;border-bottom:5px solid #41e4ff;border-radius:0 0 12px}
 .scannerLiveStatus{position:absolute;left:14px;right:14px;bottom:14px;padding:10px 12px;text-align:center;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(5,10,24,.82);backdrop-filter:blur(12px);font-size:13px;font-weight:800}.scannerLiveStatus.good{background:rgba(6,78,59,.9);border-color:rgba(52,211,153,.55)}.scannerLiveStatus.bad{background:rgba(127,29,29,.9);border-color:rgba(248,113,113,.55)}
 .scanEntryFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}.scanEntryFields label{display:grid;gap:3px;color:#64748b;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.03em}.scanEntryFields .input{width:100%;min-height:34px;padding:6px 7px;font-size:12px;text-transform:none;letter-spacing:0}
 .scannerFooter{padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#091126;border-top:1px solid rgba(255,255,255,.1)}.scannerControls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.scannerControls .btn{width:100%}.scannerFooter .scanQueue{max-height:255px;overflow:auto}.scannerFooter .scanSessionBar,.scannerFooter .scanItem{background:#101a34;border-color:rgba(255,255,255,.12);color:#fff}.scannerFooter .small,.scannerFooter .scanStatus{color:#b9c6df}.scannerFooter .scanSessionBar{display:none}.scannerFallback{display:inline-flex;justify-content:center;margin-top:8px;width:100%;color:#a9b8d5;font-size:12px;font-weight:750;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.closestMatchBtn{background:#eef2ff;color:#3153d8}
@@ -958,7 +958,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.9.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.10.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1009,8 +1009,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
     </div>
     <div class="scannerViewport">
       <video id="cardScannerVideo" autoplay muted playsinline></video>
-      <div class="scannerShade"></div>
-      <div class="scannerGuide" aria-hidden="true"></div>
+      <div class="scannerGuide" aria-hidden="true"><span class="scannerCorner tl"></span><span class="scannerCorner tr"></span><span class="scannerCorner bl"></span><span class="scannerCorner br"></span></div>
       <div id="scannerLiveStatus" class="scannerLiveStatus">Starting camera…</div>
     </div>
     <div class="scannerFooter">
@@ -1120,7 +1119,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.9.0";
+const APP_VERSION="v12.10.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1730,10 +1729,10 @@ function scannerFrameSample(video){
   const crop=scannerGuideCrop(video);if(!crop)return null;
   const canvas=document.createElement("canvas");canvas.width=24;canvas.height=34;
   const context=canvas.getContext("2d",{willReadFrequently:true});context.drawImage(video,crop.x,crop.y,crop.w,crop.h,0,0,canvas.width,canvas.height);
-  const pixels=context.getImageData(0,0,canvas.width,canvas.height).data,gray=new Uint8Array(canvas.width*canvas.height);let total=0,totalSq=0,edges=0;
-  for(let i=0,p=0;i<pixels.length;i+=4,p++){const value=.299*pixels[i]+.587*pixels[i+1]+.114*pixels[i+2];gray[p]=value;total+=value;totalSq+=value*value;if(p%canvas.width&&p>=canvas.width)edges+=Math.abs(value-gray[p-1])+Math.abs(value-gray[p-canvas.width])}
-  const mean=total/gray.length,contrast=Math.sqrt(Math.max(0,totalSq/gray.length-mean*mean)),edge=edges/(gray.length*2);
-  return {gray,mean,contrast,edge};
+  const pixels=context.getImageData(0,0,canvas.width,canvas.height).data,gray=new Uint8Array(canvas.width*canvas.height);let total=0,totalSq=0,edges=0,glare=0;
+  for(let i=0,p=0;i<pixels.length;i+=4,p++){const r=pixels[i],g=pixels[i+1],b=pixels[i+2],value=.299*r+.587*g+.114*b,spread=Math.max(r,g,b)-Math.min(r,g,b);gray[p]=value;total+=value;totalSq+=value*value;if(value>224&&spread<48)glare++;if(p%canvas.width&&p>=canvas.width)edges+=Math.abs(value-gray[p-1])+Math.abs(value-gray[p-canvas.width])}
+  const mean=total/gray.length,contrast=Math.sqrt(Math.max(0,totalSq/gray.length-mean*mean)),edge=edges/(gray.length*2),glareRatio=glare/gray.length;
+  return {gray,mean,contrast,edge,glareRatio};
 }
 function scannerFrameDifference(left,right){
   if(!left||!right||left.length!==right.length)return Infinity;let total=0;for(let i=0;i<left.length;i++)total+=Math.abs(left[i]-right[i]);return total/left.length;
@@ -1745,11 +1744,21 @@ async function openCardScanner(){
   if(!navigator.mediaDevices?.getUserMedia){setScannerStatus("Live camera is not supported here. Use a saved scan below.","bad");return}
   try{
     stopCardScannerStream();
-    scanCameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}});
-    video.srcObject=scanCameraStream;await video.play();scanLastSample=null;scanStableFrames=0;scanAwaitingCardChange=false;setScannerStatus("Hold one card inside the guide — scanning is automatic");
-    scanCameraTimer=setInterval(scannerAutoTick,420);
+    scanCameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,min:20}}});
+    await optimizeScannerCamera(scanCameraStream);video.srcObject=scanCameraStream;video.disablePictureInPicture=true;await video.play();scanLastSample=null;scanStableFrames=0;scanAwaitingCardChange=false;setScannerStatus("Hold one card inside the corners — scanning is automatic");
+    scanCameraTimer=setInterval(scannerAutoTick,300);
     if(navigator.wakeLock?.request)scanWakeLock=await navigator.wakeLock.request("screen").catch(()=>null);
   }catch(error){setScannerStatus("Camera access was not available. Allow camera access or use a saved scan.","bad")}
+}
+async function optimizeScannerCamera(stream){
+  const track=stream?.getVideoTracks?.()[0];if(!track?.getCapabilities||!track.applyConstraints)return;
+  try{
+    const capabilities=track.getCapabilities(),advanced={};
+    if(capabilities.focusMode?.includes("continuous"))advanced.focusMode="continuous";
+    if(capabilities.exposureMode?.includes("continuous"))advanced.exposureMode="continuous";
+    if(capabilities.whiteBalanceMode?.includes("continuous"))advanced.whiteBalanceMode="continuous";
+    if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
+  }catch(error){}
 }
 function stopCardScannerStream(){
   if(scanCameraTimer){clearInterval(scanCameraTimer);scanCameraTimer=null}
@@ -1763,10 +1772,12 @@ function closeCardScanner(){
 function scannerAutoTick(){
   const video=document.getElementById("cardScannerVideo");if(scanCameraBusy||!video||video.readyState<2)return;
   const sample=scannerFrameSample(video);if(!sample)return;const difference=scannerFrameDifference(sample.gray,scanLastSample);scanLastSample=sample.gray;
-  if(scanAwaitingCardChange){if(difference>15){scanAwaitingCardChange=false;scanStableFrames=0;setScannerStatus("Next card detected — hold it steady")};return}
-  if(sample.mean<28||sample.mean>235||sample.contrast<24||sample.edge<12){scanStableFrames=0;setScannerStatus("Place one card inside the guide");return}
-  if(difference<7)scanStableFrames++;else scanStableFrames=0;
-  if(scanStableFrames>=2&&Date.now()-scanLastCaptureAt>1800)captureScannerCard(false);
+  if(scanAwaitingCardChange){if(difference>14){scanAwaitingCardChange=false;scanStableFrames=0;setScannerStatus("Next card detected — hold it steady")};return}
+  if(sample.mean<25||sample.mean>240||sample.contrast<20||sample.edge<10){scanStableFrames=0;setScannerStatus("Place one card inside the corners");return}
+  if(sample.glareRatio>.42){scanStableFrames=0;setScannerStatus("Heavy glare — tilt the card slightly","bad");return}
+  if(difference<10)scanStableFrames++;else scanStableFrames=0;
+  if(scanStableFrames>=2&&Date.now()-scanLastCaptureAt>1300)captureScannerCard(false);
+  else if(sample.glareRatio>.18)setScannerStatus(scanStableFrames?"Holding through glare…":"Hold steady — some glare is okay");
   else setScannerStatus(scanStableFrames?"Hold steady…":"Center the card and hold steady");
 }
 async function captureScannerCard(manual=false){
@@ -1868,34 +1879,53 @@ function normalizedCardCanvas(image,detectBounds=false){
   const context=canvas.getContext("2d",{willReadFrequently:true});context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";
   context.drawImage(image,sx,sy,sw,sh,0,0,canvas.width,canvas.height);return canvas;
 }
+function glareBalancedCardCanvas(image,detectBounds=false){
+  const source=normalizedCardCanvas(image,detectBounds),canvas=document.createElement("canvas");canvas.width=168;canvas.height=235;
+  const context=canvas.getContext("2d",{willReadFrequently:true});context.drawImage(source,0,0,canvas.width,canvas.height);
+  const frame=context.getImageData(0,0,canvas.width,canvas.height),pixels=frame.data,mask=new Uint8Array(canvas.width*canvas.height);let masked=0;
+  for(let i=0,p=0;i<pixels.length;i+=4,p++){const r=pixels[i],g=pixels[i+1],b=pixels[i+2],value=.299*r+.587*g+.114*b,spread=Math.max(r,g,b)-Math.min(r,g,b);if((value>226&&spread<52)||(Math.max(r,g,b)>250&&value>218&&spread<70)){mask[p]=1;masked++}}
+  if(masked>0&&masked<mask.length*.48){
+    const original=new Uint8ClampedArray(pixels);
+    for(let p=0;p<mask.length;p++){if(!mask[p])continue;const x=p%canvas.width,y=(p/canvas.width)|0;let red=0,green=0,blue=0,count=0;
+      for(let radius=2;radius<=7&&!count;radius++)for(let yy=Math.max(0,y-radius);yy<=Math.min(canvas.height-1,y+radius);yy++)for(let xx=Math.max(0,x-radius);xx<=Math.min(canvas.width-1,x+radius);xx++){if(Math.abs(xx-x)!==radius&&Math.abs(yy-y)!==radius)continue;const neighbor=yy*canvas.width+xx;if(mask[neighbor])continue;const offset=neighbor*4;red+=original[offset];green+=original[offset+1];blue+=original[offset+2];count++}
+      const offset=p*4;if(count){pixels[offset]=.88*(red/count)+.12*original[offset];pixels[offset+1]=.88*(green/count)+.12*original[offset+1];pixels[offset+2]=.88*(blue/count)+.12*original[offset+2]}else{const scale=210/Math.max(210,.299*original[offset]+.587*original[offset+1]+.114*original[offset+2]);pixels[offset]=original[offset]*scale;pixels[offset+1]=original[offset+1]*scale;pixels[offset+2]=original[offset+2]*scale}
+    }
+    context.putImageData(frame,0,0);
+  }
+  return canvas;
+}
 function artworkSignature(canvas,area){
   const sample=document.createElement("canvas");sample.width=24;sample.height=18;
   const context=sample.getContext("2d",{willReadFrequently:true});
   context.drawImage(canvas,canvas.width*area.x,canvas.height*area.y,canvas.width*area.w,canvas.height*area.h,0,0,sample.width,sample.height);
-  const pixels=context.getImageData(0,0,sample.width,sample.height).data,luma=[],hist=new Array(64).fill(0);let mean=0;
-  for(let i=0;i<pixels.length;i+=4){const r=pixels[i],g=pixels[i+1],b=pixels[i+2],value=.299*r+.587*g+.114*b;luma.push(value);mean+=value;hist[(r>>6)*16+(g>>6)*4+(b>>6)]++}
-  mean/=luma.length;let variance=0;for(const value of luma)variance+=(value-mean)**2;const deviation=Math.sqrt(variance/luma.length)||1;
-  return {luma:luma.map(value=>(value-mean)/deviation),hist:hist.map(value=>value/luma.length)};
+  const pixels=context.getImageData(0,0,sample.width,sample.height).data,luma=[],valid=[],hist=new Array(64).fill(0);let mean=0,count=0;
+  for(let i=0;i<pixels.length;i+=4){const r=pixels[i],g=pixels[i+1],b=pixels[i+2],value=.299*r+.587*g+.114*b,spread=Math.max(r,g,b)-Math.min(r,g,b),usable=!(value>226&&spread<52);luma.push(value);valid.push(usable);if(usable){mean+=value;count++;hist[(r>>6)*16+(g>>6)*4+(b>>6)]++}}
+  if(count<luma.length*.35){valid.fill(true);mean=luma.reduce((sum,value)=>sum+value,0);count=luma.length;hist.fill(0);for(let i=0;i<pixels.length;i+=4)hist[(pixels[i]>>6)*16+(pixels[i+1]>>6)*4+(pixels[i+2]>>6)]++}
+  mean/=count;let variance=0;for(let i=0;i<luma.length;i++)if(valid[i])variance+=(luma[i]-mean)**2;const deviation=Math.sqrt(variance/count)||1;
+  return {key:area.key,luma:luma.map((value,index)=>valid[index]?(value-mean)/deviation:0),valid,hist:hist.map(value=>value/count)};
 }
 function artworkSignatureSet(image,detectBounds=false){
   const card=normalizedCardCanvas(image,detectBounds);
-  return [{x:.055,y:.135,w:.89,h:.48},{x:.04,y:.09,w:.92,h:.64},{x:.095,y:.17,w:.81,h:.40}].map(area=>artworkSignature(card,area));
+  return [{key:"art",x:.055,y:.135,w:.89,h:.48},{key:"body",x:.04,y:.09,w:.92,h:.64},{key:"center",x:.095,y:.17,w:.81,h:.40},{key:"left",x:.055,y:.135,w:.47,h:.48},{key:"right",x:.475,y:.135,w:.47,h:.48}].map(area=>artworkSignature(card,area));
 }
 function artworkSignatureSimilarity(left,right){
-  let dot=0,leftSq=0,rightSq=0;for(let i=0;i<left.luma.length;i++){dot+=left.luma[i]*right.luma[i];leftSq+=left.luma[i]**2;rightSq+=right.luma[i]**2}
+  let dot=0,leftSq=0,rightSq=0,count=0;for(let i=0;i<left.luma.length;i++){if(left.valid?.[i]===false||right.valid?.[i]===false)continue;dot+=left.luma[i]*right.luma[i];leftSq+=left.luma[i]**2;rightSq+=right.luma[i]**2;count++}
+  if(count<left.luma.length*.3)return 0;
   const correlation=Math.max(-1,Math.min(1,dot/(Math.sqrt(leftSq*rightSq)||1)));let histogram=0;for(let i=0;i<left.hist.length;i++)histogram+=Math.min(left.hist[i],right.hist[i]);
   return .76*((correlation+1)/2)+.24*histogram;
 }
-function bestArtworkSimilarity(scanSignatures,referenceSignatures){let best=0;for(const scan of scanSignatures)for(const reference of referenceSignatures)best=Math.max(best,artworkSignatureSimilarity(scan,reference));return best}
+function bestArtworkSimilarity(scanSignatures,referenceSignatures){let best=0;for(const scan of scanSignatures)for(const reference of referenceSignatures)if(!scan.key||!reference.key||scan.key===reference.key)best=Math.max(best,artworkSignatureSimilarity(scan,reference));return best}
 function visualRegionPixels(card,area,width,height){
   const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;const context=canvas.getContext("2d",{willReadFrequently:true});
   context.drawImage(card,card.width*area.x,card.height*area.y,card.width*area.w,card.height*area.h,0,0,width,height);
   const rgba=context.getImageData(0,0,width,height).data,gray=new Float32Array(width*height);for(let i=0,p=0;i<rgba.length;i+=4,p++)gray[p]=.299*rgba[i]+.587*rgba[i+1]+.114*rgba[i+2];return gray;
 }
 function visualBitsHex(bits){let value=0n;for(let i=0;i<64;i++)value=(value<<1n)|(bits[i]?1n:0n);return value.toString(16).padStart(16,"0")}
+const VT_DCT_COS=Array.from({length:8},(_,frequency)=>Float64Array.from({length:32},(_,position)=>Math.cos((2*position+1)*frequency*Math.PI/64)));
+const VT_DCT_SCALE=Float64Array.from({length:8},(_,frequency)=>frequency?Math.sqrt(2/32):Math.sqrt(1/32));
 function visualDctHash(values){
   const coefficients=new Float64Array(64),size=32;
-  for(let v=0;v<8;v++)for(let u=0;u<8;u++){let sum=0;for(let y=0;y<size;y++){const cy=Math.cos((2*y+1)*v*Math.PI/(2*size));for(let x=0;x<size;x++)sum+=values[y*size+x]*Math.cos((2*x+1)*u*Math.PI/(2*size))*cy}coefficients[v*8+u]=sum*(u?Math.sqrt(2/size):Math.sqrt(1/size))*(v?Math.sqrt(2/size):Math.sqrt(1/size))}
+  for(let v=0;v<8;v++)for(let u=0;u<8;u++){let sum=0;const cosY=VT_DCT_COS[v],cosX=VT_DCT_COS[u];for(let y=0;y<size;y++){const cy=cosY[y],row=y*size;for(let x=0;x<size;x++)sum+=values[row+x]*cosX[x]*cy}coefficients[v*8+u]=sum*VT_DCT_SCALE[u]*VT_DCT_SCALE[v]}
   const sorted=Array.from(coefficients.slice(1)).sort((a,b)=>a-b),median=sorted[Math.floor(sorted.length/2)];return visualBitsHex(Array.from(coefficients,value=>value>median));
 }
 function visualDhash(values){const bits=[];for(let y=0;y<8;y++)for(let x=0;x<8;x++)bits.push(values[y*9+x]>values[y*9+x+1]);return visualBitsHex(bits)}
@@ -1909,11 +1939,13 @@ function cardVisualFingerprintForCanvas(card){
 function cardVisualFingerprints(image){
   const rectified=vtFindRectifiedCards(image),sources=[image],width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,fingerprints=rectified.map(cardVisualFingerprintForCanvas);
   if(width>height){sources.push(rotateCardImage(image,1),rotateCardImage(image,-1))}
-  for(const source of sources){fingerprints.push(cardVisualFingerprintForCanvas(normalizedCardCanvas(source,true)));fingerprints.push(cardVisualFingerprintForCanvas(normalizedCardCanvas(source,false)))}
+  for(const source of sources){fingerprints.push(cardVisualFingerprintForCanvas(normalizedCardCanvas(source,true)));fingerprints.push(cardVisualFingerprintForCanvas(normalizedCardCanvas(source,false)));fingerprints.push(cardVisualFingerprintForCanvas(glareBalancedCardCanvas(source,true)))}
+  if(rectified[0])fingerprints.push(cardVisualFingerprintForCanvas(glareBalancedCardCanvas(rectified[0],false)));
   return fingerprints.filter((item,index,all)=>all.findIndex(other=>other[0]===item[0]&&other[1]===item[1])===index);
 }
 function visualHamming(left,right){let value=BigInt(`0x${left}`)^BigInt(`0x${right}`),count=0;while(value){value&=value-1n;count++}return count}
-function visualHammingBigInt(left,right){let value=left^right,count=0;while(value){value&=value-1n;count++}return count}
+const VT_POPCOUNT16=Uint8Array.from({length:65536},(_,value)=>{let count=0;while(value){value&=value-1;count++}return count});
+function visualHammingBigInt(left,right){let value=left^right,count=0;for(let i=0;i<4;i++){count+=VT_POPCOUNT16[Number(value&65535n)];value>>=16n}return count}
 function parseCardVisualIndex(buffer){
   const bytes=new Uint8Array(buffer),view=new DataView(buffer);if(bytes.length<8||String.fromCharCode(...bytes.slice(0,4))!=="RBX1")throw new Error("Artwork library format is invalid");
   const count=view.getUint32(4,true),decoder=new TextDecoder(),entries=new Array(count);let offset=8;
@@ -1946,8 +1978,8 @@ async function officialCardArtworkSignatures(card){
   const job=(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);try{const response=await fetch(source,{signal:controller.signal,cache:"force-cache"});if(!response.ok)throw new Error("Artwork unavailable");const blob=await response.blob();const image=window.createImageBitmap?await createImageBitmap(blob):await new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Artwork unavailable"))};img.src=url});try{return artworkSignatureSet(image)}finally{if(image?.close)image.close()}}finally{clearTimeout(timer)}})();
   cardArtworkSignatureCache.set(source,job);try{return await job}catch(error){cardArtworkSignatureCache.delete(source);throw error}
 }
-async function verifyCardArtwork(image,matches){
-  const scanSignatures=[...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)],limited=matches.slice(0,7);
+async function verifyCardArtwork(image,matches,limit=7){
+  const scanSignatures=[...vtFindRectifiedCards(image).flatMap(card=>artworkSignatureSet(card)),...artworkSignatureSet(image,true)],limited=matches.slice(0,limit);
   const scored=(await Promise.all(limited.map(async card=>{try{const detailScore=bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card)),indexScore=Number(card._vtVisualIndexScore||0);return {card,detailScore,indexScore,score:.62*detailScore+.38*indexScore}}catch{return null}}))).filter(Boolean).sort((a,b)=>b.score-a.score);
   if(!scored.length)return {verified:false,reason:"Official artwork could not be loaded",scored:[]};
   const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,verified=best.score>=.64&&(!second||margin>=.018);
@@ -1966,12 +1998,17 @@ async function readCardScanPhoto(entry){
     entry.message="Loading the visual card library…";entry.progress=12;renderCardScanQueue();
     const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
     entry.message=`Comparing artwork against ${Number(index.count||index.entries.length).toLocaleString()} cards…`;entry.progress=42;renderCardScanQueue();
-    const nearest=closestVisualIndexEntries(fingerprints,index,12);
+    const nearest=closestVisualIndexEntries(fingerprints,index,24);
     entry.message="Checking the closest official cards…";entry.progress=66;renderCardScanQueue();
-    const matches=await fetchVisualCandidateCards(nearest.slice(0,9));
+    let matches=await fetchVisualCandidateCards(nearest.slice(0,7));
     if(!matches.length){entry.state="error";entry.error="The official artwork matches could not be loaded. Check your connection and try again.";renderCardScanQueue();return}
     entry.message=`Verifying ${matches.length} closest artwork match${matches.length===1?"":"es"}…`;entry.progress=84;renderCardScanQueue();
-    const artwork=await verifyCardArtwork(image,matches);entry.matches=(artwork.scored||[]).map(item=>item.card);
+    let artwork=await verifyCardArtwork(image,matches,7);
+    if((!artwork.card||(artwork.score||0)<.62)&&nearest.length>7){
+      entry.message="Checking more artwork because of glare or angle…";entry.progress=90;renderCardScanQueue();
+      matches=uniqueCards([...matches,...await fetchVisualCandidateCards(nearest.slice(7,20))]);artwork=await verifyCardArtwork(image,matches,20);
+    }
+    entry.matches=(artwork.scored||[]).map(item=>item.card);
     entry.artScore=artwork.score||0;entry.artMargin=artwork.margin||0;entry.artVerified=artwork.verified;
     const bestCard=artwork.card||entry.matches[0]||matches[0];
     if(bestCard&&(artwork.score||0)>=.42){
@@ -1982,13 +2019,13 @@ async function readCardScanPhoto(entry){
       entry.card=null;entry.state="error";entry.progress=100;entry.error="No reliable card match was found. Center one clear card in the guide and scan again.";renderCardScanQueue();
     }
   }catch(error){
-    scanWorkerProgress=null;entry.state="error";entry.error="Could not match this artwork. Retake it with one full card straight in frame, good lighting, and as little glare as possible.";renderCardScanQueue();
+    scanWorkerProgress=null;entry.state="error";entry.error="Could not match this card. Keep one full card inside the corners, hold steady, and try a slight tilt only if glare covers most of the artwork.";renderCardScanQueue();
   }finally{if(image?.close)image.close()}
 }
 async function hydrateScannedCard(entry){
   const card=entry?.card;if(!card?.id||vtCardHasImageAndPrice(card))return;
   const rich=await vtFetchPrimaryCardDirect(card.id).catch(()=>null);
-  if(rich&&entry.card?.id===card.id){entry.card=rich;entry.matches=uniqueCards([rich,...(entry.matches||[])]);renderCardScanQueue()}
+  if(rich&&entry.card?.id===card.id){entry.card=rich;entry.matches=uniqueCards([rich,...(entry.matches||[])]);const pricing=cardScanMarket(rich,entry.finish);entry.finish=pricing.finish;if(entry.price===""&&pricing.market!=null)entry.price=Number(pricing.market).toFixed(2);renderCardScanQueue()}
 }
 function renderCardScanQueue(){
   const queues=document.querySelectorAll("[data-scan-queue]");if(!queues.length)return;
@@ -2010,7 +2047,7 @@ function renderCardScanQueue(){
         <label>Your price<input class="input" type="number" min="0" step=".01" value="${esc(entry.price)}" placeholder="${market!=null?Number(market).toFixed(2):"0.00"}" onchange="setCardScanPrice('${entry.id}',this.value)"></label>
       </div>`:"";
       let actions=`<button class="miniBtn btnDanger" onclick="removeCardScan('${entry.id}')">Remove</button>`;
-      if(entry.state==="ready")actions=`<button class="miniBtn closestMatchBtn" onclick="reviewScanMatches('${entry.id}')">Check match</button>${actions}`;
+      if(entry.state==="ready")actions=`<button class="miniBtn closestMatchBtn" onclick="reviewScanMatches('${entry.id}')">Check match</button>${card?.tcgplayer?.url?`<a class="miniBtn btnSoft" href="${esc(tcgPlayerHref(card.name,card.tcgplayer.url))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a>`:""}${actions}`;
       else if(entry.state==="error")actions=`<button class="miniBtn btnSoft" onclick="retryCardScan('${entry.id}')">Retry</button>${actions}`;
       return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Scanned card ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${progress}${readyFields}</div><div class="scanActions">${actions}</div></div>`;
     }).join("");
