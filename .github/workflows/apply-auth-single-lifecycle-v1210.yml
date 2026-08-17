@@ -1,0 +1,39 @@
+name: Apply auth lifecycle fix v12.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fix_auth_single_lifecycle_v1210.py'
+      - '.github/workflows/apply-auth-single-lifecycle-v1210.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply targeted patch
+        run: python scripts/fix_auth_single_lifecycle_v1210.py
+      - name: Validate auth flow
+        run: |
+          grep -q 'const APP_VERSION="v12.1.0"' index.html
+          grep -q 'ev==="INITIAL_SESSION"' index.html
+          ! grep -q 'const {data:{session}}=await sb.auth.getSession();' index.html
+          python - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',s,re.S)
+          pathlib.Path('/tmp/vendortracker.js').write_text('\n'.join(scripts),encoding='utf-8')
+          PY
+          node --check /tmp/vendortracker.js
+      - name: Commit patched index
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Use single Supabase auth lifecycle v12.1.0'
+          git push
