@@ -1,0 +1,81 @@
+name: Fix auth refresh
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-auth-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Supabase auth initialization
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          old = '''async function init(){
+ const h=location.hash;
+ if(h.includes("type=recovery")||h.includes("access_token="))recoveryMode=true;
+ const {data:{session}}=await sb.auth.getSession();
+ sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;showReset()}else if(ev==="SIGNED_OUT"){user=null;showPublic()}else if(s?.user&&!recoveryMode){user=s.user;await enterApp()}});
+ if(recoveryMode&&session){user=session.user;showReset()}else if(session?.user){user=session.user;await enterApp()}else showPublic();
+}'''
+          new = '''async function init(){
+ const h=location.hash;
+ if(h.includes("type=recovery")||h.includes("access_token="))recoveryMode=true;
+ let initialHandled=false;
+ sb.auth.onAuthStateChange(async(ev,s)=>{
+   if(ev==="PASSWORD_RECOVERY"){
+     recoveryMode=true;
+     if(s?.user)user=s.user;
+     showReset();
+     return;
+   }
+   if(ev==="SIGNED_OUT"){
+     user=null;
+     initialHandled=true;
+     showPublic();
+     return;
+   }
+   if((ev==="INITIAL_SESSION"||ev==="SIGNED_IN"||ev==="TOKEN_REFRESHED")&&s?.user){
+     user=s.user;
+     if(recoveryMode){showReset();initialHandled=true;return;}
+     if(ev==="INITIAL_SESSION"||!initialHandled){
+       initialHandled=true;
+       await enterApp();
+     }
+     return;
+   }
+   if(ev==="INITIAL_SESSION"&&!s){
+     initialHandled=true;
+     if(!recoveryMode)showPublic();
+   }
+ });
+}'''
+          if old not in text:
+              raise SystemExit('Expected init() block not found; refusing unsafe edit')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+      - name: Verify patch
+        run: |
+          grep -q 'ev==="INITIAL_SESSION"' index.html
+          if grep -q 'data:{session}.*getSession' index.html; then
+            echo 'Competing getSession startup flow still present'
+            exit 1
+          fi
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix auth session persistence on refresh'
+          git push
