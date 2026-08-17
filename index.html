@@ -59,6 +59,7 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .cardPick img{width:100%;aspect-ratio:2.5/3.5;object-fit:contain;background:#f8fafc;border-radius:10px}.cardPick h4{margin:10px 0 3px}.cardPick .meta{font-size:12px;color:var(--muted);line-height:1.45}
 .priceBox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px}.priceBox strong{display:block;font-size:18px;margin-top:3px}.apiStatus{font-size:12px;color:var(--muted);margin-top:8px}
 .marketGood{color:#166534;font-weight:850}.marketNone{color:#94a3b8}
+.lowestActualLine{color:#075985;font-size:11px;font-weight:800;margin-top:5px;line-height:1.35}.lowestActualNone{color:#64748b;font-size:11px;margin-top:5px;line-height:1.35}
 
 .scanQueue{display:grid;gap:10px;margin-top:12px}.scanItem{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
 .scanItem img{width:76px;height:100px;object-fit:cover;border-radius:8px;background:#f8fafc}.scanStatus{font-size:12px;color:var(--muted);margin-top:4px}.scanGood{color:#166534;font-weight:800}.scanBad{color:#991b1b;font-weight:800}
@@ -813,6 +814,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               <span class="small">TCGplayer Market</span>
               <strong id="pMarketDisplay">—</strong>
               <span id="pMarketUpdated" class="small"></span>
+              <span id="pLowestDisplay" class="lowestActualLine hidden"></span>
             </div>
             <label class="btn btnGhost" style="display:flex;align-items:center;justify-content:center">
               📷 Use own photo
@@ -951,7 +953,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.4.1</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1092,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.4.1";
+const APP_VERSION="v12.5.0";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1100,6 +1102,7 @@ let currentLookupResults=[];
 let inventoryType="card";
 let currentSealedResults=[];
 let pendingSealedData=null;
+const sealedLowestListingCache=new Map();
 
 let tradeYourItems=[];
 let tradeTheirItems=[];
@@ -1174,6 +1177,7 @@ function clearProductPhotoForm(){
   const finish=document.getElementById("pFinish");if(finish)finish.innerHTML='<option value="">Printing / finish</option>';
   const market=document.getElementById("pMarketDisplay");if(market)market.textContent="—";
   const updated=document.getElementById("pMarketUpdated");if(updated)updated.textContent="";
+  const lowest=document.getElementById("pLowestDisplay");if(lowest){lowest.textContent="";lowest.classList.add("hidden")}
 }
 function tcgPlayerHref(name, directUrl="", productId=""){
   // Only allow direct links that are actually on tcgplayer.com.
@@ -1196,6 +1200,39 @@ function tcgPlayerHref(name, directUrl="", productId=""){
 }
 function tcgLookup(name, directUrl="", productId=""){
   window.open(tcgPlayerHref(name,directUrl,productId),"_blank","noopener,noreferrer");
+}
+
+function setLowestActual(target,listing,checkedAt){
+  if(!target)return;
+  target.tcgLowestActual=listing||null;
+  target.tcgLowestCheckedAt=checkedAt||listing?.checkedAt||new Date().toISOString();
+}
+function lowestActualText(target){
+  const listing=target?.tcgLowestActual;
+  if(!listing)return target?.tcgLowestCheckedAt?"No standard unopened listing found":"Lowest actual listing pending";
+  const price=Number(listing.price||0),shipping=Math.max(0,Number(listing.shipping||0));
+  return `Lowest actual: ${money(price)}${shipping>0?` + ${money(shipping)} shipping`:` • free shipping`}`;
+}
+function lowestActualMarkup(target){
+  if(!target || (target.itemType!=="sealed"&&target.type!=="sealed"))return "";
+  const listing=target.tcgLowestActual;
+  if(!listing)return `<div class="${target.tcgLowestCheckedAt?"lowestActualNone":"lowestActualLine"}">${esc(lowestActualText(target))}</div>`;
+  const seller=listing.seller?` • ${esc(listing.seller)}`:"";
+  return `<div class="lowestActualLine">${esc(lowestActualText(target))}${seller}</div>`;
+}
+async function fetchSealedLowestActual(product){
+  const productId=Number(product?.productId??product?.tcgProductId);
+  if(!Number.isInteger(productId)||productId<=0)throw new Error("Missing TCGplayer product ID");
+  const key=String(productId);
+  if(sealedLowestListingCache.has(key))return sealedLowestListingCache.get(key);
+  const job=(async()=>{
+    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{action:"lowest-listing",productId}});
+    if(error)throw error;
+    if(!data?.success)throw new Error(data?.error||"Lowest listing unavailable");
+    return {listing:data.lowestActual||null,checkedAt:data.checkedAt||new Date().toISOString()};
+  })();
+  sealedLowestListingCache.set(key,job);
+  try{return await job}catch(e){sealedLowestListingCache.delete(key);throw e}
 }
 
 function fullCardNumber(card){
@@ -1221,6 +1258,7 @@ function resetCardMetadata(){
   if(f)f.innerHTML='<option value="">Printing / finish</option>';
   const d=document.getElementById("pMarketDisplay");if(d)d.textContent="—";
   const u=document.getElementById("pMarketUpdated");if(u)u.textContent="";
+  const l=document.getElementById("pLowestDisplay");if(l){l.textContent="";l.classList.add("hidden")}
 }
 
 function setInventoryType(type){
@@ -1287,8 +1325,26 @@ function selectSealedProduct(i){
   if(pendingPhotoData){img.src=pendingPhotoData;img.style.display="block"}
   document.getElementById("pMarketDisplay").textContent=p.marketPrice!=null?money(p.marketPrice):"—";
   document.getElementById("pMarketUpdated").textContent=p.updatedAt?`TCGplayer data updated ${p.updatedAt}`:"TCGplayer catalog";
-  document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}.`;
+  const lowestDisplay=document.getElementById("pLowestDisplay");
+  if(lowestDisplay){lowestDisplay.textContent="Checking lowest actual unopened listing…";lowestDisplay.classList.remove("hidden")}
+  document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}. Checking the lowest actual listing…`;
   closeSealedLookup();
+  const selectedId=String(p.productId||"");
+  fetchSealedLowestActual(p).then(({listing,checkedAt})=>{
+    setLowestActual(p,listing,checkedAt);
+    if(String(pendingSealedData?.productId||"")===selectedId){
+      setLowestActual(pendingSealedData,listing,checkedAt);
+      if(lowestDisplay){lowestDisplay.textContent=lowestActualText(pendingSealedData);lowestDisplay.classList.remove("hidden")}
+      document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}${p.groupName?` • ${p.groupName}`:""}. ${lowestActualText(pendingSealedData)}.`;
+    }
+    const saved=db.products.find(x=>x.itemType==="sealed"&&String(x.tcgProductId||"")===selectedId);
+    if(saved){setLowestActual(saved,listing,checkedAt);save()}
+  }).catch(()=>{
+    if(String(pendingSealedData?.productId||"")===selectedId){
+      if(lowestDisplay){lowestDisplay.textContent="Lowest actual listing temporarily unavailable";lowestDisplay.classList.remove("hidden")}
+      document.getElementById("cardLookupStatus").textContent=`Selected ${p.name}. Market price loaded; lowest listing is temporarily unavailable.`;
+    }
+  });
 }
 function normalizeCardText(v){
   return String(v||"")
@@ -1648,7 +1704,7 @@ async function refreshCardMarketPrice(p){
 async function refreshSealedMarketPrice(p){
   if(!p || p.itemType!=="sealed" || !p.name)return false;
   try{
-    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:p.name}});
+    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:p.name,productId:p.tcgProductId,includeLowest:true}});
     if(error || !data?.success)return false;
     const results=data.results||[];
     let match=null;
@@ -1667,6 +1723,7 @@ async function refreshSealedMarketPrice(p){
     p.photo=p.photo||match.imageUrl||"";
     p.setName=match.groupName||p.setName||"";
     p.tcgUpdatedAt=match.updatedAt||new Date().toISOString();
+    if(data.lowestActualCheckedAt)setLowestActual(p,data.lowestActual||null,data.lowestActualCheckedAt);
     p.lastMarketRefresh=new Date().toISOString();
     return true;
   }catch(e){
@@ -1677,7 +1734,7 @@ async function refreshStaleMarketPrices(force=false){
   if(!user || !db?.products?.length)return;
   const stale=db.products.filter(p=>{
     const stamp=p.lastMarketRefresh||p.tcgUpdatedAt;
-    return force || priceIsStale(stamp,24);
+    return force || priceIsStale(stamp,24) || (p.itemType==="sealed"&&!p.tcgLowestCheckedAt);
   });
   if(!stale.length){
     if(force)toast("Market prices are already current");
@@ -1826,6 +1883,8 @@ function addProduct(){
        itemType:"sealed",condition:"Sealed",finish:"Sealed",
        tcgMarket:market,tcgUrl:meta.url||p.tcgUrl||"",
        tcgProductId:meta.productId||p.tcgProductId||null,
+       tcgLowestActual:meta.tcgLowestActual||p.tcgLowestActual||null,
+       tcgLowestCheckedAt:meta.tcgLowestCheckedAt||p.tcgLowestCheckedAt||null,
        setName:meta.groupName||p.setName||"",
        photo:pendingPhotoData||p.photo||"",
        sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()
@@ -1836,6 +1895,8 @@ function addProduct(){
        itemType:"sealed",condition:"Sealed",finish:"Sealed",
        tcgMarket:market,tcgUrl:meta.url||"",
        tcgProductId:meta.productId||null,
+       tcgLowestActual:meta.tcgLowestActual||null,
+       tcgLowestCheckedAt:meta.tcgLowestCheckedAt||null,
        setName:meta.groupName||"",
        sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()
      };
@@ -2062,15 +2123,23 @@ function selectPurchaseLookup(i){
     purchaseSelectedItem={type:"card",pokemonCardId:x.id,name:`${x.name} — ${x.set?.name||""} #${fullCardNumber(x)}`.trim(),cardBaseName:x.name||"",setName:x.set?.name||"",setId:x.set?.id||"",cardNumber:fullCardNumber(x),rarity:x.rarity||"",photo:x.images?.large||x.images?.small||"",tcgUrl:x.tcgplayer?.url||"",tcgUpdatedAt:x.tcgplayer?.updatedAt||"",tcgPrices:prices,finish:chosen,condition:"Near Mint"};
     finish.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No printing price</option>';finish.value=chosen;condition.classList.remove("hidden");finish.classList.remove("hidden");
   }else{
-    purchaseSelectedItem={type:"sealed",name:x.name||"Sealed product",photo:x.imageUrl||"",setName:x.groupName||"",tcgMarket:x.marketPrice!=null?Number(x.marketPrice):null,tcgUrl:x.url||"",tcgProductId:x.productId||null,condition:"Sealed",finish:"Sealed",sealedSource:"TCGCSV"};
+    purchaseSelectedItem={type:"sealed",name:x.name||"Sealed product",photo:x.imageUrl||"",setName:x.groupName||"",tcgMarket:x.marketPrice!=null?Number(x.marketPrice):null,tcgUrl:x.url||"",tcgProductId:x.productId||null,tcgLowestActual:x.tcgLowestActual||null,tcgLowestCheckedAt:x.tcgLowestCheckedAt||null,condition:"Sealed",finish:"Sealed",sealedSource:"TCGCSV"};
     condition.classList.add("hidden");finish.classList.add("hidden");
   }
   updatePurchaseSelectedMarket();
   const market=purchaseSelectedMarket();
   document.getElementById("buySellPrice").value=market!=null?Number(market).toFixed(2):"";
-  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`TCGplayer Market ${money(market)}`:"Market unavailable"}</div></div></div>`;
+  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`TCGplayer Market ${money(market)}`:"Market unavailable"}</div>${purchaseSelectedItem.type==="sealed"?`<div class="lowestActualLine" id="buySelectedLowest">${purchaseSelectedItem.tcgLowestActual?esc(lowestActualText(purchaseSelectedItem)):"Checking lowest actual unopened listing…"}</div>`:""}</div></div>`;
   fields.classList.remove("hidden");
   document.getElementById("buyLookupResults").innerHTML="";
+  if(purchaseSelectedItem.type==="sealed"){
+    const selectedId=String(purchaseSelectedItem.tcgProductId||"");
+    fetchSealedLowestActual(x).then(({listing,checkedAt})=>{
+      if(String(purchaseSelectedItem?.tcgProductId||"")!==selectedId)return;
+      setLowestActual(purchaseSelectedItem,listing,checkedAt);
+      const low=document.getElementById("buySelectedLowest");if(low)low.textContent=lowestActualText(purchaseSelectedItem);
+    }).catch(()=>{const low=document.getElementById("buySelectedLowest");if(low)low.textContent="Lowest actual listing temporarily unavailable"});
+  }
 }
 function purchaseSelectedMarket(){
   if(!purchaseSelectedItem)return null;if(purchaseSelectedItem.type==="sealed")return purchaseSelectedItem.tcgMarket;
@@ -2139,7 +2208,8 @@ function addBatchItemToInventory(x){
   if(x.existingProductId){const p=db.products.find(v=>v.id===x.existingProductId);if(!p)return null;const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+paid)/(oldQty+x.qty);p.qty=oldQty+x.qty;return p}
   if(x.type==="sealed"){
     let p=db.products.find(v=>(v.itemType==="sealed")&&((x.tcgProductId&&String(v.tcgProductId)===String(x.tcgProductId))||v.name===x.name));
-    if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:x.price||x.market||0,photo:x.photo||"",itemType:"sealed",condition:"Sealed",finish:"Sealed",tcgMarket:x.market,tcgUrl:x.tcgUrl||"",tcgProductId:x.tcgProductId||null,setName:x.setName||"",sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
+    if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:x.price||x.market||0,photo:x.photo||"",itemType:"sealed",condition:"Sealed",finish:"Sealed",tcgMarket:x.market,tcgUrl:x.tcgUrl||"",tcgProductId:x.tcgProductId||null,tcgLowestActual:x.tcgLowestActual||null,tcgLowestCheckedAt:x.tcgLowestCheckedAt||null,setName:x.setName||"",sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
+    if(x.tcgLowestCheckedAt)setLowestActual(p,x.tcgLowestActual||null,x.tcgLowestCheckedAt);
     const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+paid)/(oldQty+x.qty);p.qty=oldQty+x.qty;if(x.price)p.price=x.price;return p;
   }
   let p=db.products.find(v=>(v.itemType||"card")==="card"&&x.pokemonCardId&&v.pokemonCardId===x.pokemonCardId&&(v.finish||"")===(x.finish||"")&&(v.condition||"Near Mint")===(x.condition||"Near Mint"));
@@ -2997,7 +3067,7 @@ function renderSaleProducts(){
    ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:10px;margin-bottom:10px">`:""}
    <h4>${esc(p.name)}</h4>
    <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span>${inCart?` • ${inCart} in cart`:""}</div>
-   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}</div>
+   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}${sealed?lowestActualMarkup(p):""}</div>
    <button class="btn btnPrimary addCartBtn" onclick="addToCart('${p.id}')" ${p.qty<=inCart?"disabled":""}>${p.qty<=0?"Sold out":p.qty<=inCart?"All stock in cart":"Add to cart"}</button>
    <div style="margin-top:7px;text-align:center"><a class="linkBtn" href="${esc(tcgPlayerHref(p.name,p.tcgUrl||"",p.tcgProductId||""))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a></div>
    </div>`;
@@ -3089,7 +3159,7 @@ function renderInventory(){
        <input id="inv_price_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.price||0).toFixed(2)}" style="width:92px;padding:7px">
      </div>
    </td>
-   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}</td>
+   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}${sealed?lowestActualMarkup(p):""}</td>
    <td data-label="Actions"><div class="actions">
      <button class="miniBtn btnSuccess" onclick="saveInventoryChanges('${p.id}')">Save changes</button>
      ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}

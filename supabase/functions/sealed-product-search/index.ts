@@ -7,9 +7,13 @@ const cors = {
 }
 const jsonHeaders = { ...cors, "Content-Type": "application/json", "Connection": "keep-alive" }
 const UA = "VendorTracker/1.1 (sealed catalog search)"
+const TCGPLAYER_BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
 const CACHE_MS = 24 * 60 * 60 * 1000
+const LISTING_CACHE_MS = 15 * 60 * 1000
 const groupCatalogCache = new Map<number, { time: number; products: any[]; prices: any[] }>()
 const groupCatalogJobs = new Map<number, Promise<{ products: any[]; prices: any[] }>>()
+const listingCache = new Map<number, { time: number; value: any }>()
+const listingJobs = new Map<number, Promise<any>>()
 let groupsCache: { time: number; groups: any[] } | null = null
 let groupsJob: Promise<any[]> | null = null
 
@@ -57,6 +61,82 @@ async function fetchJson(url: string) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+function finiteMoney(value: unknown) {
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : null
+}
+
+async function fetchLowestActualListing(productId: number) {
+  if (!Number.isInteger(productId) || productId <= 0) throw new Error("Invalid TCGplayer product ID")
+  const cached = listingCache.get(productId)
+  if (cached && Date.now() - cached.time < LISTING_CACHE_MS) return cached.value
+  const running = listingJobs.get(productId)
+  if (running) return running
+
+  const job = (async () => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 12_000)
+    try {
+      const response = await fetch(`https://mp-search-api.tcgplayer.com/v1/product/${productId}/listings`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "User-Agent": TCGPLAYER_BROWSER_UA,
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Origin": "https://www.tcgplayer.com",
+          "Referer": `https://www.tcgplayer.com/product/${productId}/`,
+        },
+        body: JSON.stringify({
+          from: 0,
+          size: 50,
+          sort: { field: "price+shipping", order: "asc" },
+        }),
+      })
+      if (!response.ok) throw new Error(`TCGplayer listings ${response.status}`)
+      const json = await response.json()
+      const raw = Array.isArray(json?.results?.[0]?.results) ? json.results[0].results : []
+
+      // A standard catalog listing has no seller-written replacement title. Requiring
+      // it prevents cheap custom listings such as empty boxes, dice-only, damaged seals,
+      // foreign substitutes, or products broken down into individual contents.
+      const candidates = raw.filter((listing: any) => {
+        if (Number(listing?.productId) !== productId) return false
+        if (String(listing?.listingType || "").toLowerCase() !== "standard") return false
+        if (listing?.languageId != null && Number(listing.languageId) !== 1) return false
+        if (listing?.language && String(listing.language).toLowerCase() !== "english") return false
+        if (String(listing?.condition || "").toLowerCase() !== "unopened") return false
+        return finiteMoney(listing?.price ?? listing?.sellerPrice) != null
+      }).map((listing: any) => {
+        const price = finiteMoney(listing.price ?? listing.sellerPrice)!
+        const shipping = finiteMoney(listing.shippingPrice ?? listing.sellerShippingPrice ?? listing.rankedShippingPrice) ?? 0
+        return {
+          price,
+          shipping,
+          delivered: Math.round((price + shipping) * 100) / 100,
+          seller: String(listing.sellerName || ""),
+          sellerRating: finiteMoney(listing.sellerRating),
+          sellerSales: String(listing.sellerSales || ""),
+          quantity: Math.max(0, Number(listing.quantity || 0)),
+          condition: "Unopened",
+          listingId: listing.listingId ?? null,
+          checkedAt: new Date().toISOString(),
+          source: "TCGplayer standard unopened listing",
+        }
+      }).sort((a: any, b: any) => a.delivered - b.delivered || a.price - b.price)
+
+      const value = candidates[0] || null
+      listingCache.set(productId, { time: Date.now(), value })
+      return value
+    } finally {
+      clearTimeout(timeout)
+    }
+  })().finally(() => listingJobs.delete(productId))
+
+  listingJobs.set(productId, job)
+  return job
 }
 
 async function getGroups() {
@@ -169,7 +249,13 @@ Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors })
   const started = Date.now()
   try {
-    const { query } = await request.json()
+    const body = await request.json()
+    const { query } = body
+    const productId = Number(body?.productId)
+    if (body?.action === "lowest-listing") {
+      const lowestActual = await fetchLowestActualListing(productId)
+      return Response.json({ success: true, lowestActual, checkedAt: new Date().toISOString() }, { headers: jsonHeaders })
+    }
     if (!query || !String(query).trim()) return Response.json({ success: false, error: "Missing query" }, { status: 400, headers: jsonHeaders })
     const cleanQuery = String(query).trim()
     const groups = await getGroups()
@@ -190,7 +276,17 @@ Deno.serve(async (request: Request) => {
     }
 
     const finalResults = finalize(results)
-    return Response.json({ success: true, results: finalResults, meta: { groupsScanned: chosen.length, durationMs: Date.now() - started } }, { headers: jsonHeaders })
+    let lowestActual = null
+    let lowestActualCheckedAt = null
+    if (body?.includeLowest && Number.isInteger(productId) && productId > 0) {
+      try {
+        lowestActual = await fetchLowestActualListing(productId)
+        lowestActualCheckedAt = new Date().toISOString()
+      } catch {
+        lowestActual = null
+      }
+    }
+    return Response.json({ success: true, results: finalResults, lowestActual, lowestActualCheckedAt, meta: { groupsScanned: chosen.length, durationMs: Date.now() - started } }, { headers: jsonHeaders })
   } catch (error) {
     return Response.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500, headers: jsonHeaders })
   }
