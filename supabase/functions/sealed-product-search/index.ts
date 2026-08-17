@@ -9,7 +9,7 @@ const jsonHeaders = { ...cors, "Content-Type": "application/json", "Connection":
 const UA = "VendorTracker/1.1 (sealed catalog search)"
 const TCGPLAYER_BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
 const CACHE_MS = 24 * 60 * 60 * 1000
-const LISTING_CACHE_MS = 15 * 60 * 1000
+const LISTING_CACHE_MS = 90 * 1000
 const groupCatalogCache = new Map<number, { time: number; products: any[]; prices: any[] }>()
 const groupCatalogJobs = new Map<number, Promise<{ products: any[]; prices: any[] }>>()
 const listingCache = new Map<number, { time: number; value: any }>()
@@ -288,6 +288,23 @@ Deno.serve(async (request: Request) => {
     if (body?.action === "lowest-listing") {
       const lowestActual = await fetchLowestActualListing(productId, body?.force === true)
       return Response.json({ success: true, lowestActual, checkedAt: new Date().toISOString() }, { headers: jsonHeaders })
+    }
+    if (body?.action === "lowest-listings") {
+      const productIds = [...new Set((Array.isArray(body?.productIds) ? body.productIds : [])
+        .map((value: unknown) => Number(value))
+        .filter((value: number) => Number.isInteger(value) && value > 0))].slice(0, 30)
+      if (!productIds.length) {
+        return Response.json({ success: false, error: "Missing product IDs" }, { status: 400, headers: jsonHeaders })
+      }
+      const checkedAt = new Date().toISOString()
+      const items = await mapLimit(productIds, 6, async (id) => {
+        try {
+          return { productId: id, lowestActual: await fetchLowestActualListing(id, body?.force === true), checkedAt }
+        } catch {
+          return { productId: id, lowestActual: null, checkedAt, unavailable: true }
+        }
+      })
+      return Response.json({ success: true, items, checkedAt, meta: { durationMs: Date.now() - started } }, { headers: jsonHeaders })
     }
     if (body?.action === "product-price") {
       const groupId = Number(body?.groupId)
