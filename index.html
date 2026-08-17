@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.3.0</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.3.1</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.3.0";
+const APP_VERSION="v12.3.1";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1589,13 +1589,14 @@ function renderCardLookup(cards){
       <img src="${esc(c.images?.small||c.images?.large||"")}" alt="${esc(c.name)}">
       <h4>${esc(c.name)}</h4>
       <div class="meta">${esc(c.set?.name||"Unknown set")} • #${esc(fullCardNumber(c))}<br>${esc(c.rarity||"")}</div>
-      <div class="meta" style="margin-top:7px">${priceParts||"No TCGplayer price available"}</div>
+      <div class="meta" style="margin-top:7px">${priceParts||(c._vtPricePending?"Loading TCGPlayer price…":"No TCGplayer price available")}</div>
     </button>`;
   }).join("");
 }
 function closeCardLookup(){document.getElementById("cardLookupModal").classList.add("hidden")}
 function selectPokemonCard(i){
   const c=currentLookupResults[i];if(!c)return;
+  if(c._vtPricePending)return toast("TCGPlayer pricing is still loading…");
   pendingCardData={
     pokemonCardId:c.id,
     cardBaseName:c.name||"",
@@ -2050,6 +2051,7 @@ async function searchPurchaseItem(){
 }
 function selectPurchaseLookup(i){
   const x=purchaseLookupResults[i];if(!x)return;
+  if(x._vtPricePending)return toast("TCGPlayer pricing is still loading…");
   const fields=document.getElementById("buyNewItemFields"),preview=document.getElementById("buySelectedPreview"),finish=document.getElementById("buyFinish"),condition=document.getElementById("buyCondition");
   if(purchaseLookupType==="card"){
     const prices=x.tcgplayer?.prices||{},keys=Object.keys(prices),chosen=keys.includes("holofoil")?"holofoil":(keys[0]||"");
@@ -2666,7 +2668,7 @@ async function searchPurchaseItem(){
 /* Instant staged product search v11.38 */
 const instantCardCache=new Map();
 const instantResolveCache=new Map();
-const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v1138_';
+const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v1231_';
 function lookupCacheRead(key,maxAge=86400000){
   try{const raw=localStorage.getItem(PRODUCT_CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(!obj?.time||Date.now()-obj.time>maxAge){localStorage.removeItem(PRODUCT_CACHE_PREFIX+key);return null}return obj.data||null}catch(e){return null}
 }
@@ -2774,11 +2776,11 @@ async function searchPurchaseItem(){
     if(purchaseLookupType==='card'){
       status.textContent='Finding matches…';
       const key='purchase_'+fastCacheKey(q),cached=lookupCacheRead(key);
-      if(cached?.length){purchaseLookupResults=cached;status.textContent=`Found ${cached.length} card${cached.length===1?'':'s'} instantly.`;box.innerHTML=cached.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||'')}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||'')} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):'Market unavailable'}</div></button>`}).join('');return}
+      if(cached?.length){purchaseLookupResults=cached;status.textContent=`Found ${cached.length} card${cached.length===1?'':'s'} instantly.`;box.innerHTML=cached.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||'')}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||'')} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):(c._vtPricePending?'Loading market price…':'Market unavailable')}</div></button>`}).join('');return}
       const cards=await resolveCardText(q,14);purchaseLookupResults=cards;if(cards.length)lookupCacheWrite(key,cards);
       if(!cards.length){status.textContent='No cards found. Try the name plus collector number.';return}
       status.textContent=`Found ${cards.length} card${cards.length===1?'':'s'}. Select the exact printing.`;
-      box.innerHTML=cards.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||'')}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||'')} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):'Market unavailable'}</div></button>`}).join('');
+      box.innerHTML=cards.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||'')}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||'')} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):(c._vtPricePending?'Loading market price…':'Market unavailable')}</div></button>`}).join('');
     }else{
       const key='sealed_'+fastCacheKey(q),cached=lookupCacheRead(key,6*60*60*1000);status.textContent=cached?.length?'Loading saved results…':'Searching sealed products…';
       const items=cached?.length?cached:await fastSealedProductSearch(q);purchaseLookupResults=items;
@@ -2797,7 +2799,7 @@ function vtCollectorParts(raw){
   const number=m[1],denominator=m[2];
   return {number,denominator,totalDigits:(denominator.match(/\d+/)||[''])[0],printed:`${number}/${denominator}`};
 }
-function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v4_${c.printed}`:null}
+function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v5_${c.printed}`:null}
 function vtReadCollectorCache(raw){try{const k=vtCollectorCacheKey(raw);if(!k)return[];const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
 function vtWriteCollectorCache(raw,cards){try{const k=vtCollectorCacheKey(raw);if(k&&Array.isArray(cards)&&cards.length)localStorage.setItem(k,JSON.stringify(cards.slice(0,20)))}catch(e){}}
 function vtCollectorNumberEqual(a,b){
@@ -2819,10 +2821,12 @@ function vtTcgdexPriceMap(card){
   add('normal',src.normal);add('holofoil',src.holofoil);add('reverseHolofoil',src['reverse-holofoil']||src.reverseHolofoil);
   return out;
 }
+const VT_TCGDEX_SET_IDS={"base1":"base1","base2":"base2","basep":"basep","base3":"base3","base4":"base4","base5":"base5","gym1":"gym1","gym2":"gym2","neo1":"neo1","neo2":"neo2","si1":"si1","neo3":"neo3","neo4":"neo4","lc":"base6","ecard1":"ecard1","bog":"bp","ecard2":"ecard2","ecard3":"ecard3","ex1":"ex1","ex2":"ex2","np":"np","ex3":"ex3","ex4":"ex4","ex5":"ex5","tk-ex-latia":"tk1a","tk-ex-latio":"tk1b","pop1":"pop1","ex6":"ex6","ex7":"ex7","ex8":"ex8","ex9":"ex9","pop2":"pop2","ex10":"ex10","ex11":"ex11","ex12":"ex12","tk-ex-m":"tk2b","tk-ex-p":"tk2a","pop3":"pop3","ex13":"ex13","pop4":"pop4","ex14":"ex14","ex15":"ex15","ex16":"ex16","pop5":"pop5","dpp":"dpp","dp1":"dp1","dp2":"dp2","pop6":"pop6","dp3":"dp3","dp4":"dp4","pop7":"pop7","dp5":"dp5","dp6":"dp6","pop8":"pop8","dp7":"dp7","pl1":"pl1","pop9":"pop9","pl2":"pl2","pl3":"pl3","pl4":"pl4","ru1":"ru1","hgss1":"hgss1","hgss2":"hgss2","hgss3":"hgss3","hgss4":"hgss4","hgssp":"hsp","col1":"col1","bw1":"bw1","bwp":"bwp","2011bw":"mcd11","bw2":"bw2","bw3":"bw3","bw4":"bw4","bw5":"bw5","2012bw":"mcd12","bw6":"bw6","dv1":"dv1","bw7":"bw7","bw8":"bw8","bw9":"bw9","bw10":"bw10","xyp":"xyp","bw11":"bw11","xy0":"xy0","xy1":"xy1","xy2":"xy2","2014xy":"mcd14","xy3":"xy3","xy4":"xy4","xy5":"xy5","dc1":"dc1","xy6":"xy6","xy7":"xy7","xy8":"xy8","2015xy":"mcd15","xy9":"xy9","g1":"g1","xy10":"xy10","xy11":"xy11","2016xy":"mcd16","xy12":"xy12","smp":"smp","sm1":"sm1","sm2":"sm2","2017sm":"mcd17","sm3":"sm3","sm3.5":"sm35","sm4":"sm4","sm5":"sm5","sm6":"sm6","sm7":"sm7","sm7.5":"sm75","2018sm":"mcd18","sm8":"sm8","sm9":"sm9","det1":"det1","sm10":"sm10","sm11":"sm11","sma":"sma","sm115":"sm115","2019sm":"mcd19","sm12":"sm12","swshp":"swshp","swsh1":"swsh1","swsh2":"swsh2","swsh3":"swsh3","swsh3.5":"swsh35","swsh4":"swsh4","2021swsh":"mcd21","swsh4.5sv":"swsh45sv","swsh4.5":"swsh45","swsh5":"swsh5","swsh6":"swsh6","swsh7":"swsh7","cel25cc":"cel25c","cel25":"cel25","swsh8":"swsh8","swsh9":"swsh9","swsh9.5tg":"swsh9tg","swsh10.5tg":"swsh10tg","swsh10":"swsh10","swsh10.5":"pgo","2022swsh":"mcd22","swsh11":"swsh11","swsh11.5tg":"swsh11tg","swsh12.5tg":"swsh12tg","swsh12":"swsh12","swsh12.5":"swsh12pt5","swsh12.5gg":"swsh12pt5gg","svp":"svp","sve":"sve","sv01":"sv1","sv02":"sv2","sv03":"sv3","sv03.5":"sv3pt5","sv04":"sv4","sv04.5":"sv4pt5","sv05":"sv5","sv06":"sv6","sv06.5":"sv6pt5","sv07":"sv7","sv08":"sv8","sv08.5":"sv8pt5","sv09":"sv9","sv10":"sv10","sv10.5w":"rsv10pt5","sv10.5b":"zsv10pt5","me01":"me1","me02":"me2","me02.5":"me2pt5","me03":"me3","me04":"me4","me05":"me5"};
 function vtFromTcgdex(card,brief){
   const prices=vtTcgdexPriceMap(card),product=Object.values(card?.pricing?.tcgplayer||{}).find(v=>v&&typeof v==='object'&&v.productId)?.productId;
-  const image=card?.image||brief?.image||'';
-  return {id:card.id,name:card.name,number:String(card.localId||''),rarity:card.rarity||'',set:{id:card.set?.id||'',name:card.set?.name||'',printedTotal:card.set?.cardCount?.official||0,total:card.set?.cardCount?.total||0},images:{small:image?image+'/low.png':'',large:image?image+'/high.png':''},tcgplayer:{url:product?`https://www.tcgplayer.com/product/${product}`:'',updatedAt:card?.pricing?.tcgplayer?.updated||'',prices}};
+  const image=card?.image||brief?.image||'',primarySetId=VT_TCGDEX_SET_IDS[card?.set?.id||'']||'',primaryId=primarySetId?`${primarySetId}-${card.localId}`:card.id;
+  const small=image?image+'/low.png':(primarySetId?`https://images.pokemontcg.io/${primarySetId}/${card.localId}.png`:''),large=image?image+'/high.png':(primarySetId?`https://images.pokemontcg.io/${primarySetId}/${card.localId}_hires.png`:'');
+  return {id:primaryId,name:card.name,number:String(card.localId||''),rarity:card.rarity||'',set:{id:primarySetId||card.set?.id||'',name:card.set?.name||'',printedTotal:card.set?.cardCount?.official||0,total:card.set?.cardCount?.total||0},images:{small,large},tcgplayer:{url:product?`https://www.tcgplayer.com/product/${product}`:'',updatedAt:card?.pricing?.tcgplayer?.updated||'',prices}};
 }
 let vtTcgdexSetsJob;
 function vtTcgdexSetId(brief){
@@ -2861,12 +2865,51 @@ async function vtPrimaryCollectorLookup(c){
   }catch(e){vtCollectorIssues.push(e?.name==='AbortError'?'timeout':'service');return[]}
   finally{clearTimeout(timer)}
 }
+function vtCardHasImageAndPrice(card){
+  return !!(card?.images?.small||card?.images?.large)&&Object.keys(card?.tcgplayer?.prices||{}).length>0;
+}
+const vtCollectorEnrichmentJobs=new Map();
+function vtRenderPurchaseCollectorCards(cards){
+  const box=document.getElementById('buyLookupResults');if(!box)return;
+  box.innerHTML=cards.map((card,i)=>{const m=Object.values(card.tcgplayer?.prices||{}).map(v=>v?.market).find(v=>v!=null),label=m!=null?money(m):(card._vtPricePending?'Loading market price…':'Market unavailable');return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(card.images?.small||card.images?.large||'')}"><strong>${esc(card.name)}</strong><div class="small">${esc(card.set?.name||'')} #${esc(fullCardNumber(card))}</div><div class="marketGood" style="margin-top:5px">${label}</div></button>`}).join('');
+}
+async function vtFetchPrimaryCardDirect(id){
+  for(let attempt=0;attempt<2;attempt++){
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),9000);
+    try{const r=await fetch(`https://api.pokemontcg.io/v2/cards/${encodeURIComponent(id)}`,{signal:ctrl.signal,cache:'force-cache'});if(r.ok)return(await r.json()).data||null;if(r.status===404)return null}catch(e){}finally{clearTimeout(timer)}
+    await new Promise(resolve=>setTimeout(resolve,350));
+  }
+  return null;
+}
+function vtStartCollectorEnrichment(raw,cards,primaryJob){
+  const c=vtCollectorParts(raw),targets=cards.filter(card=>!vtCardHasImageAndPrice(card)&&card.id);
+  if(!c||!targets.length)return;
+  targets.forEach(card=>card._vtPricePending=true);
+  const key=c.printed;if(vtCollectorEnrichmentJobs.has(key))return;
+  const job=Promise.resolve(primaryJob).catch(()=>[]).then(async primary=>primary?.length?primary:Promise.all(cards.map(async card=>{
+    if(vtCardHasImageAndPrice(card))return card;
+    const rich=await vtFetchPrimaryCardDirect(card.id);
+    if(rich&&vtCollectorMatches(rich,c))return rich;
+    delete card._vtPricePending;return card;
+  }))).then(enriched=>{
+    cards.splice(0,cards.length,...enriched);vtWriteCollectorCache(raw,cards);
+    if(currentLookupResults===cards&&!document.getElementById('cardLookupModal')?.classList.contains('hidden'))renderCardLookup(cards);
+    if(purchaseLookupResults===cards)vtRenderPurchaseCollectorCards(cards);
+    const status=document.getElementById('cardLookupStatus');
+    if(status&&currentLookupResults===cards)status.textContent=enriched.some(card=>Object.keys(card.tcgplayer?.prices||{}).length)?`Found ${cards.length} exact match${cards.length===1?'':'es'}. Artwork and TCGPlayer pricing loaded.`:`Exact card found, but TCGPlayer does not currently provide a market price for this printing.`;
+  }).finally(()=>vtCollectorEnrichmentJobs.delete(key));
+  vtCollectorEnrichmentJobs.set(key,job);
+}
 async function vtExactCollectorLookup(raw){
   const c=vtCollectorParts(raw); if(!c)return [];
   const saved=vtReadCollectorCache(raw);if(saved.length)return saved;
   vtCollectorIssues=[];
-  const exact=await firstNonEmpty([vtPrimaryCollectorLookup(c),vtTcgdexCollectorLookup(c)]);
-  if(exact.length){vtWriteCollectorCache(raw,exact);return exact}
+  const primaryJob=vtPrimaryCollectorLookup(c),dexJob=vtTcgdexCollectorLookup(c);
+  const exact=await firstNonEmpty([primaryJob,dexJob]);
+  if(exact.length){
+    if(exact.every(vtCardHasImageAndPrice))vtWriteCollectorCache(raw,exact);else vtStartCollectorEnrichment(raw,exact,primaryJob);
+    return exact;
+  }
   return[];
 }
 const vtOriginalSearchPokemonCards = searchPokemonCards;
@@ -2886,10 +2929,11 @@ searchPokemonCards = async function(){
 
 const VT_COLLECTOR_SEEDS={
  'GG07/GG70':{id:'swsh12pt5gg-GG07',name:'Keldeo',number:'GG07',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG07.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG07_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG07',updatedAt:'2026/08/17',prices:{holofoil:{low:13.74,mid:18.66,high:1000,market:16.82,directLow:21.62}}}},
+ 'GG40/GG70':{id:'swsh12pt5gg-GG40',name:'Glaceon VSTAR',number:'GG40',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG40.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG40_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG40',updatedAt:'2026/08/17',prices:{holofoil:{low:66,mid:78.54,high:250,market:70.87,directLow:69.99}}}},
  'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG56',updatedAt:'2026/08/17',prices:{holofoil:{low:47,mid:53.59,high:459.99,market:51.11,directLow:57.98}}}}
 };
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
-vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const c=vtCollectorParts(raw),seed=c&&VT_COLLECTOR_SEEDS[c.printed];const found=await _vtExactCollectorLookupStable(raw);if(found.length){if(seed)found.forEach(x=>{if(!Object.keys(x.tcgplayer?.prices||{}).length)x.tcgplayer=seed.tcgplayer});vtWriteCollectorCache(raw,found);return found}if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
+vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const c=vtCollectorParts(raw),seed=c&&VT_COLLECTOR_SEEDS[c.printed];const found=await _vtExactCollectorLookupStable(raw);if(found.length){if(seed)found.forEach(x=>{if(!Object.keys(x.tcgplayer?.prices||{}).length){x.tcgplayer=seed.tcgplayer;delete x._vtPricePending}});if(found.every(x=>!x._vtPricePending))vtWriteCollectorCache(raw,found);return found}if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
 const _vtResolveCardTextExact=resolveCardText;
 resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);return exact.slice(0,limit)}return _vtResolveCardTextExact(raw,limit)};
 
