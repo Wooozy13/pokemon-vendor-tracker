@@ -953,7 +953,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.3</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.4</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1092,7 +1092,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.5.3";
+const APP_VERSION="v12.5.4";
 const TCG_LOWEST_SOURCE="TCGplayer standard unopened marketplace listing";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
@@ -1236,7 +1236,6 @@ function lowestActualMarkup(target){
   return `<div class="lowestActualLine"><a class="lowestActualLink" href="${esc(lowestActualHref(target))}" target="_blank" rel="noopener noreferrer" data-product-id="${esc(productId)}" data-product-name="${esc(target.name||"")}" data-product-url="${esc(directUrl)}" data-seller-key="${esc(listing.sellerKey||"")}" data-listing-source="${esc(listing.source||"")}" onclick="openLowestActual(event,this)" title="Open this exact seller listing on TCGplayer">${esc(lowestActualText(target))}${seller} ↗</a></div>`;
 }
 async function openLowestActual(event,link){
-  if(link?.dataset?.sellerKey&&link?.dataset?.listingSource===TCG_LOWEST_SOURCE)return;
   event.preventDefault();
   const productId=Number(link?.dataset?.productId);
   if(!Number.isInteger(productId)||productId<=0){toast("Exact seller listing is unavailable for this item");return}
@@ -1275,7 +1274,7 @@ async function fetchSealedLowestActual(product,force=false){
   if(force)sealedLowestListingCache.delete(key);
   if(sealedLowestListingCache.has(key))return sealedLowestListingCache.get(key);
   const job=(async()=>{
-    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{action:"lowest-listing",productId}});
+    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{action:"lowest-listing",productId,force}});
     if(error)throw error;
     if(!data?.success)throw new Error(data?.error||"Lowest listing unavailable");
     return {listing:data.lowestActual||null,checkedAt:data.checkedAt||new Date().toISOString()};

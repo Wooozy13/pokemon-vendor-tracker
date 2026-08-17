@@ -68,10 +68,10 @@ function finiteMoney(value: unknown) {
   return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : null
 }
 
-async function fetchLowestActualListing(productId: number) {
+async function fetchLowestActualListing(productId: number, force = false) {
   if (!Number.isInteger(productId) || productId <= 0) throw new Error("Invalid TCGplayer product ID")
   const cached = listingCache.get(productId)
-  if (cached && Date.now() - cached.time < LISTING_CACHE_MS) return cached.value
+  if (!force && cached && Date.now() - cached.time < LISTING_CACHE_MS) return cached.value
   const running = listingJobs.get(productId)
   if (running) return running
 
@@ -105,6 +105,7 @@ async function fetchLowestActualListing(productId: number) {
       const candidates = raw.filter((listing: any) => {
         if (Number(listing?.productId) !== productId) return false
         if (String(listing?.listingType || "").toLowerCase() !== "standard") return false
+        if (!String(listing?.sellerKey || "").trim()) return false
         // TCGplayer Direct channel offers appear in the pricing feed, but they
         // cannot be opened through a seller-filtered marketplace URL.
         if (listing?.channelId != null && Number(listing.channelId) !== 0) return false
@@ -259,7 +260,7 @@ Deno.serve(async (request: Request) => {
     const { query } = body
     const productId = Number(body?.productId)
     if (body?.action === "lowest-listing") {
-      const lowestActual = await fetchLowestActualListing(productId)
+      const lowestActual = await fetchLowestActualListing(productId, body?.force === true)
       return Response.json({ success: true, lowestActual, checkedAt: new Date().toISOString() }, { headers: jsonHeaders })
     }
     if (!query || !String(query).trim()) return Response.json({ success: false, error: "Missing query" }, { status: 400, headers: jsonHeaders })
