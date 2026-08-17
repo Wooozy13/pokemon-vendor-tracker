@@ -917,7 +917,7 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.1.1</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.1.2</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1049,9 +1049,14 @@ body{background:radial-gradient(circle at 15% 0,#e9efff 0,transparent 28%),radia
 const SUPABASE_URL="https://pmhymnxuekkwdgavtqdk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_yhNioab03lrMzYSqqDTb4Q_rx0fMoU_";
 const VT_AUTH_STORAGE_KEY="sb-pmhymnxuekkwdgavtqdk-auth-token";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:VT_AUTH_STORAGE_KEY}});
+const vtAuthStorage={
+ getItem(key){try{const saved=localStorage.getItem(key);if(saved)return saved}catch(e){}const name=encodeURIComponent(key)+"=";const part=document.cookie.split("; ").find(x=>x.startsWith(name));return part?decodeURIComponent(part.slice(name.length)):null},
+ setItem(key,value){try{localStorage.setItem(key,value)}catch(e){}document.cookie=encodeURIComponent(key)+"="+encodeURIComponent(value)+"; Max-Age=31536000; Path=/; SameSite=Lax; Secure"},
+ removeItem(key){try{localStorage.removeItem(key)}catch(e){}document.cookie=encodeURIComponent(key)+"=; Max-Age=0; Path=/; SameSite=Lax; Secure"}
+};
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.1.1";
+const APP_VERSION="v12.1.2";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -1691,7 +1696,7 @@ function showPublic(){publicSite.classList.remove("hidden");authOverlay.classLis
 function openAuth(mode){publicSite.classList.add("hidden");authOverlay.classList.remove("hidden");setAuthTab(mode)}
 function closeAuth(){authOverlay.classList.add("hidden");publicSite.classList.remove("hidden")}
 function setAuthTab(mode){authMode=mode;signInTab.classList.toggle("active",mode==="signin");signUpTab.classList.toggle("active",mode==="signup");authSubmit.textContent=mode==="signin"?"Sign in":"Create account";setMsg(authMsg,"")}
-async function submitAuth(e){e.preventDefault();const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;authSubmit.disabled=true;setMsg(authMsg,"Working…");let r;if(authMode==="signin")r=await sb.auth.signInWithPassword({email,password});else r=await sb.auth.signUp({email,password,options:{emailRedirectTo:"https://www.vendortracker.app/"}});authSubmit.disabled=false;if(r.error)return setMsg(authMsg,r.error.message,"error");if(authMode==="signup"&&!r.data.session)return setMsg(authMsg,"Account created. Check your email to confirm your address, then sign in.","success");if(r.data.session)localStorage.setItem(VT_AUTH_STORAGE_KEY,JSON.stringify(r.data.session));user=r.data.user;await enterApp()}
+async function submitAuth(e){e.preventDefault();const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;authSubmit.disabled=true;setMsg(authMsg,"Working…");let r;if(authMode==="signin")r=await sb.auth.signInWithPassword({email,password});else r=await sb.auth.signUp({email,password,options:{emailRedirectTo:"https://www.vendortracker.app/"}});authSubmit.disabled=false;if(r.error)return setMsg(authMsg,r.error.message,"error");if(authMode==="signup"&&!r.data.session)return setMsg(authMsg,"Account created. Check your email to confirm your address, then sign in.","success");if(r.data.session)vtAuthStorage.setItem(VT_AUTH_STORAGE_KEY,JSON.stringify(r.data.session));user=r.data.user;await enterApp()}
 async function forgotPassword(){const email=document.getElementById("email").value.trim();if(!email)return setMsg(authMsg,"Enter your email address first.","error");const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://www.vendortracker.app/"});if(error)return setMsg(authMsg,error.message,"error");setMsg(authMsg,"Password reset email sent. Check your inbox.","success")}
 function showReset(){publicSite.classList.add("hidden");authOverlay.classList.add("hidden");app.classList.add("hidden");resetView.classList.remove("hidden")}
 async function completePasswordReset(e){e.preventDefault();const a=newPassword.value,b=confirmPassword.value;if(a!==b)return setMsg(resetMsg,"Passwords do not match.","error");const {error}=await sb.auth.updateUser({password:a});if(error)return setMsg(resetMsg,error.message,"error");setMsg(resetMsg,"Password updated successfully. Loading your dashboard…","success");recoveryMode=false;history.replaceState({},"",location.pathname);const {data:{user:u}}=await sb.auth.getUser();user=u;setTimeout(enterApp,700)}
