@@ -48,6 +48,31 @@ function looksSealed(product: any) {
   return words.some((word) => name.includes(norm(word)))
 }
 
+function bestProductPrice(prices: any[], productId: number) {
+  const matches = prices.filter((item: any) => Number(item?.productId) === productId)
+  return matches.find((item: any) => norm(item.subTypeName) === "normal" && item.marketPrice != null)
+    || matches.find((item: any) => item.marketPrice != null)
+    || matches[0]
+    || null
+}
+
+function mapCatalogProduct(product: any, group: any, prices: any[], score = 0) {
+  const best = bestProductPrice(prices, Number(product.productId))
+  return {
+    productId: product.productId,
+    name: product.name,
+    groupId: group.groupId,
+    groupName: group.name,
+    imageUrl: String(product.imageUrl || "").replace("_200w.jpg", "_in_1000x1000.jpg"),
+    url: product.url,
+    marketPrice: best?.marketPrice ?? null,
+    lowPrice: best?.lowPrice ?? null,
+    subTypeName: best?.subTypeName ?? "Normal",
+    updatedAt: product.modifiedOn ?? null,
+    score,
+  }
+}
+
 async function fetchJson(url: string) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 12_000)
@@ -231,24 +256,7 @@ async function searchGroups(groups: any[], query: string) {
       if (!looksSealed(product)) continue
       const score = scoreText(product.name, query) + scoreText(group.name, query) * 0.35
       if (score < 35) continue
-      const productPrices = priceMap.get(product.productId) || []
-      const best = productPrices.find((item: any) => norm(item.subTypeName) === "normal" && item.marketPrice != null)
-        || productPrices.find((item: any) => item.marketPrice != null)
-        || productPrices[0]
-        || null
-      results.push({
-        productId: product.productId,
-        name: product.name,
-        groupId: group.groupId,
-        groupName: group.name,
-        imageUrl: String(product.imageUrl || "").replace("_200w.jpg", "_in_1000x1000.jpg"),
-        url: product.url,
-        marketPrice: best?.marketPrice ?? null,
-        lowPrice: best?.lowPrice ?? null,
-        subTypeName: best?.subTypeName ?? "Normal",
-        updatedAt: product.modifiedOn ?? null,
-        score,
-      })
+      results.push(mapCatalogProduct(product, group, priceMap.get(product.productId) || [], score))
     }
   }
   return results
@@ -274,25 +282,50 @@ Deno.serve(async (request: Request) => {
     const body = await request.json()
     const { query } = body
     const productId = Number(body?.productId)
+    if (body?.action === "ping") {
+      return Response.json({ success: true, warmed: true }, { headers: jsonHeaders })
+    }
     if (body?.action === "lowest-listing") {
       const lowestActual = await fetchLowestActualListing(productId, body?.force === true)
       return Response.json({ success: true, lowestActual, checkedAt: new Date().toISOString() }, { headers: jsonHeaders })
+    }
+    if (body?.action === "product-price") {
+      const groupId = Number(body?.groupId)
+      if (!Number.isInteger(productId) || productId <= 0 || !Number.isInteger(groupId) || groupId <= 0) {
+        return Response.json({ success: false, error: "Missing product or group ID" }, { status: 400, headers: jsonHeaders })
+      }
+      const [groups, catalog] = await Promise.all([getGroups(), getGroupCatalog(groupId)])
+      const group = groups.find((item: any) => Number(item.groupId) === groupId) || { groupId, name: "Pokémon" }
+      const product = catalog.products.find((item: any) => Number(item.productId) === productId)
+      const result = product ? mapCatalogProduct(product, group, catalog.prices, 1000) : null
+      return Response.json({ success: true, result, meta: { durationMs: Date.now() - started } }, { headers: jsonHeaders })
     }
     if (!query || !String(query).trim()) return Response.json({ success: false, error: "Missing query" }, { status: 400, headers: jsonHeaders })
     const cleanQuery = String(query).trim()
     const groups = await getGroups()
     const ranked = groups.map((group: any) => ({ ...group, _score: scoreText(group.name, cleanQuery) })).sort((a: any, b: any) => b._score - a._score)
-    const likely = ranked.filter((group: any) => group._score > 0).slice(0, 8)
-    const selected = new Map<number, any>()
-    for (const group of likely) selected.set(group.groupId, group)
-    for (const group of newestGroups(groups, likely.length ? 6 : 24)) selected.set(group.groupId, group)
-    let chosen = [...selected.values()]
+    const likely = ranked.filter((group: any) => group._score > 0).slice(0, 10)
+    const primary = new Map<number, any>()
+    for (const group of likely.slice(0, 3)) primary.set(group.groupId, group)
+    for (const group of newestGroups(groups, likely.length ? 2 : 10)) primary.set(group.groupId, group)
+    let chosen = [...primary.values()]
     let results = await searchGroups(chosen, cleanQuery)
 
-    // If a vague query did not produce enough choices, broaden once without making exact set searches wait.
+    // Precise set/product searches usually finish after 3–5 cached group reads.
+    // Broaden only when the fast pass did not return a useful result set.
     if (results.length < 6) {
       const already = new Set(chosen.map((group: any) => group.groupId))
-      const fallback = ranked.filter((group: any) => !already.has(group.groupId)).slice(0, 16)
+      const secondary = new Map<number, any>()
+      for (const group of likely.slice(3, 8)) if (!already.has(group.groupId)) secondary.set(group.groupId, group)
+      for (const group of newestGroups(groups, likely.length ? 6 : 18)) if (!already.has(group.groupId)) secondary.set(group.groupId, group)
+      const nextGroups = [...secondary.values()].slice(0, 10)
+      results = results.concat(await searchGroups(nextGroups, cleanQuery))
+      chosen = chosen.concat(nextGroups)
+    }
+
+    if (!results.length) {
+      const already = new Set(chosen.map((group: any) => group.groupId))
+      const fallback = ranked.filter((group: any) => !already.has(group.groupId)).slice(0, 12)
       results = results.concat(await searchGroups(fallback, cleanQuery))
       chosen = chosen.concat(fallback)
     }

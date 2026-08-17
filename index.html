@@ -61,8 +61,9 @@ a{color:inherit;text-decoration:none}.container{width:min(1180px,calc(100% - 32p
 .marketGood{color:#166534;font-weight:850}.marketNone{color:#94a3b8}
 .lowestActualLine{color:#075985;font-size:11px;font-weight:800;margin-top:5px;line-height:1.35}.lowestActualNone{color:#64748b;font-size:11px;margin-top:5px;line-height:1.35}.lowestActualLink{color:inherit;text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}.lowestActualLink:hover{color:#1d4ed8}
 
-.scanQueue{display:grid;gap:10px;margin-top:12px}.scanItem{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
-.scanItem img{width:76px;height:100px;object-fit:cover;border-radius:8px;background:#f8fafc}.scanStatus{font-size:12px;color:var(--muted);margin-top:4px}.scanGood{color:#166534;font-weight:800}.scanBad{color:#991b1b;font-weight:800}
+.scanQueue{display:grid;gap:10px;margin-top:12px}.scanSessionBar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid #bfdbfe;background:#eff6ff;border-radius:12px;padding:10px 12px}.scanItem{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
+.scanItem img{width:76px;height:106px;object-fit:cover;border-radius:8px;background:#f8fafc}.scanStatus{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}.scanGood{color:#166534;font-weight:800}.scanBad{color:#991b1b;font-weight:800}.scanDetected{font-size:11px;color:#475569;margin-top:4px}.scanActions{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.scanQty{width:58px!important;min-height:34px!important;padding:6px 7px!important;font-size:13px!important}.scanProgress{height:5px;background:#dbeafe;border-radius:999px;overflow:hidden;margin-top:7px}.scanProgress span{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);transition:width .2s}
+@media(max-width:620px){.scanItem{grid-template-columns:62px minmax(0,1fr)}.scanItem img{width:62px;height:88px}.scanActions{grid-column:1/-1;justify-content:flex-start}.scanSessionBar .btn{flex:1}}
 
 /* ===== Mobile usability improvements ===== */
 .mobileOnly{display:none}
@@ -786,10 +787,10 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               <div class="apiStatus" id="cardLookupStatus">For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
                 <label class="btn btnGhost">
-                  📸 Scan card photo(s)
+                  📸 Start / keep scanning
                   <input id="scanPhotos" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)">
                 </label>
-                <span class="small" style="align-self:center">Best results: one card per photo. You can select multiple photos at once.</span>
+                <span class="small" style="align-self:center">Take one clear card photo at a time or select several. Review every match, then add the whole scan session at once.</span>
               </div>
               <div id="scanQueue" class="scanQueue"></div>
             </div>
@@ -953,7 +954,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.5.5</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.6.0</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1092,7 +1093,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.5.5";
+const APP_VERSION="v12.6.0";
 const TCG_LOWEST_SOURCE="TCGplayer standard unopened marketplace listing";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
@@ -1104,6 +1105,12 @@ let inventoryType="card";
 let currentSealedResults=[];
 let pendingSealedData=null;
 const sealedLowestListingCache=new Map();
+const cardMarketRefreshJobs=new Map();
+let sealedSearchWarmJob=null;
+let cardScanQueue=[];
+let scanWorkerJob=null;
+let scanWorkerProgress=null;
+let scanReviewContextId=null;
 
 let tradeYourItems=[];
 let tradeTheirItems=[];
@@ -1181,9 +1188,9 @@ function clearProductPhotoForm(){
   const lowest=document.getElementById("pLowestDisplay");if(lowest){lowest.textContent="";lowest.classList.add("hidden")}
 }
 function tcgPlayerHref(name, directUrl="", productId=""){
-  // Product buttons always open the full product page. TCGplayer remembers its
-  // last seller filter in the browser, so an explicit empty seller parameter is
-  // required to prevent a previous "Lowest actual" click from carrying over.
+  // Product buttons always open the clean, full marketplace product page.
+  // Seller-specific links use TCGplayer's separate seller storefront route below,
+  // so they no longer write TCGplayer's sticky legacy SellerFilter cookie.
   try{
     if(directUrl){
       const u=new URL(directUrl,"https://www.tcgplayer.com");
@@ -1192,7 +1199,6 @@ function tcgPlayerHref(name, directUrl="", productId=""){
         if(/^\/product\/\d+/i.test(u.pathname)){
           u.search="";
           u.hash="";
-          u.searchParams.set("seller","");
         }
         return u.href;
       }
@@ -1201,7 +1207,7 @@ function tcgPlayerHref(name, directUrl="", productId=""){
   // Sealed products retain their TCGplayer product ID, so older saved items can
   // still open the exact listing even if their stored URL is missing.
   const exactId=String(productId||"").trim();
-  if(/^\d+$/.test(exactId))return `https://www.tcgplayer.com/product/${exactId}?seller=`;
+  if(/^\d+$/.test(exactId))return `https://www.tcgplayer.com/product/${exactId}`;
   // Safe fallback: search directly on TCGplayer.
   const q=encodeURIComponent(String(name||"Pokemon card").trim()||"Pokemon card").replace(/'/g,"%27");
   return "https://www.tcgplayer.com/search/all/product?q="+q+"&view=grid";
@@ -1225,12 +1231,15 @@ function lowestActualHref(target){
   const listing=target?.tcgLowestActual;
   if(!listing)return "";
   try{
-    const url=new URL(tcgPlayerHref(target.name||"",target.tcgUrl||target.url||"",target.tcgProductId||target.productId||""));
-    url.searchParams.set("Condition","Unopened");
-    url.searchParams.set("Language","English");
-    url.searchParams.set("page","1");
-    if(listing.sellerKey)url.searchParams.set("seller",String(listing.sellerKey));
-    return url.href;
+    const productUrl=new URL(tcgPlayerHref(target.name||"",target.tcgUrl||target.url||"",target.tcgProductId||target.productId||""));
+    const productId=String(target.tcgProductId||target.productId||productUrl.pathname.match(/^\/product\/(\d+)/i)?.[1]||"");
+    const productSlug=productUrl.pathname.replace(/^\/product\/\d+\/?/i,"").replace(/^\/+|\/+$/g,"")
+      || String(target.name||"pokemon-product").trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+    const sellerSlug=String(listing.seller||"seller").trim().replace(/\s+/g,"-");
+    if(productId&&listing.sellerKey){
+      return `https://www.tcgplayer.com/sellers/${encodeURIComponent(sellerSlug)}/${encodeURIComponent(String(listing.sellerKey))}/product/${encodeURIComponent(productId)}/${productSlug}`;
+    }
+    return productUrl.href;
   }catch(e){return tcgPlayerHref(target.name||"",target.tcgUrl||target.url||"",target.tcgProductId||target.productId||"")}
 }
 function lowestActualMarkup(target){
@@ -1595,113 +1604,181 @@ async function resolveCardText(raw, limit=8){
   cards.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));
   return cards.slice(0,limit);
 }
-function extractLikelyCardText(ocrText){
-  const lines=String(ocrText||"").split(/\n+/).map(x=>x.trim()).filter(Boolean);
-  let number="";
-  for(const line of lines){
-    const m=line.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)\s*\/\s*([A-Za-z]*\d+[A-Za-z]*)/);
-    if(m){number=`${m[1]}/${m[2]}`;break}
+function scanCollectorPart(value){
+  const compact=String(value||"").toUpperCase().replace(/\s+/g,"").replace(/[|]/g,"I");
+  const knownPrefixes=["PROMO","SWSH","HGSS","SVP","SMP","XYP","BWP","MEP","GG","TG","SV","SM","XY","BW","DP","RC","SH","H","P","M"];
+  const prefix=knownPrefixes.find(item=>compact.startsWith(item))||"";
+  if(prefix){
+    let rest=compact.slice(prefix.length),suffix="";
+    if(/[A-HJ-KM-NP-Z]$/.test(rest)&&/\d/.test(rest.slice(0,-1))){suffix=rest.slice(-1);rest=rest.slice(0,-1)}
+    const digits=rest.replace(/O/g,"0").replace(/[IL]/g,"1").replace(/[^0-9]/g,"");
+    return digits?`${prefix}${digits}${suffix}`:"";
   }
-  if(!number){
-    for(const line of lines){
-      const m=line.match(/\b(?:#\s*)?(\d{1,3})\b/);
-      if(m){number=m[1];break}
+  const match=compact.match(/^([A-Z]{0,5})([0-9OIL]{1,4})([A-Z]?)$/);if(!match)return "";
+  const digits=match[2].replace(/O/g,"0").replace(/[IL]/g,"1");
+  return `${match[1]||""}${digits}${match[3]||""}`;
+}
+function extractCollectorNumberFromOcr(ocrText){
+  const text=String(ocrText||"").toUpperCase().replace(/[\\]/g,"/").replace(/[‐‑‒–—]/g,"-");
+  const candidates=[...text.matchAll(/\b([A-Z]{0,5}\s*[A-Z0-9]{1,8})\s*[\/|]\s*([A-Z]{0,5}\s*[A-Z0-9]{1,8})\b/g)];
+  for(const candidate of candidates){
+    const left=scanCollectorPart(candidate[1]),right=scanCollectorPart(candidate[2]);
+    if(left&&right)return `${left}/${right}`;
+  }
+  return "";
+}
+function extractCardNameFromOcr(ocrText){
+  const reject=/\b(BASIC|STAGE|TRAINER|ENERGY|ABILITY|WEAKNESS|RESISTANCE|RETREAT|ILLUS|RULE|POKEMON|POKÉMON|VSTAR|VMAX|EX RULE|HP)\b/i;
+  const lines=String(ocrText||"").split(/\n+/).map(line=>line.replace(/[^A-Za-z0-9'’ .-]/g," ").replace(/\s+/g," ").trim()).filter(Boolean);
+  const choices=lines.filter(line=>line.length>=3&&line.length<=32&&/[A-Za-z]{3}/.test(line)&&!reject.test(line)&&!/^\d/.test(line));
+  return choices.sort((a,b)=>{
+    const aPenalty=/\d/.test(a)?8:0,bPenalty=/\d/.test(b)?8:0;
+    return (Math.abs(a.length-12)+aPenalty)-(Math.abs(b.length-12)+bPenalty);
+  })[0]||"";
+}
+async function scanImageSource(file){
+  if(window.createImageBitmap)return createImageBitmap(file);
+  const src=URL.createObjectURL(file);
+  try{return await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src})}
+  finally{setTimeout(()=>URL.revokeObjectURL(src),0)}
+}
+function cardScanCrop(image,area,targetWidth,contrast=1.15){
+  const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+  const sx=Math.max(0,Math.floor(width*area.x)),sy=Math.max(0,Math.floor(height*area.y));
+  const sw=Math.max(1,Math.floor(width*area.w)),sh=Math.max(1,Math.floor(height*area.h));
+  const canvas=document.createElement("canvas"),scale=Math.min(3,targetWidth/sw);
+  canvas.width=Math.max(600,Math.round(sw*scale));canvas.height=Math.max(110,Math.round(sh*scale));
+  const context=canvas.getContext("2d",{willReadFrequently:false});
+  context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";
+  context.filter=`grayscale(1) contrast(${contrast})`;
+  context.drawImage(image,sx,sy,Math.min(sw,width-sx),Math.min(sh,height-sy),0,0,canvas.width,canvas.height);
+  return canvas;
+}
+async function getCardScanWorker(){
+  if(scanWorkerJob)return scanWorkerJob;
+  scanWorkerJob=Tesseract.createWorker("eng",1,{logger:message=>{
+    if(message.status==="recognizing text"&&scanWorkerProgress)scanWorkerProgress(Math.round((message.progress||0)*100));
+  }}).catch(error=>{scanWorkerJob=null;throw error});
+  return scanWorkerJob;
+}
+function cardScanMarket(card){
+  const prices=card?.tcgplayer?.prices||{},finishes=Object.keys(prices);
+  const finish=finishes.includes("holofoil")?"holofoil":(finishes[0]||"");
+  return {prices,finish,market:currentMarketFromPrices(prices,finish)};
+}
+function setScanProgress(entry,percent,label="Reading card number"){
+  entry.progress=Math.max(0,Math.min(100,Number(percent)||0));entry.message=`${label}… ${entry.progress}%`;renderCardScanQueue();
+}
+async function readCardScanPhoto(entry){
+  entry.state="scanning";entry.error="";entry.message="Preparing photo…";entry.progress=2;renderCardScanQueue();
+  let image;
+  try{
+    if(!window.Tesseract)throw new Error("Card scanner did not load");
+    image=await scanImageSource(entry.file);
+    const numberCrop=cardScanCrop(image,{x:0,y:.70,w:.64,h:.28},1800,1.05);
+    entry.message=scanWorkerJob?"Opening scanner…":"Loading scanner once for this session…";renderCardScanQueue();
+    const worker=await getCardScanWorker();
+    scanWorkerProgress=percent=>setScanProgress(entry,percent,"Reading bottom card number");
+    await worker.setParameters({tessedit_pageseg_mode:"11",tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/"});
+    const numberResult=await worker.recognize(numberCrop);
+    let number=extractCollectorNumberFromOcr(numberResult?.data?.text||"");
+    if(!number){
+      const rightNumberCrop=cardScanCrop(image,{x:.36,y:.70,w:.64,h:.28},1800,1.05);
+      const rightResult=await worker.recognize(rightNumberCrop);
+      number=extractCollectorNumberFromOcr(rightResult?.data?.text||"");
     }
-  }
-  const reject=/^(basic|stage|hp|trainer|energy|ability|weakness|resistance|retreat|illus|©|pokemon|pokémon)$/i;
-  let name=lines.find(line=>{
-    const cleaned=line.replace(/[^A-Za-z0-9'’ -]/g," ").replace(/\s+/g," ").trim();
-    return cleaned.length>=3 && cleaned.length<=35 && /[A-Za-z]/.test(cleaned) && !reject.test(cleaned) && !/\b\d{2,3}\s*HP\b/i.test(cleaned);
-  })||"";
-  name=name.replace(/[^A-Za-z0-9'’ -]/g," ").replace(/\s+/g," ").trim();
-  return [name,number].filter(Boolean).join(" ").trim();
+    entry.detectedNumber=number;
+    entry.message=number?`Detected #${number}. Finding exact printing…`:"Card number unclear. Reading card name…";entry.progress=100;renderCardScanQueue();
+
+    let matches=[];
+    if(number&&typeof vtExactCollectorLookup==="function")matches=await vtExactCollectorLookup(number);
+    const exactCount=matches.length;
+    let name="";
+    if(matches.length!==1){
+      const nameCrop=cardScanCrop(image,{x:.02,y:.02,w:.96,h:.28},1500);
+      scanWorkerProgress=percent=>setScanProgress(entry,percent,"Reading card name");
+      await worker.setParameters({tessedit_pageseg_mode:"11",tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.'’- "});
+      const nameResult=await worker.recognize(nameCrop);
+      name=extractCardNameFromOcr(nameResult?.data?.text||"");entry.detectedName=name;
+      const query=[name,number].filter(Boolean).join(" ");
+      if(query){
+        entry.message=`Matching ${query}…`;renderCardScanQueue();
+        const resolved=await resolveCardText(query,8).catch(()=>[]);
+        matches=uniqueCards(matches.concat(resolved));
+      }
+    }
+    scanWorkerProgress=null;
+    if(!matches.length){
+      entry.state="error";entry.error=number||name?`No exact database match for ${[name,number].filter(Boolean).join(" #")}.`:`The card name and bottom collector number could not be read.`;renderCardScanQueue();return;
+    }
+    const parsed=parseCardSearch([name,number].filter(Boolean).join(" "));
+    matches.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));
+    entry.matches=matches;
+    const nameConfirmed=!!name&&normalizeCardText(matches[0]?.name)===normalizeCardText(name);
+    if(matches.length===1||exactCount===1||nameConfirmed){
+      entry.card=matches[0];entry.state="ready";entry.message="Exact card matched";
+      renderCardScanQueue();hydrateScannedCard(entry);
+    }else{
+      entry.card=null;entry.state="review";entry.message=`${matches.length} possible matches — choose the correct artwork`;
+      renderCardScanQueue();
+    }
+  }catch(error){
+    scanWorkerProgress=null;entry.state="error";entry.error="Could not identify this photo. Try a closer, glare-free photo with the entire card straight in frame.";renderCardScanQueue();
+  }finally{if(image?.close)image.close()}
+}
+async function hydrateScannedCard(entry){
+  const card=entry?.card;if(!card?.id||vtCardHasImageAndPrice(card))return;
+  const rich=await vtFetchPrimaryCardDirect(card.id).catch(()=>null);
+  if(rich&&entry.card?.id===card.id){entry.card=rich;entry.matches=uniqueCards([rich,...(entry.matches||[])]);renderCardScanQueue()}
+}
+function renderCardScanQueue(){
+  const queue=document.getElementById("scanQueue");if(!queue)return;
+  if(!cardScanQueue.length){queue.innerHTML="";return}
+  const ready=cardScanQueue.filter(entry=>entry.state==="ready"&&entry.card),scanning=cardScanQueue.some(entry=>entry.state==="scanning");
+  const totalQty=ready.reduce((sum,entry)=>sum+Math.max(1,Number(entry.qty)||1),0);
+  queue.innerHTML=`<div class="scanSessionBar"><div><strong>Card scan session</strong><div class="small">${ready.length} matched • ${cardScanQueue.length} photo${cardScanQueue.length===1?"":"s"} total</div></div><div class="scanActions"><label class="btn btnGhost" style="padding:8px 11px">📸 Scan another<input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanCardPhotos(this.files)"></label><button class="btn btnPrimary" style="padding:8px 11px" onclick="completeCardScanSession()" ${!ready.length||scanning?"disabled":""}>Complete / Add ${totalQty||""}</button><button class="miniBtn btnDanger" onclick="clearCardScanQueue()">Clear</button></div></div>`+
+    cardScanQueue.map((entry,index)=>{
+      const card=entry.card,market=cardScanMarket(card).market;
+      const detected=[entry.detectedName,entry.detectedNumber?`#${entry.detectedNumber}`:""] .filter(Boolean).join(" • ");
+      const status=entry.state==="ready"?`<span class="scanGood">${esc(card.name)} — ${esc(card.set?.name||"")} #${esc(fullCardNumber(card))}${market!=null?` • ${money(market)}`:""}</span>`:entry.state==="error"?`<span class="scanBad">${esc(entry.error)}</span>`:esc(entry.message||"Waiting…");
+      const progress=entry.state==="scanning"?`<div class="scanProgress"><span style="width:${entry.progress||2}%"></span></div>`:"";
+      let actions=`<button class="miniBtn btnDanger" onclick="removeCardScan('${entry.id}')">Remove</button>`;
+      if(entry.state==="ready")actions=`<span class="small">Qty</span><input class="input scanQty" type="number" min="1" value="${Math.max(1,Number(entry.qty)||1)}" onchange="setCardScanQty('${entry.id}',this.value)">${entry.matches?.length>1?`<button class="miniBtn btnSoft" onclick="reviewScanMatches('${entry.id}')">Change</button>`:""}${actions}`;
+      else if(entry.state==="review")actions=`<button class="miniBtn btnPrimary" onclick="reviewScanMatches('${entry.id}')">Choose match</button>${actions}`;
+      else if(entry.state==="error")actions=`<button class="miniBtn btnSoft" onclick="retryCardScan('${entry.id}')">Retry</button>${actions}`;
+      return `<div class="scanItem"><img src="${esc(entry.preview)}" alt="Card scan ${index+1}"><div><strong>Card ${index+1}</strong><div class="scanStatus">${status}</div>${detected?`<div class="scanDetected">Read from photo: ${esc(detected)}</div>`:""}${progress}</div><div class="scanActions">${actions}</div></div>`;
+    }).join("");
 }
 async function scanCardPhotos(fileList){
-  const files=Array.from(fileList||[]);
-  const queue=document.getElementById("scanQueue");
+  const files=Array.from(fileList||[]).filter(file=>String(file.type||"").startsWith("image/"));
+  document.querySelectorAll('#scanPhotos,#scanQueue input[type="file"]').forEach(input=>input.value="");
   if(!files.length)return;
-  queue.innerHTML="";
-  if(!window.Tesseract){
-    queue.innerHTML='<div class="scanBad">Card scanner failed to load. Refresh the page and try again.</div>';
-    return;
-  }
-  for(let i=0;i<files.length;i++){
-    const file=files[i];
-    const id="scan_"+Date.now()+"_"+i;
-    const preview=URL.createObjectURL(file);
-    queue.insertAdjacentHTML("beforeend",`<div class="scanItem" id="${id}">
-      <img src="${preview}" alt="">
-      <div><strong>${esc(file.name||("Card "+(i+1)))}</strong><div class="scanStatus">Reading card text…</div></div>
-      <div></div>
-    </div>`);
-    const row=document.getElementById(id);
-    try{
-      const result=await Tesseract.recognize(file,"eng",{
-        logger:m=>{
-          if(m.status==="recognizing text"){
-            const pct=Math.round((m.progress||0)*100);
-            const st=row.querySelector(".scanStatus");if(st)st.textContent=`Reading card text… ${pct}%`;
-          }
-        }
-      });
-      const guessed=extractLikelyCardText(result?.data?.text||"");
-      if(!guessed)throw new Error("Could not read card name/number");
-      row.querySelector(".scanStatus").textContent=`Detected: ${guessed}. Matching card…`;
-
-      const matches=await resolveCardText(guessed,6);
-      if(!matches.length){
-        row.querySelector(".scanStatus").innerHTML=`<span class="scanBad">No database match for "${esc(guessed)}".</span>`;
-        continue;
-      }
-
-      const best=matches[0];
-      row.querySelector(".scanStatus").innerHTML=`<span class="scanGood">Best match: ${esc(best.name)} — ${esc(best.set?.name||"")} #${esc(fullCardNumber(best))}</span>`;
-      row.lastElementChild.innerHTML=`<button class="miniBtn btnSuccess" onclick="autoAddScannedCard('${best.id}')">Add card</button>${matches.length>1?`<button class="miniBtn btnSoft" style="margin-left:5px" onclick='reviewScanMatches(${JSON.stringify(matches.map(c=>c.id))})'>Review</button>`:""}`;
-    }catch(e){
-      row.querySelector(".scanStatus").innerHTML='<span class="scanBad">Could not identify this photo. Try a closer, straight-on photo with the card filling most of the frame.</span>';
-    }
-  }
+  const added=files.map((file,index)=>({id:`scan_${Date.now()}_${index}_${Math.random().toString(36).slice(2,7)}`,file,preview:URL.createObjectURL(file),qty:1,state:"waiting",message:"Waiting to scan…",progress:0,matches:[],card:null,error:"",detectedName:"",detectedNumber:""}));
+  cardScanQueue.push(...added);renderCardScanQueue();
+  for(const entry of added)await readCardScanPhoto(entry);
 }
-async function fetchCardById(id){
-  try{
-    const r=await fetch("https://api.pokemontcg.io/v2/cards/"+encodeURIComponent(id));
-    if(!r.ok)return null;
-    const j=await r.json();return j.data||null;
-  }catch(e){return null}
-}
-async function autoAddScannedCard(id){
-  const c=await fetchCardById(id);if(!c)return toast("Could not load card details");
-  const prices=c.tcgplayer?.prices||{};
-  const finishes=Object.keys(prices);
-  const finish=finishes.includes("holofoil")?"holofoil":(finishes[0]||"");
-  const market=currentMarketFromPrices(prices,finish);
-  pushUndo("Add scanned card");
-  db.products.push({
-    id:uid(),
-    name:`${c.name} — ${c.set?.name||""} #${fullCardNumber(c)}`.trim(),
-    qty:1,cost:0,price:market||0,
-    photo:c.images?.large||c.images?.small||"",
-    condition:"Near Mint",finish,
-    pokemonCardId:c.id,
-    cardBaseName:c.name||"",
-    setName:c.set?.name||"",setId:c.set?.id||"",
-    cardNumber:fullCardNumber(c),rarity:c.rarity||"",
-    tcgUrl:c.tcgplayer?.url||"",
-    tcgUpdatedAt:c.tcgplayer?.updatedAt||"",
-    lastMarketRefresh:new Date().toISOString(),
-    tcgPrices:prices,tcgMarket:market,lastMarketRefresh:new Date().toISOString()
-  });
-  save();toast("Scanned card added");
-}
-async function reviewScanMatches(ids){
-  const cards=[];
-  for(const id of ids){
-    const c=await fetchCardById(id);if(c)cards.push(c);
-  }
-  currentLookupResults=cards;
-  renderCardLookup(cards);
-  document.getElementById("lookupSummary").textContent="Scanner found multiple possibilities. Choose the correct card.";
+function setCardScanQty(id,value){const entry=cardScanQueue.find(item=>item.id===id);if(entry){entry.qty=Math.max(1,Number(value)||1);renderCardScanQueue()}}
+function removeCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);if(entry?.preview)URL.revokeObjectURL(entry.preview);cardScanQueue=cardScanQueue.filter(item=>item.id!==id);renderCardScanQueue()}
+function clearCardScanQueue(){cardScanQueue.forEach(entry=>entry.preview&&URL.revokeObjectURL(entry.preview));cardScanQueue=[];scanReviewContextId=null;renderCardScanQueue()}
+function retryCardScan(id){const entry=cardScanQueue.find(item=>item.id===id);if(entry)readCardScanPhoto(entry)}
+function reviewScanMatches(id){
+  const entry=cardScanQueue.find(item=>item.id===id);if(!entry?.matches?.length)return toast("No alternate matches are available");
+  scanReviewContextId=id;currentLookupResults=entry.matches;renderCardLookup(entry.matches);
+  document.getElementById("lookupSummary").textContent="Scanner found possible matches. Choose the exact artwork, set, and card number.";
   document.getElementById("cardLookupModal").classList.remove("hidden");
+}
+function completeCardScanSession(){
+  const ready=cardScanQueue.filter(entry=>entry.state==="ready"&&entry.card);if(!ready.length)return toast("Scan and match at least one card first");
+  pushUndo(`Add ${ready.length} scanned card${ready.length===1?"":"s"}`);
+  let added=0;
+  for(const entry of ready){
+    const card=entry.card,qty=Math.max(1,Number(entry.qty)||1),pricing=cardScanMarket(card),cardNumber=fullCardNumber(card);
+    let product=db.products.find(item=>(item.itemType||"card")==="card"&&item.pokemonCardId===card.id&&item.condition==="Near Mint"&&item.finish===pricing.finish);
+    if(product){product.qty+=qty;if(!product.photo)product.photo=card.images?.large||card.images?.small||"";if(pricing.market!=null){product.tcgPrices=pricing.prices;product.tcgMarket=pricing.market;if(!product.price)product.price=pricing.market}}
+    else{product={id:uid(),name:`${card.name} — ${card.set?.name||""} #${cardNumber}`.trim(),qty,cost:0,price:pricing.market||0,photo:card.images?.large||card.images?.small||"",itemType:"card",condition:"Near Mint",finish:pricing.finish,pokemonCardId:card.id,cardBaseName:card.name||"",setName:card.set?.name||"",setId:card.set?.id||"",cardNumber,rarity:card.rarity||"",tcgUrl:card.tcgplayer?.url||"",tcgUpdatedAt:card.tcgplayer?.updatedAt||"",tcgPrices:pricing.prices,tcgMarket:pricing.market,lastMarketRefresh:new Date().toISOString()};db.products.push(product)}
+    added+=qty;entry.preview&&URL.revokeObjectURL(entry.preview);
+  }
+  cardScanQueue=cardScanQueue.filter(entry=>!ready.includes(entry));scanReviewContextId=null;save();renderCardScanQueue();toast(`${added} scanned card${added===1?"":"s"} added to inventory`);
 }
 
 function renderCardLookup(cards){
@@ -1717,9 +1794,14 @@ function renderCardLookup(cards){
     </button>`;
   }).join("");
 }
-function closeCardLookup(){document.getElementById("cardLookupModal").classList.add("hidden")}
+function closeCardLookup(){document.getElementById("cardLookupModal").classList.add("hidden");scanReviewContextId=null}
 function selectPokemonCard(i){
   const c=currentLookupResults[i];if(!c)return;
+  if(scanReviewContextId){
+    const entry=cardScanQueue.find(item=>item.id===scanReviewContextId);
+    if(entry){entry.card=c;entry.state="ready";entry.message="Card match confirmed";entry.matches=uniqueCards([c,...(entry.matches||[])]);hydrateScannedCard(entry)}
+    scanReviewContextId=null;closeCardLookup();renderCardScanQueue();return;
+  }
   if(c._vtPricePending)return toast("TCGPlayer pricing is still loading…");
   pendingCardData={
     pokemonCardId:c.id,
@@ -1749,10 +1831,17 @@ function selectPokemonCard(i){
 async function refreshCardMarketPrice(p){
   if(!p?.pokemonCardId)return false;
   try{
-    const r=await fetch("https://api.pokemontcg.io/v2/cards/"+encodeURIComponent(p.pokemonCardId));
-    if(!r.ok)return false;
-    const j=await r.json();
-    const c=j.data;
+    const id=String(p.pokemonCardId),existing=cardMarketRefreshJobs.get(id);
+    const job=existing||((async()=>{
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),5000);
+      try{
+        const response=await fetch("https://api.pokemontcg.io/v2/cards/"+encodeURIComponent(id),{signal:controller.signal,cache:"no-store"});
+        if(!response.ok)return null;
+        return (await response.json()).data||null;
+      }finally{clearTimeout(timeout)}
+    })().finally(()=>cardMarketRefreshJobs.delete(id)));
+    if(!existing)cardMarketRefreshJobs.set(id,job);
+    const c=await job;
     if(!c)return false;
 
     p.tcgPrices=c.tcgplayer?.prices||p.tcgPrices||{};
@@ -1768,12 +1857,14 @@ async function refreshCardMarketPrice(p){
 async function refreshSealedMarketPrice(p){
   if(!p || p.itemType!=="sealed" || !p.name)return false;
   try{
-    const {data,error}=await sb.functions.invoke("sealed-product-search",{body:{query:p.name,productId:p.tcgProductId,includeLowest:true}});
+    const direct=Number.isInteger(Number(p.tcgProductId))&&Number(p.tcgProductId)>0&&Number.isInteger(Number(p.tcgGroupId))&&Number(p.tcgGroupId)>0;
+    const body=direct?{action:"product-price",productId:Number(p.tcgProductId),groupId:Number(p.tcgGroupId)}:{query:p.name,productId:p.tcgProductId};
+    const {data,error}=await sb.functions.invoke("sealed-product-search",{body});
     if(error || !data?.success)return false;
     const results=data.results||[];
-    let match=null;
+    let match=data.result||null;
 
-    if(p.tcgProductId!=null){
+    if(!match&&p.tcgProductId!=null){
       match=results.find(x=>String(x.productId)===String(p.tcgProductId));
     }
     if(!match){
@@ -1786,9 +1877,10 @@ async function refreshSealedMarketPrice(p){
     p.tcgUrl=match.url||p.tcgUrl||"";
     p.photo=p.photo||match.imageUrl||"";
     p.setName=match.groupName||p.setName||"";
+    p.tcgGroupId=match.groupId||p.tcgGroupId||null;
     p.tcgUpdatedAt=match.updatedAt||new Date().toISOString();
-    if(data.lowestActualCheckedAt)setLowestActual(p,data.lowestActual||null,data.lowestActualCheckedAt);
     p.lastMarketRefresh=new Date().toISOString();
+    fetchSealedLowestActual(p).then(({listing,checkedAt})=>{setLowestActual(p,listing,checkedAt);save()}).catch(()=>{});
     return true;
   }catch(e){
     return false;
@@ -1807,14 +1899,17 @@ async function refreshStaleMarketPrices(force=false){
 
   setSync(true,"Updating prices…");
   let updated=0;
-  // Sequential to avoid hammering free/cached sources.
-  for(const p of stale){
-    let ok=false;
-    if(p.itemType==="sealed")ok=await refreshSealedMarketPrice(p);
-    else if(p.pokemonCardId)ok=await refreshCardMarketPrice(p);
-    if(ok)updated++;
-    await new Promise(r=>setTimeout(r,120));
-  }
+  // Refresh a small pool in parallel. Requests are deduplicated above, so this is
+  // much faster than the former item-by-item loop without flooding data sources.
+  let next=0;
+  await Promise.all(Array.from({length:Math.min(4,stale.length)},async()=>{
+    while(next<stale.length){
+      const p=stale[next++];let ok=false;
+      if(p.itemType==="sealed")ok=await refreshSealedMarketPrice(p);
+      else if(p.pokemonCardId)ok=await refreshCardMarketPrice(p);
+      if(ok)updated++;
+    }
+  }));
   if(updated){
     save();
     toast(`${updated} market price${updated===1?"":"s"} refreshed`);
@@ -1853,6 +1948,10 @@ async function init(){
  sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="PASSWORD_RECOVERY"){recoveryMode=true;showReset()}else if(ev==="SIGNED_OUT"){user=null;showPublic()}else if(s?.user&&!recoveryMode){user=s.user;await enterApp()}});
  if(recoveryMode&&session){user=session.user;showReset()}else if(session?.user){user=session.user;await enterApp()}else showPublic();
 }
+function warmSealedProductSearch(){
+ if(!sealedSearchWarmJob)sealedSearchWarmJob=sb.functions.invoke("sealed-product-search",{body:{action:"ping"}}).catch(()=>null);
+ return sealedSearchWarmJob;
+}
 function showPublic(){publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
 function openAuth(mode){publicSite.classList.add("hidden");authOverlay.classList.remove("hidden");setAuthTab(mode)}
 function closeAuth(){authOverlay.classList.add("hidden");publicSite.classList.remove("hidden")}
@@ -1869,6 +1968,7 @@ async function enterApp(){
  const key=localKey();if(key&&localStorage.getItem(key)){try{db=JSON.parse(localStorage.getItem(key))}catch{db=blankDB()}}
  await pullCloud(false);
  renderAll();
+ warmSealedProductSearch();
  setTimeout(()=>refreshStaleMarketPrices(false),500);
 }
 async function pullCloud(showToast=true){
@@ -1947,6 +2047,7 @@ function addProduct(){
        itemType:"sealed",condition:"Sealed",finish:"Sealed",
        tcgMarket:market,tcgUrl:meta.url||p.tcgUrl||"",
        tcgProductId:meta.productId||p.tcgProductId||null,
+       tcgGroupId:meta.groupId||p.tcgGroupId||null,
        tcgLowestActual:meta.tcgLowestActual||p.tcgLowestActual||null,
        tcgLowestCheckedAt:meta.tcgLowestCheckedAt||p.tcgLowestCheckedAt||null,
        setName:meta.groupName||p.setName||"",
@@ -1959,6 +2060,7 @@ function addProduct(){
        itemType:"sealed",condition:"Sealed",finish:"Sealed",
        tcgMarket:market,tcgUrl:meta.url||"",
        tcgProductId:meta.productId||null,
+       tcgGroupId:meta.groupId||null,
        tcgLowestActual:meta.tcgLowestActual||null,
        tcgLowestCheckedAt:meta.tcgLowestCheckedAt||null,
        setName:meta.groupName||"",
@@ -2989,8 +3091,8 @@ async function vtTcgdexCollectorLookup(c){
     const [listRes,sets]=await Promise.all([fetch(`https://api.tcgdex.net/v2/en/cards?localId=${encodeURIComponent(lookup)}`,{signal:ctrl.signal}),vtTcgdexSets()]);clearTimeout(timer);
     if(!listRes.ok){vtCollectorIssues.push(listRes.status===429?'rate':'service');return[]}
     const matchingSets=new Set((sets||[]).filter(s=>Number(s.cardCount?.official||0)===Number(c.totalDigits)).map(s=>s.id));
-    const briefs=(await listRes.json()).filter(x=>vtCollectorNumberEqual(x.localId,c.number)&&(!matchingSets.size||matchingSets.has(vtTcgdexSetId(x)))).slice(0,20);
-    const details=await Promise.all(briefs.map(async brief=>{try{const r=await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(brief.id)}`);if(!r.ok)return null;const card=await r.json();return vtCollectorMatches({number:card.localId,set:{printedTotal:card.set?.cardCount?.official,total:card.set?.cardCount?.total}},c)?vtFromTcgdex(card,brief):null}catch(e){return null}}));
+    const briefs=(await listRes.json()).filter(x=>vtCollectorNumberEqual(x.localId,c.number)&&(!matchingSets.size||matchingSets.has(vtTcgdexSetId(x)))).slice(0,12);
+    const details=await Promise.all(briefs.map(async brief=>{const detailCtrl=new AbortController(),detailTimer=setTimeout(()=>detailCtrl.abort(),4000);try{const r=await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(brief.id)}`,{signal:detailCtrl.signal,cache:'force-cache'});if(!r.ok)return null;const card=await r.json();return vtCollectorMatches({number:card.localId,set:{printedTotal:card.set?.cardCount?.official,total:card.set?.cardCount?.total}},c)?vtFromTcgdex(card,brief):null}catch(e){return null}finally{clearTimeout(detailTimer)}}));
     return details.filter(Boolean);
   }catch(e){vtCollectorIssues.push(e?.name==='AbortError'?'timeout':'service');return[]}
 }
@@ -3002,9 +3104,10 @@ function vtCollectorFailureMessage(c){
   return `Card not found for ${c.printed}. Check that both parts of the collector number are correct.`;
 }
 async function vtPrimaryCollectorLookup(c){
-  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
+  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),3500);
   try{
-    const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(`number:${c.number}`)}&pageSize=40`,{signal:ctrl.signal});
+    const query=`number:${c.number} set.printedTotal:${Number(c.totalDigits)}`;
+    const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=20`,{signal:ctrl.signal,cache:'force-cache'});
     if(!r.ok){vtCollectorIssues.push(r.status===429?'rate':'service');return[]}
     const j=await r.json();return(j.data||[]).filter(x=>vtCollectorMatches(x,c));
   }catch(e){vtCollectorIssues.push(e?.name==='AbortError'?'timeout':'service');return[]}
@@ -3078,7 +3181,7 @@ const VT_COLLECTOR_SEEDS={
  'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG56',updatedAt:'2026/08/17',prices:{holofoil:{low:47,mid:53.59,high:459.99,market:51.11,directLow:57.98}}}}
 };
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
-vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const c=vtCollectorParts(raw),seed=c&&VT_COLLECTOR_SEEDS[c.printed];const found=await _vtExactCollectorLookupStable(raw);if(found.length){if(seed)found.forEach(x=>{if(!Object.keys(x.tcgplayer?.prices||{}).length){x.tcgplayer=seed.tcgplayer;delete x._vtPricePending}});if(found.every(x=>!x._vtPricePending))vtWriteCollectorCache(raw,found);return found}if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
+vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const c=vtCollectorParts(raw),seed=c&&VT_COLLECTOR_SEEDS[c.printed];if(seed){vtWriteCollectorCache(raw,[seed]);_vtExactCollectorLookupStable(raw).then(found=>{if(found.length){found.forEach(x=>{if(!Object.keys(x.tcgplayer?.prices||{}).length)x.tcgplayer=seed.tcgplayer});vtWriteCollectorCache(raw,found)}}).catch(()=>{});return[seed]}const found=await _vtExactCollectorLookupStable(raw);if(found.length&&found.every(x=>!x._vtPricePending))vtWriteCollectorCache(raw,found);return found};
 const _vtResolveCardTextExact=resolveCardText;
 resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);return exact.slice(0,limit)}return _vtResolveCardTextExact(raw,limit)};
 
