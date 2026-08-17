@@ -19,7 +19,10 @@ import sharp from "sharp";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = path.join(ROOT, "pokemon-card-embedding-index.bin");
 const API = "https://api.pokemontcg.io/v2/cards";
-const PAGE_SIZE = 250;
+// The API currently returns intermittent 5xx responses for larger projected
+// pages and for an id/images-only projection. Small pages with name included
+// are reliable and still keep the one-time index build lightweight.
+const PAGE_SIZE = 50;
 const EMBEDDING_DIMENSION = 256;
 const BATCH_SIZE = 24;
 const MINIMUM_COVERAGE = 0.96;
@@ -53,7 +56,7 @@ async function fetchJson(url) {
 }
 
 async function loadCards() {
-  const firstUrl = `${API}?${new URLSearchParams({page: "1", pageSize: String(PAGE_SIZE), select: "id,images"})}`;
+  const firstUrl = `${API}?${new URLSearchParams({page: "1", pageSize: String(PAGE_SIZE), select: "id,name,images"})}`;
   const first = await fetchJson(firstUrl);
   const total = Number(first.totalCount || first.data?.length || 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -63,7 +66,7 @@ async function loadCards() {
   await Promise.all(Array.from({length: Math.min(8, Math.max(0, pages - 1))}, async () => {
     while (nextPage <= pages) {
       const page = nextPage++;
-      const url = `${API}?${new URLSearchParams({page: String(page), pageSize: String(PAGE_SIZE), select: "id,images"})}`;
+      const url = `${API}?${new URLSearchParams({page: String(page), pageSize: String(PAGE_SIZE), select: "id,name,images"})}`;
       payloads[page - 1] = await fetchJson(url);
     }
   }));
