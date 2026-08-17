@@ -951,7 +951,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.2</span> · Updated Aug 17, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.2.3</span> · Updated Aug 17, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1090,7 +1090,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.2.2";
+const APP_VERSION="v12.2.3";
 let user=null,authMode="signin",recoveryMode=false,saveTimer=null,lastCloudUpdate=null;
 let db=blankDB();
 let undoStack=[];
@@ -2797,7 +2797,7 @@ function vtCollectorParts(raw){
   const number=m[1],denominator=m[2];
   return {number,denominator,totalDigits:(denominator.match(/\d+/)||[''])[0],printed:`${number}/${denominator}`};
 }
-function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v2_${c.printed}`:null}
+function vtCollectorCacheKey(raw){const c=vtCollectorParts(raw);return c?`vt_collector_v3_${c.printed}`:null}
 function vtReadCollectorCache(raw){try{const k=vtCollectorCacheKey(raw);if(!k)return[];const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
 function vtWriteCollectorCache(raw,cards){try{const k=vtCollectorCacheKey(raw);if(k&&Array.isArray(cards)&&cards.length)localStorage.setItem(k,JSON.stringify(cards.slice(0,20)))}catch(e){}}
 function vtCollectorNumberEqual(a,b){
@@ -2842,8 +2842,8 @@ searchPokemonCards = async function(){
 
 
 const VT_COLLECTOR_SEEDS={
- 'GG07/GG70':{id:'swsh12pt5gg-GG07',name:'Keldeo',number:'GG07',set:{name:'Crown Zenith: Galarian Gallery',printedTotal:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG07.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG07_hires.png'}},
- 'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{name:'Crown Zenith: Galarian Gallery',printedTotal:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'}}
+ 'GG07/GG70':{id:'swsh12pt5gg-GG07',name:'Keldeo',number:'GG07',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG07.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG07_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG07',updatedAt:'2026/08/17',prices:{holofoil:{low:13.74,mid:18.66,high:1000,market:16.82,directLow:21.62}}}},
+ 'GG56/GG70':{id:'swsh12pt5gg-GG56',name:'Hisuian Zoroark VSTAR',number:'GG56',set:{id:'swsh12pt5gg',name:'Crown Zenith: Galarian Gallery',printedTotal:70,total:70},images:{small:'https://images.pokemontcg.io/swsh12pt5gg/GG56.png',large:'https://images.pokemontcg.io/swsh12pt5gg/GG56_hires.png'},tcgplayer:{url:'https://prices.pokemontcg.io/tcgplayer/swsh12pt5gg-GG56',updatedAt:'2026/08/17',prices:{holofoil:{low:47,mid:53.59,high:459.99,market:51.11,directLow:57.98}}}}
 };
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
 vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const found=await _vtExactCollectorLookupStable(raw);if(found.length)return found;const c=vtCollectorParts(raw);const seed=c&&VT_COLLECTOR_SEEDS[c.printed];if(seed){vtWriteCollectorCache(raw,[seed]);return[seed]}return[]};
