@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-pokemon-background.yml'
+  pull_request_target:
+    types: [opened]
 
 permissions:
   contents: write
@@ -15,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
       - name: Add selected background and bump build
         shell: python
@@ -58,4 +61,4 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add index.html .github/workflows/publish-pokemon-background.yml
           git commit -m "Add Pokémon character background v12.12.1"
-          git push
+          git push origin main
