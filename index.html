@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.12.1 — Pokémon character background */
+/* VendorTracker v12.13.0 — collector-number and promo search */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -977,7 +977,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.12.1</span> · Updated Aug 20, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.13.0</span> · Updated Aug 31, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1138,7 +1138,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.12.1";
+const APP_VERSION="v12.13.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1552,16 +1552,41 @@ function parseCardSearch(raw){
   let number="";
   let denominator="";
   let name=normalizedRaw;
-  const fullNum=normalizedRaw.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)(?:\/([A-Za-z]*\d+[A-Za-z]*))?\s*$/);
+  const fullNum=normalizedRaw.match(/(?:#\s*)?([A-Za-z]*\d+[A-Za-z]*)(?:\s*\/\s*([A-Za-z]*\d+[A-Za-z]*))?\s*$/);
   if(fullNum){
     number=fullNum[1]||"";
     denominator=fullNum[2]||"";
     name=normalizedRaw.slice(0,fullNum.index).trim();
   }
-  name=name.replace(/\b(card|pokemon|pokémon)\b/gi," ").replace(/\s+/g," ").trim();
+  // Promo cards are commonly entered as "SVP 001", "SWSH promo 298",
+  // "Black Star Promo 208", or simply "promo cards". Keep that intent
+  // separate from the Pokémon name so it can filter the set, not the name.
+  const joined=[name,number].join(" ");
+  const promoKeyword=/\b(?:promo|promos|promotional)\b/i.test(normalizedRaw);
+  let promoPrefix="";
+  const prefixInName=name.match(/\b(SVP|SWSH|SM|XY|BW|DP|HGSS|NP)\s*[-#]?\s*$/i);
+  const prefixInNumber=String(number).match(/^(SVP|SWSH|SM|XY|BW|DP|HGSS|NP)[- ]?(\d+[A-Z]?)$/i);
+  if(prefixInNumber){promoPrefix=prefixInNumber[1].toUpperCase();number=prefixInNumber[2]}
+  else if(prefixInName){promoPrefix=prefixInName[1].toUpperCase();name=name.slice(0,prefixInName.index).trim()}
+  else{
+    const anywhere=joined.match(/\b(SVP|SWSH|SM|XY|BW|DP|HGSS|NP)\b/i);
+    if(anywhere)promoPrefix=anywhere[1].toUpperCase();
+  }
+  if(promoPrefix)name=name.replace(new RegExp(`\\b${promoPrefix}\\b`,"i")," ");
+  name=name
+    .replace(/\b(?:black\s+star\s+)?(?:promo|promos|promotional)(?:\s+cards?)?\b/gi," ")
+    .replace(/\b(card|cards|pokemon|pokémon)\b/gi," ")
+    .replace(/\s+/g," ").trim();
   const apiNumber=/^\d+$/.test(number)?String(parseInt(number,10)):number;
+  const padded=/^\d+$/.test(number)?number.padStart(3,"0"):number;
+  const numberCandidates=[apiNumber,number];
+  if(promoPrefix&&number){
+    numberCandidates.unshift(`${promoPrefix}${padded}`,`${promoPrefix}${apiNumber}`);
+    if(promoPrefix==="SM")numberCandidates.unshift(`SM${String(apiNumber).padStart(2,"0")}`);
+    if(promoPrefix==="XY")numberCandidates.unshift(`XY${String(apiNumber).padStart(2,"0")}`);
+  }
   const tokens=normalizeCardText(name).split(" ").filter(Boolean);
-  return {raw:normalizedRaw,name,number,apiNumber,denominator,tokens};
+  return {raw:normalizedRaw,name,number,apiNumber,denominator,tokens,promoKeyword:promoKeyword||!!promoPrefix,promoPrefix,numberCandidates:[...new Set(numberCandidates.filter(Boolean))]};
 }
 function escapeQueryPhrase(v){
   return String(v||"").replace(/\\/g,"\\\\").replace(/"/g,'\\"');
@@ -1579,7 +1604,7 @@ function scoreCardResult(card,parsed){
   const cardName=normalizeCardText(card?.name);
   const setName=normalizeCardText(card?.set?.name);
   const num=String(card?.number||"").toLowerCase();
-  const wantedNum=String(parsed.apiNumber||"").toLowerCase();
+  const wantedNums=(parsed.numberCandidates?.length?parsed.numberCandidates:[parsed.apiNumber]).filter(Boolean).map(v=>String(v).toLowerCase().replace(/[\s-]/g,""));
 
   if(target && cardName===target)score+=120;
   else if(target && cardName.startsWith(target))score+=85;
@@ -1591,14 +1616,19 @@ function scoreCardResult(card,parsed){
     if(setName.includes(t))score+=2;
   }
 
-  if(wantedNum){
-    if(num===wantedNum)score+=100;
-    else if(num.replace(/^0+/,"")===wantedNum.replace(/^0+/,""))score+=90;
+  if(wantedNums.length){
+    const normalizedNum=num.replace(/[\s-]/g,"");
+    if(wantedNums.includes(normalizedNum))score+=180;
+    else if(wantedNums.some(wantedNum=>normalizedNum.replace(/^0+/,"")===wantedNum.replace(/^0+/,"")))score+=160;
   }
   if(parsed.denominator){
     const denom=Number(parsed.denominator);
     if(Number(card?.set?.printedTotal)===denom)score+=120;
     else if(Number(card?.set?.total)===denom)score+=40;
+  }
+  if(parsed.promoKeyword){
+    if(/promo/i.test(String(card?.set?.name||"")))score+=150;
+    else score-=80;
   }
 
   const release=Date.parse(card?.set?.releaseDate||"");
@@ -3236,6 +3266,25 @@ const fastCardResolveCache=new Map();
 const fastSealedSearchCache=new Map();
 function fastCacheKey(v){return String(v||'').trim().toLowerCase()}
 
+const PROMO_SET_IDS={SVP:'svp',SWSH:'swshp',SM:'smp',XY:'xyp',BW:'bwp',DP:'dpp',HGSS:'hgssp',NP:'np'};
+function buildNumberQueries(parsed){
+  const out=[];
+  const numbers=(parsed.numberCandidates?.length?parsed.numberCandidates:[parsed.apiNumber]).filter(Boolean);
+  const setId=PROMO_SET_IDS[parsed.promoPrefix]||'';
+  // Put every prefix/set-specific form first. This ensures an input such as
+  // SVP 001 tries both the printed (001) and compact (1) forms before any
+  // broad result can win the first-response race.
+  if(setId)for(const value of numbers)out.push(`number:${escapeQueryPhrase(value)} set.id:${setId}`);
+  if(parsed.promoKeyword)for(const value of numbers)out.push(`number:${escapeQueryPhrase(value)} set.name:promos`);
+  for(const value of numbers){
+    const numberQuery=`number:${escapeQueryPhrase(value)}`;
+    if(parsed.denominator&&/^\d+$/.test(parsed.denominator))out.push(`${numberQuery} set.printedTotal:${parseInt(parsed.denominator,10)}`);
+    if(parsed.name)out.push(`name:"${escapeQueryPhrase(parsed.name)}" ${numberQuery}`);
+    out.push(numberQuery);
+  }
+  return [...new Set(out)];
+}
+
 async function fetchCardQuery(q,pageSize=36){
   const key=q+'|'+pageSize;
   if(fastCardQueryCache.has(key))return fastCardQueryCache.get(key);
@@ -3256,13 +3305,12 @@ async function fetchCardQuery(q,pageSize=36){
 
 function buildFastCardQueries(raw){
   const parsed=parseCardSearch(raw),qs=[];
-  if(parsed.name&&parsed.apiNumber&&parsed.denominator)qs.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
-  if(parsed.name&&parsed.apiNumber)qs.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber}`);
-  if(parsed.apiNumber&&parsed.denominator)qs.push(`number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
+  qs.push(...buildNumberQueries(parsed));
+  if(parsed.promoKeyword&&!parsed.apiNumber)qs.push('set.name:promos');
+  if(parsed.promoKeyword&&parsed.name)qs.unshift(`name:"${escapeQueryPhrase(parsed.name)}" set.name:promos`);
   if(parsed.name)qs.push(`name:"${escapeQueryPhrase(parsed.name)}"`);
   const useful=(parsed.tokens||[]).filter(t=>t.length>=3);
-  if(useful.length&&parsed.apiNumber)qs.push(`name:${escapeQueryPhrase(useful[0])}* number:${parsed.apiNumber}`);
-  if(parsed.apiNumber)qs.push(`number:${parsed.apiNumber}`);
+  if(useful.length&&parsed.apiNumber)qs.push(`name:${escapeQueryPhrase(useful[0])}* number:${escapeQueryPhrase(parsed.apiNumber)}`);
   if(useful.length)qs.push(`name:${escapeQueryPhrase(useful[0])}*`);
   return {parsed,queries:[...new Set(qs)]};
 }
@@ -3339,7 +3387,7 @@ async function searchPurchaseItem(){
 /* Instant staged product search v11.38 */
 const instantCardCache=new Map();
 const instantResolveCache=new Map();
-const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v1231_';
+const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v12130_';
 function lookupCacheRead(key,maxAge=86400000){
   try{const raw=localStorage.getItem(PRODUCT_CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(!obj?.time||Date.now()-obj.time>maxAge){localStorage.removeItem(PRODUCT_CACHE_PREFIX+key);return null}return obj.data||null}catch(e){return null}
 }
@@ -3352,6 +3400,10 @@ function firstNonEmpty(jobs){
   });
 }
 async function fetchCardQuery(q,pageSize=18){
+  // A bare collector number can exist in dozens of different sets. Retrieve
+  // the complete practical result window so older printings are not hidden by
+  // the previous 18-card speed cap. Named searches keep the smaller payload.
+  if(/(?:^|\s)number:/.test(q))pageSize=Math.max(pageSize,100);
   const key=q+'|'+pageSize;
   if(instantCardCache.has(key))return instantCardCache.get(key);
   const persisted=lookupCacheRead('cardq_'+fastCacheKey(key));
@@ -3360,7 +3412,7 @@ async function fetchCardQuery(q,pageSize=18){
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),2600);
     try{
-      const url='https://api.pokemontcg.io/v2/cards?pageSize='+Math.min(pageSize,24)+'&q='+encodeURIComponent(q);
+      const url='https://api.pokemontcg.io/v2/cards?pageSize='+Math.min(pageSize,120)+'&q='+encodeURIComponent(q);
       const r=await fetch(url,{signal:controller.signal,cache:'force-cache'});
       if(!r.ok)throw new Error('HTTP '+r.status);
       const j=await r.json();const out=j.data||[];
@@ -3374,12 +3426,12 @@ async function fetchCardQuery(q,pageSize=18){
 function buildInstantQueries(raw){
   const {parsed,queries}=buildFastCardQueries(raw);
   const exact=[],fallback=[];
-  if(parsed.name&&parsed.apiNumber&&parsed.denominator)exact.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
-  if(parsed.name&&parsed.apiNumber)exact.push(`name:"${escapeQueryPhrase(parsed.name)}" number:${parsed.apiNumber}`);
-  if(parsed.apiNumber&&parsed.denominator)exact.push(`number:${parsed.apiNumber} set.printedTotal:${parseInt(parsed.denominator,10)}`);
-  if(parsed.name)exact.push(`name:"${escapeQueryPhrase(parsed.name)}"`);
+  exact.push(...buildNumberQueries(parsed));
+  if(parsed.promoKeyword&&parsed.name)exact.unshift(`name:"${escapeQueryPhrase(parsed.name)}" set.name:promos`);
+  if(parsed.promoKeyword&&!parsed.apiNumber)exact.push('set.name:promos');
+  if(parsed.name)fallback.push(`name:"${escapeQueryPhrase(parsed.name)}"`);
   for(const q of queries)if(!exact.includes(q))fallback.push(q);
-  return {parsed,exact:[...new Set(exact)].slice(0,3),fallback:[...new Set(fallback)].slice(0,3)};
+  return {parsed,exact:[...new Set(exact)].slice(0,8),fallback:[...new Set(fallback)].slice(0,5)};
 }
 function rankInstant(cards,parsed,limit){
   const out=uniqueCards(cards||[]);out.sort((a,b)=>scoreCardResult(b,parsed)-scoreCardResult(a,parsed));return out.slice(0,limit);
