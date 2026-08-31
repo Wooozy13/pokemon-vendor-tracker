@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.13.0 — collector-number and promo search */
+/* VendorTracker v12.13.1 — resilient card-number search fallback */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -977,7 +977,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.13.0</span> · Updated Aug 31, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.13.1</span> · Updated Aug 31, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1138,7 +1138,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.13.0";
+const APP_VERSION="v12.13.1";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -3387,7 +3387,7 @@ async function searchPurchaseItem(){
 /* Instant staged product search v11.38 */
 const instantCardCache=new Map();
 const instantResolveCache=new Map();
-const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v12130_';
+const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v12131_';
 function lookupCacheRead(key,maxAge=86400000){
   try{const raw=localStorage.getItem(PRODUCT_CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(!obj?.time||Date.now()-obj.time>maxAge){localStorage.removeItem(PRODUCT_CACHE_PREFIX+key);return null}return obj.data||null}catch(e){return null}
 }
@@ -3643,6 +3643,58 @@ async function vtExactCollectorLookup(raw){
   }
   return[];
 }
+const VT_TCGDEX_PROMO_IDS={SVP:'svp',SWSH:'swshp',SM:'smp',XY:'xyp',BW:'bwp',DP:'dpp',HGSS:'hsp',NP:'np'};
+function vtTcgdexBriefSetId(brief){
+  const suffix=`-${brief?.localId||''}`;
+  return String(brief?.id||'').endsWith(suffix)?String(brief.id).slice(0,-suffix.length):'';
+}
+function vtLooseCollectorMatch(localId,parsed){
+  const actual=String(localId||'').toUpperCase().replace(/[\s-]/g,'');
+  const wanted=(parsed.numberCandidates||[]).map(v=>String(v).toUpperCase().replace(/[\s-]/g,''));
+  if(wanted.includes(actual))return true;
+  if(parsed.promoPrefix)return false;
+  const actualDigits=(actual.match(/\d+/)||[''])[0];
+  return !!actualDigits&&Number(actualDigits)===Number(parsed.apiNumber);
+}
+async function vtTcgdexSearchParsed(parsed,limit=36){
+  if(!parsed.apiNumber&&!parsed.promoKeyword)return[];
+  const lookups=[...(parsed.numberCandidates||[])];
+  if(parsed.apiNumber){lookups.push(parsed.apiNumber,String(parsed.apiNumber).padStart(3,'0'))}
+  const uniqueLookups=[...new Set(lookups.filter(Boolean))].slice(0,6);
+  const requests=uniqueLookups.map(value=>`https://api.tcgdex.net/v2/en/cards?localId=${encodeURIComponent(value)}`);
+  if(!requests.length&&parsed.name)requests.push(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(parsed.name)}`);
+  if(!requests.length&&parsed.promoKeyword)requests.push('https://api.tcgdex.net/v2/en/sets/svp','https://api.tcgdex.net/v2/en/sets/swshp');
+  const lists=await Promise.all(requests.map(async url=>{
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),5500);
+    try{const r=await fetch(url,{signal:ctrl.signal,cache:'force-cache'});if(!r.ok)return[];const data=await r.json();return Array.isArray(data)?data:(data.cards||[]).slice(-Math.max(20,Math.ceil(limit/2)))}
+    catch(e){return[]}
+    finally{clearTimeout(timer)}
+  }));
+  const promoSet=VT_TCGDEX_PROMO_IDS[parsed.promoPrefix]||'';
+  const promoIds=new Set(Object.values(VT_TCGDEX_PROMO_IDS));
+  const nameNeedle=normalizeCardText(parsed.name);
+  const seen=new Set();
+  const briefs=lists.flat().filter(brief=>{
+    if(!brief?.id||seen.has(brief.id)||String(brief.image||'').includes('/tcgp/'))return false;
+    if(parsed.apiNumber&&!vtLooseCollectorMatch(brief.localId,parsed))return false;
+    const setId=vtTcgdexBriefSetId(brief);
+    if(promoSet&&setId!==promoSet)return false;
+    if(parsed.promoKeyword&&!promoSet&&!promoIds.has(setId))return false;
+    if(nameNeedle&&!normalizeCardText(brief.name).includes(nameNeedle))return false;
+    seen.add(brief.id);return true;
+  }).slice(0,Math.max(limit,40));
+  const cards=[];
+  for(let start=0;start<briefs.length;start+=8){
+    const batch=await Promise.all(briefs.slice(start,start+8).map(async brief=>{
+      const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),5000);
+      try{const r=await fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(brief.id)}`,{signal:ctrl.signal,cache:'force-cache'});if(!r.ok)return null;return vtFromTcgdex(await r.json(),brief)}
+      catch(e){return null}
+      finally{clearTimeout(timer)}
+    }));
+    cards.push(...batch.filter(Boolean));
+  }
+  return rankInstant(cards,parsed,limit);
+}
 const vtOriginalSearchPokemonCards = searchPokemonCards;
 searchPokemonCards = async function(){
   const raw=document.getElementById('pName')?.value?.trim()||'';
@@ -3652,6 +3704,22 @@ searchPokemonCards = async function(){
     const exact=await vtExactCollectorLookup(raw);
     if(exact.length){vtWriteCollectorCache(raw,exact);currentLookupResults=exact;renderCardLookup(exact);document.getElementById('cardLookupModal')?.classList.remove('hidden');if(status)status.textContent=`Found ${exact.length} exact collector-number match${exact.length===1?'':'es'}.`;return;}
     if(status)status.textContent=vtCollectorFailureMessage(collector);
+    return;
+  }
+  const parsed=parseCardSearch(raw);
+  if(parsed.apiNumber||parsed.promoKeyword){
+    const status=document.getElementById('cardLookupStatus');
+    currentLookupResults=[];
+    const dexJob=vtTcgdexSearchParsed(parsed,36).catch(()=>[]);
+    await vtOriginalSearchPokemonCards();
+    const dexCards=await dexJob;
+    const combined=rankInstant([...(currentLookupResults||[]),...dexCards],parsed,36);
+    if(combined.length){
+      currentLookupResults=combined;lookupCacheWrite('ui_'+fastCacheKey(raw),combined);
+      renderCardLookup(combined);document.getElementById('cardLookupModal')?.classList.remove('hidden');
+      if(status)status.textContent=`Found ${combined.length} matching printing${combined.length===1?'':'s'} with artwork and TCGplayer pricing.`;
+      return;
+    }
     return;
   }
   return vtOriginalSearchPokemonCards();
@@ -3666,7 +3734,7 @@ const VT_COLLECTOR_SEEDS={
 const _vtExactCollectorLookupStable=vtExactCollectorLookup;
 vtExactCollectorLookup=async function(raw){const cached=vtReadCollectorCache(raw);if(cached.length)return cached;const c=vtCollectorParts(raw),seed=c&&VT_COLLECTOR_SEEDS[c.printed];if(seed){vtWriteCollectorCache(raw,[seed]);_vtExactCollectorLookupStable(raw).then(found=>{if(found.length){found.forEach(x=>{if(!Object.keys(x.tcgplayer?.prices||{}).length)x.tcgplayer=seed.tcgplayer});vtWriteCollectorCache(raw,found)}}).catch(()=>{});return[seed]}const found=await _vtExactCollectorLookupStable(raw);if(found.length&&found.every(x=>!x._vtPricePending))vtWriteCollectorCache(raw,found);return found};
 const _vtResolveCardTextExact=resolveCardText;
-resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);return exact.slice(0,limit)}return _vtResolveCardTextExact(raw,limit)};
+resolveCardText=async function(raw,limit=8){const c=vtCollectorParts(raw);if(c){const exact=await vtExactCollectorLookup(raw);return exact.slice(0,limit)}const parsed=parseCardSearch(raw);const [primary,dex]=await Promise.all([_vtResolveCardTextExact(raw,limit).catch(()=>[]),(parsed.apiNumber||parsed.promoKeyword)?vtTcgdexSearchParsed(parsed,Math.max(limit,20)).catch(()=>[]):[]]);return rankInstant([...(primary||[]),...(dex||[])],parsed,limit)};
 
 
 /* v12 usability helpers: preserve behavior, improve mobile semantics */
