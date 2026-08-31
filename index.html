@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.13.2 — verified missing card artwork fallback */
+/* VendorTracker v12.14.0 — graded slab inventory and purchases */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -833,6 +833,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               <div class="typeToggle" style="margin-bottom:8px">
                 <button id="typeCardBtn" class="active" type="button" onclick="setInventoryType('card')">Card</button>
                 <button id="typeSealedBtn" type="button" onclick="setInventoryType('sealed')">Sealed product</button>
+                <button id="typeSlabBtn" type="button" onclick="setInventoryType('slab')">Graded slab</button>
               </div>
               <div class="lookupRow">
                 <input id="pName" class="input" placeholder="Product / card name" onkeydown="if(event.key==='Enter'){event.preventDefault();runInventoryLookup()}">
@@ -862,6 +863,12 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
               <select id="pFinish" class="input" style="width:100%" onchange="updatePendingMarketFromFinish()">
                 <option value="">Printing / finish</option>
               </select>
+              </div>
+              <div id="slabFieldsWrap" class="grid hidden" style="grid-column:1/-1">
+                <select id="pSlabCompany" class="input" onchange="toggleOtherSlabCompany('p')"></select>
+                <input id="pSlabCompanyOther" class="input hidden" placeholder="Other grading company">
+                <select id="pSlabGrade" class="input"></select>
+                <input id="pSlabCert" class="input" placeholder="Certification number (optional)">
               </div>
               <div class="priceBox">
                 <span class="small">TCGplayer Market</span>
@@ -901,6 +908,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 <div class="typeToggle" style="max-width:360px;margin-bottom:10px">
   <button id="buyTypeCardBtn" class="active" type="button" onclick="setPurchaseLookupType('card')">Card</button>
   <button id="buyTypeSealedBtn" type="button" onclick="setPurchaseLookupType('sealed')">Sealed product</button>
+  <button id="buyTypeSlabBtn" type="button" onclick="setPurchaseLookupType('slab')">Graded slab</button>
 </div>
 <div class="lookupRow">
   <input id="buySearch" class="input" placeholder="Search card name / number" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPurchaseItem()}">
@@ -914,6 +922,12 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
   <select id="buyFinish" class="input" onchange="updatePurchaseSelectedMarket()"><option value="">Printing / finish</option></select>
   <input id="buyNewQty" class="input" type="number" min="1" value="1" placeholder="Quantity">
   <input id="buySellPrice" class="input" type="number" min="0" step=".01" placeholder="Your sell price (optional)">
+  <div id="buySlabFields" class="grid hidden" style="grid-column:1/-1">
+    <select id="buySlabCompany" class="input" onchange="toggleOtherSlabCompany('buy')"></select>
+    <input id="buySlabCompanyOther" class="input hidden" placeholder="Other grading company">
+    <select id="buySlabGrade" class="input"></select>
+    <input id="buySlabCert" class="input" placeholder="Certification number (optional)">
+  </div>
   <button class="btn btnPrimary" onclick="addSelectedPurchaseItem()">Add to batch</button>
 </div>
         </div>
@@ -977,7 +991,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.13.2</span> · Updated Aug 31, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.14.0</span> · Updated Aug 31, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1138,7 +1152,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.13.2";
+const APP_VERSION="v12.14.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1178,6 +1192,17 @@ let purchaseBatchItems=[];
 let purchaseLookupType="card";
 let purchaseLookupResults=[];
 let purchaseSelectedItem=null;
+
+const SLAB_COMPANIES=['PSA','CGC','Beckett / BGS','SGC','TAG','ACE','AGS','HGA','MNT','KSA','Arena Club','Rare Edition','Mana Grading','Other'];
+const SLAB_GRADES=['10 Pristine','10 Gem Mint','10','9.5','9','8.5','8','7.5','7','6.5','6','5.5','5','4.5','4','3.5','3','2.5','2','1.5','1','Authentic','Altered','Ungraded'];
+function slabOptions(list,placeholder){return `<option value="">${placeholder}</option>`+list.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('')}
+function initSlabFields(){
+  ['pSlabCompany','buySlabCompany'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.options.length)el.innerHTML=slabOptions(SLAB_COMPANIES,'Grading company')});
+  ['pSlabGrade','buySlabGrade'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.options.length)el.innerHTML=slabOptions(SLAB_GRADES,'Grade')});
+}
+function toggleOtherSlabCompany(prefix){const company=document.getElementById(prefix+'SlabCompany'),other=document.getElementById(prefix+'SlabCompanyOther');if(other)other.classList.toggle('hidden',company?.value!=='Other')}
+function selectedSlabCompany(prefix){const company=document.getElementById(prefix+'SlabCompany')?.value||'';return company==='Other'?(document.getElementById(prefix+'SlabCompanyOther')?.value.trim()||'Other'):company}
+function slabLabel(item){return [item?.gradingCompany,item?.grade].filter(Boolean).join(' ')||'Graded slab'}
 
 function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null,paymentSetup:{}}}
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
@@ -1452,15 +1477,20 @@ function setInventoryItemReady(ready){
 function setInventoryType(type){
   inventoryType=type;
   const isCard=type==="card";
+  const isSlab=type==="slab";
+  const isSealed=type==="sealed";
   document.getElementById("typeCardBtn").classList.toggle("active",isCard);
-  document.getElementById("typeSealedBtn").classList.toggle("active",!isCard);
-  document.getElementById("inventoryLookupBtn").textContent=isCard?"Find card":"Find sealed";
-  document.getElementById("pName").placeholder=isCard?"Product / card name":"Sealed product name (ETB, booster box, bundle...)";
+  document.getElementById("typeSealedBtn").classList.toggle("active",isSealed);
+  document.getElementById("typeSlabBtn")?.classList.toggle("active",isSlab);
+  document.getElementById("inventoryLookupBtn").textContent=isSealed?"Find sealed":isSlab?"Find card for slab":"Find card";
+  document.getElementById("pName").placeholder=isSealed?"Sealed product name (ETB, booster box, bundle...)":isSlab?"Search the card inside the slab":"Product / card name";
   document.getElementById("cardLookupStatus").textContent=isCard
     ?"For Pokémon singles, enter a name, card number, or both (example: Ethan’s Cyndaquil 032/182), then click Find card."
+    :isSlab?"Find the exact card first, then enter the grading company, grade, and optional certification number."
     :"Search TCGplayer sealed products by name. You'll get product images, set/group, TCGplayer market price, and a direct TCGplayer link.";
   document.getElementById("cardConditionWrap").classList.toggle("hidden",!isCard);
-  document.getElementById("cardFinishWrap").classList.toggle("hidden",!isCard);
+  document.getElementById("cardFinishWrap").classList.toggle("hidden",isSealed);
+  document.getElementById("slabFieldsWrap")?.classList.toggle("hidden",!isSlab);
   pendingSealedData=null;
   resetCardMetadata();
   setInventoryItemReady(false);
@@ -2470,9 +2500,14 @@ function addProduct(){
        cost=Number(document.getElementById("pCost").value||0),
        price=Number(document.getElementById("pPrice").value||0),
        condition=inventoryType==="card"?document.getElementById("pCondition").value:"Sealed",
-       finish=inventoryType==="card"?document.getElementById("pFinish").value:"Sealed";
+       finish=inventoryType==="sealed"?"Sealed":document.getElementById("pFinish").value;
 
- let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase() && (x.itemType||"card")===inventoryType && (inventoryType==="sealed" || ((x.condition||"Near Mint")===condition && (x.finish||"")===finish)));
+ const slabCompany=inventoryType==="slab"?selectedSlabCompany('p'):'',
+       slabGrade=inventoryType==="slab"?(document.getElementById('pSlabGrade')?.value||''):'',
+       slabCert=inventoryType==="slab"?(document.getElementById('pSlabCert')?.value.trim()||''):'';
+ if(inventoryType==="slab"&&(!slabCompany||!slabGrade))return toast("Choose the grading company and grade");
+
+ let p=db.products.find(x=>x.name.toLowerCase()===name.toLowerCase() && (x.itemType||"card")===inventoryType && (inventoryType==="sealed" || (inventoryType==="slab"?((x.gradingCompany||'')===slabCompany&&(x.grade||'')===slabGrade&&(x.certNumber||'')===slabCert):((x.condition||"Near Mint")===condition && (x.finish||"")===finish))));
  pushUndo(p?"Update inventory item":"Add inventory item");
 
  if(inventoryType==="sealed"){
@@ -2506,6 +2541,18 @@ function addProduct(){
        setName:meta.groupName||"",
        sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()
      };
+     db.products.push(p);
+   }
+ }else if(inventoryType==="slab"){
+   const meta=pendingCardData?deepClone(pendingCardData):null;
+   if(!meta?.pokemonCardId)return toast("Select the exact card inside the slab first");
+   const market=currentMarketFromPrices(meta.tcgPrices,finish);
+   const slabCondition=`${slabCompany} ${slabGrade}`.trim();
+   if(p){
+     p.qty+=qty;if(cost)p.cost=cost;if(price)p.price=price;
+     Object.assign(p,meta,{itemType:"slab",gradingCompany:slabCompany,grade:slabGrade,certNumber:slabCert,condition:slabCondition,finish:finish||p.finish||"",tcgMarket:market,photo:pendingPhotoData||p.photo||""});
+   }else{
+     p={id:uid(),name,qty,cost,price:price||0,photo:pendingPhotoData||meta.image||"",itemType:"slab",gradingCompany:slabCompany,grade:slabGrade,certNumber:slabCert,condition:slabCondition,finish:finish||"",pokemonCardId:meta.pokemonCardId||"",cardBaseName:meta.cardBaseName||String(name).split(" — ")[0],setName:meta.setName||"",setId:meta.setId||"",cardNumber:meta.cardNumber||"",rarity:meta.rarity||"",tcgUrl:meta.tcgUrl||"",tcgUpdatedAt:meta.tcgUpdatedAt||"",tcgPrices:meta.tcgPrices||{},tcgMarket:market,lastMarketRefresh:new Date().toISOString()};
      db.products.push(p);
    }
  }else{
@@ -2543,6 +2590,7 @@ function addProduct(){
    }
  }
  ["pName","pQty","pCost","pPrice"].forEach(id=>document.getElementById(id).value="");
+ ["pSlabCompany","pSlabGrade","pSlabCert","pSlabCompanyOther"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});toggleOtherSlabCompany('p');
  document.getElementById("pCondition").value="Near Mint";
  pendingSealedData=null;
  clearProductPhotoForm();
@@ -2694,19 +2742,21 @@ function setPurchaseLookupType(type){
   purchaseLookupType=type;purchaseSelectedItem=null;purchaseLookupResults=[];
   document.getElementById("buyTypeCardBtn")?.classList.toggle("active",type==="card");
   document.getElementById("buyTypeSealedBtn")?.classList.toggle("active",type==="sealed");
+  document.getElementById("buyTypeSlabBtn")?.classList.toggle("active",type==="slab");
   const b=document.getElementById("buySearchBtn"),q=document.getElementById("buySearch");
-  if(b)b.textContent=type==="card"?"Find card":"Find sealed";
-  if(q)q.placeholder=type==="card"?"Search card name / number":"Search sealed product";
+  if(b)b.textContent=type==="sealed"?"Find sealed":type==="slab"?"Find card for slab":"Find card";
+  if(q)q.placeholder=type==="sealed"?"Search sealed product":type==="slab"?"Search the card inside the slab":"Search card name / number";
   const r=document.getElementById("buyLookupResults");if(r)r.innerHTML="";
   const p=document.getElementById("buySelectedPreview");if(p)p.innerHTML="";
   document.getElementById("buyNewItemFields")?.classList.add("hidden");
+  document.getElementById("buySlabFields")?.classList.toggle("hidden",type!=="slab");
 }
 async function searchPurchaseItem(){
   const q=document.getElementById("buySearch")?.value.trim(),status=document.getElementById("buyLookupStatus"),box=document.getElementById("buyLookupResults");
   if(!q)return toast("Enter something to search");
   status.textContent="Searching…";box.innerHTML="";purchaseSelectedItem=null;document.getElementById("buyNewItemFields")?.classList.add("hidden");
   try{
-    if(purchaseLookupType==="card"){
+    if(purchaseLookupType==="card"||purchaseLookupType==="slab"){
       const cards=await resolveCardText(q,24);purchaseLookupResults=cards;
       if(!cards.length){status.textContent="No cards found. Try the name plus collector number.";return}
       status.textContent=`Found ${cards.length} card${cards.length===1?"":"s"}. Select the exact printing.`;
@@ -2724,18 +2774,20 @@ function selectPurchaseLookup(i){
   const x=purchaseLookupResults[i];if(!x)return;
   if(x._vtPricePending)return toast("TCGPlayer pricing is still loading…");
   const fields=document.getElementById("buyNewItemFields"),preview=document.getElementById("buySelectedPreview"),finish=document.getElementById("buyFinish"),condition=document.getElementById("buyCondition");
-  if(purchaseLookupType==="card"){
+  if(purchaseLookupType==="card"||purchaseLookupType==="slab"){
     const prices=x.tcgplayer?.prices||{},keys=Object.keys(prices),chosen=keys.includes("holofoil")?"holofoil":(keys[0]||"");
-    purchaseSelectedItem={type:"card",pokemonCardId:x.id,name:`${x.name} — ${x.set?.name||""} #${fullCardNumber(x)}`.trim(),cardBaseName:x.name||"",setName:x.set?.name||"",setId:x.set?.id||"",cardNumber:fullCardNumber(x),rarity:x.rarity||"",photo:x.images?.large||x.images?.small||"",tcgUrl:x.tcgplayer?.url||"",tcgUpdatedAt:x.tcgplayer?.updatedAt||"",tcgPrices:prices,finish:chosen,condition:"Near Mint"};
-    finish.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No printing price</option>';finish.value=chosen;condition.classList.remove("hidden");finish.classList.remove("hidden");
+    purchaseSelectedItem={type:purchaseLookupType,pokemonCardId:x.id,name:`${x.name} — ${x.set?.name||""} #${fullCardNumber(x)}`.trim(),cardBaseName:x.name||"",setName:x.set?.name||"",setId:x.set?.id||"",cardNumber:fullCardNumber(x),rarity:x.rarity||"",photo:x.images?.large||x.images?.small||"",tcgUrl:x.tcgplayer?.url||"",tcgUpdatedAt:x.tcgplayer?.updatedAt||"",tcgPrices:prices,finish:chosen,condition:"Near Mint"};
+    finish.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${prettyFinish(k)}</option>`).join(""):'<option value="">No printing price</option>';finish.value=chosen;condition.classList.toggle("hidden",purchaseLookupType==="slab");finish.classList.remove("hidden");
+    document.getElementById('buySlabFields')?.classList.toggle('hidden',purchaseLookupType!=="slab");
   }else{
     purchaseSelectedItem={type:"sealed",name:x.name||"Sealed product",photo:x.imageUrl||"",setName:x.groupName||"",tcgMarket:x.marketPrice!=null?Number(x.marketPrice):null,tcgUrl:x.url||"",tcgProductId:x.productId||null,tcgLowestActual:x.tcgLowestActual||null,tcgLowestCheckedAt:x.tcgLowestCheckedAt||null,condition:"Sealed",finish:"Sealed",sealedSource:"TCGCSV"};
     condition.classList.add("hidden");finish.classList.add("hidden");
+    document.getElementById('buySlabFields')?.classList.add('hidden');
   }
   updatePurchaseSelectedMarket();
   const market=purchaseSelectedMarket();
-  document.getElementById("buySellPrice").value=market!=null?Number(market).toFixed(2):"";
-  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`TCGplayer Market ${money(market)}`:"Market unavailable"}</div>${purchaseSelectedItem.type==="sealed"?`<div id="buySelectedLowest">${purchaseSelectedItem.tcgLowestActual?lowestActualMarkup(purchaseSelectedItem):'<div class="lowestActualLine">Checking lowest actual unopened listing…</div>'}</div>`:""}</div></div>`;
+  document.getElementById("buySellPrice").value=purchaseSelectedItem.type==="slab"?"":(market!=null?Number(market).toFixed(2):"");
+  preview.innerHTML=`<div class="purchaseSelected">${purchaseSelectedItem.photo?`<img src="${esc(purchaseSelectedItem.photo)}">`:""}<div><strong>${esc(purchaseSelectedItem.name)}</strong><div class="small">${esc(purchaseSelectedItem.setName||"")}</div><div class="marketGood" id="buySelectedMarket">${market!=null?`${purchaseSelectedItem.type==="slab"?"Raw-card reference":"TCGplayer Market"} ${money(market)}`:"Market unavailable"}</div>${purchaseSelectedItem.type==="sealed"?`<div id="buySelectedLowest">${purchaseSelectedItem.tcgLowestActual?lowestActualMarkup(purchaseSelectedItem):'<div class="lowestActualLine">Checking lowest actual unopened listing…</div>'}</div>`:""}</div></div>`;
   fields.classList.remove("hidden");
   document.getElementById("buyLookupResults").innerHTML="";
   if(purchaseSelectedItem.type==="sealed"){
@@ -2752,8 +2804,8 @@ function purchaseSelectedMarket(){
   const f=document.getElementById("buyFinish")?.value||purchaseSelectedItem.finish;return currentMarketFromPrices(purchaseSelectedItem.tcgPrices,f);
 }
 function updatePurchaseSelectedMarket(){
-  if(!purchaseSelectedItem)return;if(purchaseSelectedItem.type==="card")purchaseSelectedItem.finish=document.getElementById("buyFinish")?.value||purchaseSelectedItem.finish;
-  const m=purchaseSelectedMarket(),el=document.getElementById("buySelectedMarket");if(el)el.textContent=m!=null?`TCGplayer Market ${money(m)}`:"Market unavailable";
+  if(!purchaseSelectedItem)return;if(purchaseSelectedItem.type==="card"||purchaseSelectedItem.type==="slab")purchaseSelectedItem.finish=document.getElementById("buyFinish")?.value||purchaseSelectedItem.finish;
+  const m=purchaseSelectedMarket(),el=document.getElementById("buySelectedMarket");if(el)el.textContent=m!=null?`${purchaseSelectedItem.type==="slab"?"Raw-card reference":"TCGplayer Market"} ${money(m)}`:"Market unavailable";
 }
 function addExistingPurchaseItem(){
   const id=document.getElementById("buyProduct")?.value,p=db.products.find(x=>x.id===id),qty=Math.max(1,Number(document.getElementById("buyQty")?.value||1));
@@ -2766,6 +2818,11 @@ function addSelectedPurchaseItem(){
   if(!purchaseSelectedItem)return toast("Select a card or sealed product first");
   const qty=Math.max(1,Number(document.getElementById("buyNewQty")?.value||1)),sell=Math.max(0,Number(document.getElementById("buySellPrice")?.value||0));
   const item=deepClone(purchaseSelectedItem);item.id=uid();item.qty=qty;item.total=null;item.price=sell;item.market=purchaseSelectedMarket();if(item.type==="card")item.condition=document.getElementById("buyCondition")?.value||"Near Mint";
+  if(item.type==="slab"){
+    item.gradingCompany=selectedSlabCompany('buy');item.grade=document.getElementById('buySlabGrade')?.value||'';item.certNumber=document.getElementById('buySlabCert')?.value.trim()||'';
+    if(!item.gradingCompany||!item.grade)return toast("Choose the grading company and grade");
+    item.condition=slabLabel(item);
+  }
   purchaseBatchItems.push(item);purchaseSelectedItem=null;document.getElementById("buySelectedPreview").innerHTML="";document.getElementById("buyNewItemFields").classList.add("hidden");document.getElementById("buySearch").value="";renderPurchaseBatch();
 }
 function setPurchasePaid(id,v){
@@ -2807,7 +2864,7 @@ function distributeWholeLotPaid(){
 function renderPurchaseBatch(){
   const box=document.getElementById("purchaseBatchItems");if(!box)return;
   updatePurchaseBatchTotals();
-  box.innerHTML=purchaseBatchItems.length?purchaseBatchItems.map(x=>`<div class="purchaseBatchItem">${x.photo?`<img src="${esc(x.photo)}">`:`<div class="thumb"></div>`}<div><strong>${esc(x.name)}</strong><div class="small">${x.existingProductId?"Existing inventory":(x.type==="sealed"?"Sealed":`${esc(x.condition||"Near Mint")} • ${esc(prettyFinish(x.finish||""))}`)}</div><div class="small" style="margin-top:3px">Market each: <strong>${x.market!=null?money(x.market):"Unavailable"}</strong>${x.market!=null?` • Line market ${money(Number(x.market)*x.qty)}`:""}</div></div><div><div class="small">Qty</div><strong>${x.qty}</strong></div><div style="min-width:145px"><div class="small">What you paid</div><input class="input" type="number" min="0" step=".01" placeholder="Required" value="${x.total==null?"":Number(x.total).toFixed(2)}" oninput="setPurchasePaid('${x.id}',this.value)" style="padding:8px"></div><button class="miniBtn btnDanger" onclick="removePurchaseBatchItem('${x.id}')">Remove</button></div>`).join(""):'<div class="empty">No items in this batch yet.</div>';
+  box.innerHTML=purchaseBatchItems.length?purchaseBatchItems.map(x=>`<div class="purchaseBatchItem">${x.photo?`<img src="${esc(x.photo)}">`:`<div class="thumb"></div>`}<div><strong>${esc(x.name)}</strong><div class="small">${x.existingProductId?"Existing inventory":(x.type==="sealed"?"Sealed":x.type==="slab"?`${esc(slabLabel(x))}${x.certNumber?` • Cert ${esc(x.certNumber)}`:""} • ${esc(prettyFinish(x.finish||""))}`:`${esc(x.condition||"Near Mint")} • ${esc(prettyFinish(x.finish||""))}`)}</div><div class="small" style="margin-top:3px">${x.type==="slab"?"Raw-card reference":"Market"} each: <strong>${x.market!=null?money(x.market):"Unavailable"}</strong>${x.market!=null?` • Line market ${money(Number(x.market)*x.qty)}`:""}</div></div><div><div class="small">Qty</div><strong>${x.qty}</strong></div><div style="min-width:145px"><div class="small">What you paid</div><input class="input" type="number" min="0" step=".01" placeholder="Required" value="${x.total==null?"":Number(x.total).toFixed(2)}" oninput="setPurchasePaid('${x.id}',this.value)" style="padding:8px"></div><button class="miniBtn btnDanger" onclick="removePurchaseBatchItem('${x.id}')">Remove</button></div>`).join(""):'<div class="empty">No items in this batch yet.</div>';
 }
 function addBatchItemToInventory(x){
   const paid=Number(x.total||0);
@@ -2816,6 +2873,11 @@ function addBatchItemToInventory(x){
     let p=db.products.find(v=>(v.itemType==="sealed")&&((x.tcgProductId&&String(v.tcgProductId)===String(x.tcgProductId))||v.name===x.name));
     if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:x.price||x.market||0,photo:x.photo||"",itemType:"sealed",condition:"Sealed",finish:"Sealed",tcgMarket:x.market,tcgUrl:x.tcgUrl||"",tcgProductId:x.tcgProductId||null,tcgLowestActual:x.tcgLowestActual||null,tcgLowestCheckedAt:x.tcgLowestCheckedAt||null,setName:x.setName||"",sealedSource:"TCGCSV",lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
     if(x.tcgLowestCheckedAt)setLowestActual(p,x.tcgLowestActual||null,x.tcgLowestCheckedAt);
+    const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+paid)/(oldQty+x.qty);p.qty=oldQty+x.qty;if(x.price)p.price=x.price;return p;
+  }
+  if(x.type==="slab"){
+    let p=db.products.find(v=>v.itemType==="slab"&&v.pokemonCardId===x.pokemonCardId&&(v.gradingCompany||'')===(x.gradingCompany||'')&&(v.grade||'')===(x.grade||'')&&(v.certNumber||'')===(x.certNumber||''));
+    if(!p){p={id:uid(),name:x.name,qty:0,cost:0,price:x.price||0,photo:x.photo||"",itemType:"slab",gradingCompany:x.gradingCompany||"",grade:x.grade||"",certNumber:x.certNumber||"",condition:slabLabel(x),finish:x.finish||"",pokemonCardId:x.pokemonCardId||"",cardBaseName:x.cardBaseName||"",setName:x.setName||"",setId:x.setId||"",cardNumber:x.cardNumber||"",rarity:x.rarity||"",tcgUrl:x.tcgUrl||"",tcgUpdatedAt:x.tcgUpdatedAt||"",tcgPrices:x.tcgPrices||{},tcgMarket:x.market,lastMarketRefresh:new Date().toISOString()};db.products.push(p)}
     const oldQty=Number(p.qty||0),oldCost=Number(p.cost||0);p.cost=(oldQty*oldCost+paid)/(oldQty+x.qty);p.qty=oldQty+x.qty;if(x.price)p.price=x.price;return p;
   }
   let p=db.products.find(v=>(v.itemType||"card")==="card"&&x.pokemonCardId&&v.pokemonCardId===x.pokemonCardId&&(v.finish||"")===(x.finish||"")&&(v.condition||"Near Mint")===(x.condition||"Near Mint"));
@@ -3369,7 +3431,7 @@ async function searchPurchaseItem(){
   if(!q)return toast('Enter something to search');
   status.textContent='Finding best matches…';box.innerHTML='';purchaseSelectedItem=null;document.getElementById('buyNewItemFields')?.classList.add('hidden');
   try{
-    if(purchaseLookupType==='card'){
+    if(purchaseLookupType==='card'||purchaseLookupType==='slab'){
       const cards=await resolveCardText(q,18);purchaseLookupResults=cards;
       if(!cards.length){status.textContent='No cards found. Try the name plus collector number.';return}
       status.textContent=`Found ${cards.length} card${cards.length===1?'':'s'}. Select the exact printing.`;
@@ -3387,7 +3449,7 @@ async function searchPurchaseItem(){
 /* Instant staged product search v11.38 */
 const instantCardCache=new Map();
 const instantResolveCache=new Map();
-const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v12132_';
+const PRODUCT_CACHE_PREFIX='vendortracker_lookup_v12140_';
 function lookupCacheRead(key,maxAge=86400000){
   try{const raw=localStorage.getItem(PRODUCT_CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(!obj?.time||Date.now()-obj.time>maxAge){localStorage.removeItem(PRODUCT_CACHE_PREFIX+key);return null}return obj.data||null}catch(e){return null}
 }
@@ -3503,7 +3565,7 @@ async function searchPurchaseItem(){
   if(!q)return toast('Enter something to search');
   box.innerHTML='';purchaseSelectedItem=null;document.getElementById('buyNewItemFields')?.classList.add('hidden');
   try{
-    if(purchaseLookupType==='card'){
+    if(purchaseLookupType==='card'||purchaseLookupType==='slab'){
       status.textContent='Finding matches…';
       const key='purchase_'+fastCacheKey(q),cached=lookupCacheRead(key);
       if(cached?.length){purchaseLookupResults=cached;status.textContent=`Found ${cached.length} card${cached.length===1?'':'s'} instantly.`;box.innerHTML=cached.map((c,i)=>{const prices=c.tcgplayer?.prices||{},m=Object.values(prices).map(v=>v?.market).find(v=>v!=null);return `<button class="purchaseLookupCard" onclick="selectPurchaseLookup(${i})"><img src="${esc(c.images?.small||c.images?.large||'')}"><strong>${esc(c.name)}</strong><div class="small">${esc(c.set?.name||'')} #${esc(fullCardNumber(c))}</div><div class="marketGood" style="margin-top:5px">${m!=null?money(m):(c._vtPricePending?'Loading market price…':'Market unavailable')}</div></button>`}).join('');return}
@@ -3790,13 +3852,14 @@ function renderSaleProducts(){
  const arr=db.products.filter(p=>p.name.toLowerCase().includes(q));
  document.getElementById("saleProducts").innerHTML=arr.length?arr.map(p=>{
    const sealed=p.itemType==="sealed";
+   const slab=p.itemType==="slab";
    const market=sealed?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket);
    const inCart=saleCart.find(x=>x.productId===p.id)?.qty||0;
    return `<div class="productCard">
    ${p.photo?`<img src="${p.photo}" alt="" style="width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:10px;margin-bottom:10px">`:""}
    <h4>${esc(p.name)}</h4>
-   <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span>${inCart?` • ${inCart} in cart`:""}</div>
-   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • TCG market: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}${sealed?lowestActualMarkup(p):""}</div>
+   <div class="small">${sealed?`<span class="sealedBadge">Sealed</span>`:slab?`<span class="sealedBadge">${esc(slabLabel(p))}</span>${p.certNumber?` • Cert ${esc(p.certNumber)}`:""}`:`${esc(p.condition||"Near Mint")} • ${esc(prettyFinish(p.finish||""))}`} • <span class="${p.qty<3?"stockLow":""}">${p.qty} in stock</span>${inCart?` • ${inCart} in cart`:""}</div>
+   <div class="small" style="margin-top:5px">Your price: <strong>${money(p.price)}</strong>${market!=null?` • ${slab?"Raw-card reference":"TCG market"}: <strong>${money(market)}</strong><div class="marketStamp">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}</div>`:""}${sealed?lowestActualMarkup(p):""}</div>
    <button class="btn btnPrimary addCartBtn" onclick="addToCart('${p.id}')" ${p.qty<=inCart?"disabled":""}>${p.qty<=0?"Sold out":p.qty<=inCart?"All stock in cart":"Add to cart"}</button>
    <div style="margin-top:7px;text-align:center"><a class="linkBtn" href="${esc(tcgPlayerHref(p.name,p.tcgUrl||"",p.tcgProductId||""))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a></div>
    </div>`;
@@ -3813,7 +3876,14 @@ function saveInventoryChanges(id){
   p.qty=qty;
   p.cost=cost;
   p.price=price;
-  if((p.itemType||"card")!=="sealed"){
+  if(p.itemType==="slab"){
+    p.gradingCompany=document.getElementById("inv_slab_company_"+id)?.value||p.gradingCompany||"";
+    p.grade=document.getElementById("inv_slab_grade_"+id)?.value||p.grade||"";
+    p.certNumber=document.getElementById("inv_slab_cert_"+id)?.value.trim()||"";
+    p.condition=slabLabel(p);
+    const finishEl=document.getElementById("inv_finish_"+id);if(finishEl)p.finish=finishEl.value||p.finish||"";
+    const market=currentMarketFromPrices(p.tcgPrices,p.finish);if(market!=null)p.tcgMarket=market;
+  }else if((p.itemType||"card")!=="sealed"){
     const conditionEl=document.getElementById("inv_condition_"+id);
     const finishEl=document.getElementById("inv_finish_"+id);
     if(conditionEl)p.condition=conditionEl.value||"Near Mint";
@@ -3860,13 +3930,14 @@ function renderInventory(){
  <tr><th>Photo</th><th>Product</th><th>Condition</th><th>Printing</th><th>Qty</th><th>Cost</th><th>Your price</th><th>TCGplayer Market</th><th>Actions</th></tr>
  ${db.products.map(p=>{
    const sealed=(p.itemType==="sealed");
+   const slab=(p.itemType==="slab");
    const priceKeys=sealed?[]:Object.keys(p.tcgPrices||{});
    const market=sealed?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket);
    p.tcgMarket=market;
    return `<tr>
    <td data-label="Photo">${p.photo?`<img class="thumb" src="${p.photo}" alt="">`:`<div class="thumb"></div>`}</td>
-   <td data-label="Product"><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} ${sealed?'<span class="sealedBadge">Sealed</span>':p.cardNumber?`#${esc(p.cardNumber)}`:""}</div>`:""}</td>
-   <td data-label="Condition">${sealed?`<span class="sealedBadge">Sealed</span>`:`<select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
+   <td data-label="Product"><strong>${esc(p.name)}</strong>${p.setName?`<div class="small">${esc(p.setName)} ${sealed?'<span class="sealedBadge">Sealed</span>':p.cardNumber?`#${esc(p.cardNumber)}`:""}</div>`:""}${slab&&p.certNumber?`<div class="small">Cert ${esc(p.certNumber)}</div>`:""}</td>
+   <td data-label="Condition">${sealed?`<span class="sealedBadge">Sealed</span>`:slab?`<div style="display:grid;gap:5px;min-width:150px"><select class="input" style="padding:7px" id="inv_slab_company_${p.id}">${p.gradingCompany&&!SLAB_COMPANIES.includes(p.gradingCompany)?`<option selected>${esc(p.gradingCompany)}</option>`:''}${SLAB_COMPANIES.map(c=>`<option ${c===(p.gradingCompany||'')?"selected":""}>${esc(c)}</option>`).join('')}</select><select class="input" style="padding:7px" id="inv_slab_grade_${p.id}">${p.grade&&!SLAB_GRADES.includes(p.grade)?`<option selected>${esc(p.grade)}</option>`:''}${SLAB_GRADES.map(g=>`<option ${g===(p.grade||'')?"selected":""}>${esc(g)}</option>`).join('')}</select><input class="input" style="padding:7px" id="inv_slab_cert_${p.id}" value="${esc(p.certNumber||'')}" placeholder="Cert number"></div>`:`<select class="input" style="min-width:145px;padding:7px" id="inv_condition_${p.id}">
      ${["Near Mint","Lightly Played","Moderately Played","Heavily Played","Damaged"].map(c=>`<option ${c===(p.condition||"Near Mint")?"selected":""}>${c}</option>`).join("")}
    </select>`}</td>
    <td data-label="Printing">${sealed?`<span class="small">Sealed</span>`:priceKeys.length?`<select class="input" style="min-width:145px;padding:7px" id="inv_finish_${p.id}">
@@ -3888,10 +3959,10 @@ function renderInventory(){
        <input id="inv_price_${p.id}" class="input" type="number" min="0" step="0.01" value="${Number(p.price||0).toFixed(2)}" style="width:92px;padding:7px">
      </div>
    </td>
-   <td data-label="TCG market">${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}${sealed?lowestActualMarkup(p):""}</td>
+   <td data-label="TCG market">${slab?'<div class="small">Raw-card reference</div>':''}${market!=null?`<span class="marketGood">${money(market)}</span><div class="marketStamp ${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?"marketStale":"marketFresh"}">${priceDateLabel(p.tcgUpdatedAt||p.lastMarketRefresh)}${priceIsStale(p.lastMarketRefresh||p.tcgUpdatedAt,24)?" • refresh pending":""}</div>`:`<span class="marketNone">—</span>`}${sealed?lowestActualMarkup(p):""}</td>
    <td data-label="Actions"><div class="actions">
      <button class="miniBtn btnSuccess" onclick="saveInventoryChanges('${p.id}')">Save changes</button>
-     ${market!=null?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
+     ${market!=null&&!slab?`<button class="miniBtn btnSoft" onclick="useMarketAsSellPrice('${p.id}')">Use market</button>`:""}
      <a class="miniBtn btnSoft" href="${esc(tcgPlayerHref(p.name,p.tcgUrl||"",p.tcgProductId||""))}" target="_blank" rel="noopener noreferrer">TCGplayer ↗</a>
      <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
    </div></td>
@@ -3900,7 +3971,7 @@ function renderInventory(){
 }
 
 function renderPurchases(){
- const sel=document.getElementById("buyProduct");if(sel)sel.innerHTML='<option value="">Select existing product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.qty} in stock</option>`).join("");
+ const sel=document.getElementById("buyProduct");if(sel)sel.innerHTML='<option value="">Select existing product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)}${p.itemType==="slab"?` — ${esc(slabLabel(p))}`:""} — ${p.qty} in stock</option>`).join("");
  renderPurchaseBatch();
  const table=document.getElementById("purchaseTable");if(!table)return;
  table.innerHTML=db.purchases.length?db.purchases.slice(0,50).map(x=>x.isBatch?`<div class="panel" style="margin:0 0 10px;padding:14px"><div class="panelHead"><div><strong>${esc(x.source||"Purchase batch")}</strong><div class="small">${new Date(x.time).toLocaleString()} • ${esc(x.payment||"")}${x.note?` • ${esc(x.note)}`:""}</div></div><div style="text-align:right"><strong>${money(x.total)}</strong><div class="small">${x.qty||0} total items</div></div></div><div class="purchaseBatchList">${(x.items||[]).map(it=>`<div class="purchaseBatchItem">${it.photo?`<img src="${esc(it.photo)}">`:`<div class="thumb"></div>`}<div><strong>${esc(it.name)}</strong></div><div><div class="small">Qty</div>${it.qty}</div><div><div class="small">Paid</div>${money(it.total)}</div><span></span></div>`).join("")}</div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete batch</button></div></div>`:`<div class="panel" style="margin:0 0 10px;padding:14px"><div class="panelHead"><div><strong>${esc(x.name)}</strong><div class="small">${new Date(x.time).toLocaleString()} • ${esc(x.source||"")} • ${esc(x.payment||"")}</div></div><div style="text-align:right"><strong>${money(x.total)}</strong><div class="small">Qty ${x.qty}</div></div></div><div style="display:flex;justify-content:flex-end"><button class="miniBtn btnDanger" onclick="deletePurchase('${x.id}')">Delete</button></div></div>`).join(""):'<div class="empty">No purchases yet.</div>';
@@ -3953,6 +4024,7 @@ function renderAll(){
 function toggleMobileNav(event){event?.preventDefault();event?.stopPropagation();vtToggleMobileMenu()}
 function exportJSON(){const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="vendortracker-backup.json";a.click();URL.revokeObjectURL(a.href)}
 window.addEventListener("pagehide",stopCardScannerStream);
+initSlabFields();
 init();
 </script>
 </body>
