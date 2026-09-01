@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.15.0 — fast continuous exact-card scanner */
+/* VendorTracker v12.16.0 - decisive scanner and shareable searchable inventory */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -657,6 +657,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
   #app .panel,#app .metric,#app .productCard,#app .quickAction,#app .cartPanel{background:rgba(255,255,255,.94)}
 }
 
+.inventoryTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 14px}.inventoryTool{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.78)}.inventoryTool strong{display:block;font-size:21px;margin-top:3px}.inventoryToolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.inventoryToolbar .input{flex:1;min-width:220px}.sharedInventoryShell{min-height:100vh;background:#f3f6fb;padding:26px 14px}.sharedInventoryWrap{max-width:1100px;margin:auto}.sharedInventoryGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}.sharedInventoryCard{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:13px;box-shadow:0 8px 24px rgba(15,23,42,.06)}.sharedInventoryCard img{width:100%;height:220px;object-fit:contain;border-radius:11px;background:#f8fafc}.sharedInventoryCard h3{font-size:15px;margin:10px 0 5px}.sharedInventoryHead{display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:18px}@media(max-width:620px){.inventoryTools{grid-template-columns:1fr}.sharedInventoryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.sharedInventoryCard img{height:180px}}
 </style>
 </head>
 <body>
@@ -710,6 +711,14 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 
   <section id="about" class="section"><div class="container"><div class="cta"><div><h2>Built for the way vendors actually sell.</h2><p>Stop rebuilding your totals after every event.</p></div><button class="btn btnPrimary" onclick="openAuth('signup')">Start tracking</button></div></div></section>
   <footer class="footer"><div class="container">© 2026 VendorTracker · vendortracker.app</div></footer>
+</div>
+
+<div id="sharedInventoryView" class="sharedInventoryShell hidden">
+  <div class="sharedInventoryWrap">
+    <div class="sharedInventoryHead"><div><div class="brand"><span class="brandMark" aria-hidden="true"></span><span>VendorTracker Inventory</span></div><h1 style="margin:14px 0 4px">Shared inventory</h1><div id="sharedInventoryUpdated" class="small"></div></div><a class="btn btnPrimary" href="/">Open VendorTracker</a></div>
+    <div class="inventoryToolbar"><input id="sharedInventorySearch" class="input" placeholder="Search this inventory" oninput="renderSharedInventoryItems()"><span id="sharedInventoryCount" class="small"></span></div>
+    <div id="sharedInventorySummary" class="inventoryTools"></div><div id="sharedInventoryItems" class="sharedInventoryGrid"><div class="empty">Loading inventory…</div></div>
+  </div>
 </div>
 
 <!-- AUTH -->
@@ -881,7 +890,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
             </div>
           </div></div>
         </details>
-        <div class="panel inventoryListPanel"><div class="panelHead"><div><h3>Your inventory</h3><div class="small">Tap an item to edit only when you need to.</div></div></div><div id="inventoryTable"></div></div>
+        <div class="panel inventoryListPanel"><div class="panelHead"><div><h3>Your inventory</h3><div class="small">Search, review total value, or share a read-only inventory link.</div></div></div><div id="inventoryValueSummary" class="inventoryTools"></div><div class="inventoryToolbar"><input id="inventorySearch" class="input" type="search" placeholder="Search inventory by name, set, card number, condition, or slab" oninput="renderInventory()"><button class="btn btnSoft" type="button" onclick="shareInventoryLink()">Share inventory link</button></div><div id="inventoryTable"></div></div>
       </section>
 
       <section id="purchases" class="page">
@@ -991,7 +1000,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.15.0</span> · Updated Sep 1, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.16.0</span> · Updated Sep 1, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1155,7 +1164,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.15.0";
+const APP_VERSION="v12.16.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1169,6 +1178,7 @@ let currentLookupResults=[];
 let inventoryType="card";
 let currentSealedResults=[];
 let pendingSealedData=null;
+let sharedInventoryItems=[];
 const sealedLowestListingCache=new Map();
 let sealedListingRefreshJob=null;
 const cardMarketRefreshJobs=new Map();
@@ -1207,7 +1217,7 @@ function toggleOtherSlabCompany(prefix){const company=document.getElementById(pr
 function selectedSlabCompany(prefix){const company=document.getElementById(prefix+'SlabCompany')?.value||'';return company==='Other'?(document.getElementById(prefix+'SlabCompanyOther')?.value.trim()||'Other'):company}
 function slabLabel(item){return [item?.gradingCompany,item?.grade].filter(Boolean).join(' ')||'Graded slab'}
 
-function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null,paymentSetup:{}}}
+function blankDB(){return {products:[],sales:[],purchases:[],expenses:[],shows:[],currentShow:null,paymentSetup:{},inventoryShareToken:""}}
 function localKey(){return user?LOCAL_PREFIX+user.id:null}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function money(n){return "$"+Number(n||0).toFixed(2)}
@@ -2129,7 +2139,7 @@ async function verifyCardArtwork(image,matches,limit=7,preparedSignatures=null){
   const scanSignatures=preparedSignatures||cardScanArtworkSignatures(image),limited=matches.slice(0,limit);
   const scored=(await Promise.all(limited.map(async card=>{try{const detailScore=bestArtworkSimilarity(scanSignatures,await officialCardArtworkSignatures(card)),indexScore=Number(card._vtVisualIndexScore||0);return {card,detailScore,indexScore,score:.86*detailScore+.14*indexScore}}catch{return null}}))).filter(Boolean).sort((a,b)=>b.score-a.score);
   if(!scored.length)return {verified:false,reason:"Official artwork could not be loaded",scored:[]};
-  const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,verified=best.score>=.69&&best.detailScore>=.67&&(!second||margin>=.018);
+  const best=scored[0],second=scored[1],margin=second?best.score-second.score:1,strongClearMatch=best.score>=.73&&best.detailScore>=.69,verified=best.score>=.69&&best.detailScore>=.67&&(!second||margin>=.008||strongClearMatch);
   return {verified,card:best.card,score:best.score,margin,scored,reason:verified?"":best.score<.70||best.detailScore<.68?"Photo and official artwork were not similar enough":"Two printings have nearly identical artwork"};
 }
 function cardScanMarket(card,selectedFinish=""){
@@ -2420,7 +2430,38 @@ function useMarketAsSellPrice(id){
   save();toast("Sell price set to TCGplayer market");
 }
 
+function inventoryShareSnapshot(){
+ return db.products.filter(item=>Number(item.qty||0)>0).map(item=>{const sealed=item.itemType==="sealed",market=sealed?item.tcgMarket:(currentMarketFromPrices(item.tcgPrices,item.finish)||item.tcgMarket||null);return {id:item.id,name:item.name||"Inventory item",qty:Math.max(0,Number(item.qty)||0),itemType:item.itemType||"card",condition:item.condition||"",finish:item.finish||"",gradingCompany:item.gradingCompany||"",grade:item.grade||"",setName:item.setName||"",cardNumber:item.cardNumber||"",photo:item.photo||"",price:Math.max(0,Number(item.price)||0),market:market==null?null:Number(market),tcgUrl:item.tcgUrl||""}})
+}
+async function syncSharedInventory(showToast=false){
+ if(!user||!db.inventoryShareToken)return false;
+ const {error}=await sb.from("inventory_shares").upsert({token:db.inventoryShareToken,user_id:user.id,inventory:inventoryShareSnapshot(),updated_at:new Date().toISOString()},{onConflict:"user_id"});
+ if(error){if(showToast)toast("Could not update the share link");return false}if(showToast)toast("Shared inventory updated");return true;
+}
+async function shareInventoryLink(){
+ if(!user)return toast("Sign in before sharing inventory");
+ if(!db.inventoryShareToken){db.inventoryShareToken=crypto.randomUUID();save()}
+ if(!await syncSharedInventory(false))return toast("Could not create the inventory link");
+ const url=`${location.origin}${location.pathname}?inventory=${encodeURIComponent(db.inventoryShareToken)}`;
+ if(navigator.share){try{await navigator.share({title:"VendorTracker Inventory",text:"View my current inventory",url});return}catch(error){if(error?.name==="AbortError")return}}
+ try{await navigator.clipboard.writeText(url);toast("Inventory link copied")}catch{window.prompt("Copy your inventory link",url)}
+}
+async function loadSharedInventory(token){
+ publicSite.classList.add("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden");document.getElementById("sharedInventoryView").classList.remove("hidden");
+ const {data,error}=await sb.functions.invoke("shared-inventory",{body:{token}});const box=document.getElementById("sharedInventoryItems");
+ if(error||!data?.found){box.innerHTML='<div class="empty">This inventory link is invalid or no longer available.</div>';return}
+ sharedInventoryItems=Array.isArray(data.inventory)?data.inventory:[];document.getElementById("sharedInventoryUpdated").textContent=`Updated ${new Date(data.updatedAt).toLocaleString()}`;renderSharedInventoryItems();
+}
+function renderSharedInventoryItems(){
+ const query=String(document.getElementById("sharedInventorySearch")?.value||"").trim().toLowerCase(),items=sharedInventoryItems.filter(item=>!query||[item.name,item.setName,item.cardNumber,item.condition,item.finish,item.gradingCompany,item.grade].join(" ").toLowerCase().includes(query));
+ const units=sharedInventoryItems.reduce((sum,item)=>sum+Number(item.qty||0),0),market=sharedInventoryItems.reduce((sum,item)=>sum+Number(item.market??item.price??0)*Number(item.qty||0),0);
+ document.getElementById("sharedInventorySummary").innerHTML=`<div class="inventoryTool"><span class="small">Available items</span><strong>${units.toLocaleString()}</strong></div><div class="inventoryTool"><span class="small">Displayed inventory value</span><strong>${money(market)}</strong></div><div class="inventoryTool"><span class="small">Unique products</span><strong>${sharedInventoryItems.length.toLocaleString()}</strong></div>`;
+ document.getElementById("sharedInventoryCount").textContent=`${items.length} result${items.length===1?"":"s"}`;
+ document.getElementById("sharedInventoryItems").innerHTML=items.length?items.map(item=>`<div class="sharedInventoryCard">${item.photo?`<img src="${esc(item.photo)}" alt="${esc(item.name)}">`:""}<h3>${esc(item.name)}</h3><div class="small">${esc(item.setName||"")}${item.cardNumber?` • #${esc(item.cardNumber)}`:""}</div><div class="small">${esc(item.itemType==="slab"?[item.gradingCompany,item.grade].filter(Boolean).join(" "):item.condition||"")}</div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:9px"><strong>${money(item.market??item.price??0)}</strong><span class="small">Qty ${Number(item.qty||0)}</span></div>${item.tcgUrl?`<a class="linkBtn" style="display:inline-block;margin-top:9px" href="${esc(item.tcgUrl)}" target="_blank" rel="noopener">TCGplayer ↗</a>`:""}</div>`).join(""):'<div class="empty">No matching inventory items.</div>';
+}
+
 async function init(){
+ const sharedToken=new URLSearchParams(location.search).get("inventory");if(sharedToken){await loadSharedInventory(sharedToken);return}
  const h=location.hash;
  if(h.includes("type=recovery")||h.includes("access_token="))recoveryMode=true;
  const {data:{session}}=await sb.auth.getSession();
@@ -2431,7 +2472,7 @@ function warmSealedProductSearch(){
  if(!sealedSearchWarmJob)sealedSearchWarmJob=sb.functions.invoke("sealed-product-search",{body:{action:"ping"}}).catch(()=>null);
  return sealedSearchWarmJob;
 }
-function showPublic(){publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
+function showPublic(){document.getElementById("sharedInventoryView")?.classList.add("hidden");publicSite.classList.remove("hidden");authOverlay.classList.add("hidden");resetView.classList.add("hidden");app.classList.add("hidden")}
 function openAuth(mode){publicSite.classList.add("hidden");authOverlay.classList.remove("hidden");setAuthTab(mode)}
 function closeAuth(){authOverlay.classList.add("hidden");publicSite.classList.remove("hidden")}
 function setAuthTab(mode){authMode=mode;signInTab.classList.toggle("active",mode==="signin");signUpTab.classList.toggle("active",mode==="signup");authSubmit.textContent=mode==="signin"?"Sign in":"Create account";setMsg(authMsg,"")}
@@ -2470,7 +2511,7 @@ async function pushCloud(){
  const stamp=new Date().toISOString();
  const {data,error}=await sb.from("vendor_data").upsert({user_id:user.id,data:db,updated_at:stamp},{onConflict:"user_id"}).select("updated_at").single();
  if(error){setSync(false,"Save error");return}
- lastCloudUpdate=data.updated_at;setSync(true,"Synced");
+ lastCloudUpdate=data.updated_at;setSync(true,"Synced");if(db.inventoryShareToken)syncSharedInventory(false);
 }
 
 function go(id,btn){
@@ -3996,9 +4037,12 @@ function addInventoryQty(id){
 }
 
 function renderInventory(){
- document.getElementById("inventoryTable").innerHTML=db.products.length?`<div class="tableWrap"><table>
+ const query=String(document.getElementById("inventorySearch")?.value||"").trim().toLowerCase(),products=db.products.filter(p=>!query||[p.name,p.setName,p.cardNumber,p.condition,p.finish,p.gradingCompany,p.grade,p.certNumber].join(" ").toLowerCase().includes(query));
+ const totals=db.products.reduce((sum,p)=>{const qty=Math.max(0,Number(p.qty)||0),market=p.itemType==="sealed"?p.tcgMarket:(currentMarketFromPrices(p.tcgPrices,p.finish)||p.tcgMarket);sum.units+=qty;sum.market+=qty*Math.max(0,Number(market)||0);sum.list+=qty*Math.max(0,Number(p.price)||0);return sum},{units:0,market:0,list:0});
+ const summary=document.getElementById("inventoryValueSummary");if(summary)summary.innerHTML=`<div class="inventoryTool"><span class="small">TCGplayer market value</span><strong>${money(totals.market)}</strong></div><div class="inventoryTool"><span class="small">Value at your prices</span><strong>${money(totals.list)}</strong></div><div class="inventoryTool"><span class="small">Total items in stock</span><strong>${totals.units.toLocaleString()}</strong></div>`;
+ document.getElementById("inventoryTable").innerHTML=products.length?`<div class="tableWrap"><table>
  <tr><th>Photo</th><th>Product</th><th>Condition</th><th>Printing</th><th>Qty</th><th>Cost</th><th>Your price</th><th>TCGplayer Market</th><th>Actions</th></tr>
- ${db.products.map(p=>{
+ ${products.map(p=>{
    const sealed=(p.itemType==="sealed");
    const slab=(p.itemType==="slab");
    const priceKeys=sealed?[]:Object.keys(p.tcgPrices||{});
@@ -4037,7 +4081,7 @@ function renderInventory(){
      <button class="miniBtn btnDanger" onclick="deleteProduct('${p.id}')">Delete</button>
    </div></td>
    </tr>`;
- }).join("")}</table></div>`:`<div class="empty">No inventory yet.</div>`;
+ }).join("")}</table></div>`:`<div class="empty">${db.products.length?"No inventory items match that search.":"No inventory yet."}</div>`;
 }
 
 function renderPurchases(){
