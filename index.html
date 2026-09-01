@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.14.4 — verified server lookup for phone collector numbers */
+/* VendorTracker v12.14.5 — automatic three-digit promo lookup */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -991,7 +991,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.14.4</span> · Updated Sep 1, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.14.5</span> · Updated Sep 1, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1152,7 +1152,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.14.4";
+const APP_VERSION="v12.14.5";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -3849,6 +3849,39 @@ function vtClearLookupInput(id){const el=document.getElementById(id);if(el)el.va
 const _vtSearchPokemonCards1201=searchPokemonCards;searchPokemonCards=async function(){const el=document.getElementById('pName');const submitted=el?.value||'';try{return await _vtSearchPokemonCards1201()}finally{if(el&&el.value===submitted)el.value=''}};
 if(typeof searchSealedProducts==='function'){const _vtSearchSealed1201=searchSealedProducts;searchSealedProducts=async function(){const el=document.getElementById('sealedSearch')||document.getElementById('pName');const submitted=el?.value||'';try{return await _vtSearchSealed1201()}finally{if(el&&el.value===submitted)el.value=''}}}
 if(typeof searchPurchaseItem==='function'){const _vtPurchaseSearch1201=searchPurchaseItem;searchPurchaseItem=async function(){const el=document.getElementById('buySearch');const submitted=el?.value||'';try{return await _vtPurchaseSearch1201()}finally{if(el&&el.value===submitted)el.value=''}}}
+
+/* A bare three-digit collector number should include its promo printing too. */
+function vtBareThreeDigitPromo(raw){return /^\s*\d{3}\s*$/.test(String(raw||''))}
+async function vtThreeDigitPromoLookup(raw){
+  if(!vtBareThreeDigitPromo(raw))return[];
+  const number=String(Number(String(raw).trim()));
+  try{
+    const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('PROMO_TIMEOUT')),14000));
+    const {data,error}=await Promise.race([sb.functions.invoke('mobile-card-number-search',{body:{number,promoOnly:true}}),timeout]);
+    if(error)throw error;
+    return Array.isArray(data?.cards)?data.cards:[];
+  }catch(error){return[]}
+}
+const _vtResolveCardTextPromo=resolveCardText;
+resolveCardText=async function(raw,limit=8){
+  if(!vtBareThreeDigitPromo(raw))return _vtResolveCardTextPromo(raw,limit);
+  const [regular,promos]=await Promise.all([_vtResolveCardTextPromo(raw,Math.max(limit,18)),vtThreeDigitPromoLookup(raw)]);
+  return uniqueCards([...(promos||[]),...(regular||[])]).slice(0,limit);
+};
+const _vtSearchPokemonCardsPromo=searchPokemonCards;
+searchPokemonCards=async function(){
+  const input=document.getElementById('pName'),raw=input?.value?.trim()||'';
+  if(!vtBareThreeDigitPromo(raw))return _vtSearchPokemonCardsPromo();
+  const promoJob=vtThreeDigitPromoLookup(raw);
+  await _vtSearchPokemonCardsPromo();
+  const promos=await promoJob;
+  if(!promos.length)return;
+  currentLookupResults=uniqueCards([...promos,...(currentLookupResults||[])]);
+  renderCardLookup(currentLookupResults);
+  document.getElementById('cardLookupModal')?.classList.remove('hidden');
+  const status=document.getElementById('cardLookupStatus');
+  if(status)status.textContent=`Found ${currentLookupResults.length} matching printing${currentLookupResults.length===1?'':'s'}, including ${promos.length} promo${promos.length===1?'':'s'}.`;
+};
 
 function renderDashboard(){
  const revenue=db.sales.reduce((a,x)=>a+x.total,0),cogs=db.sales.reduce((a,x)=>a+x.cost*x.qty,0),expenses=db.expenses.reduce((a,x)=>a+x.amount,0),inv=db.products.reduce((a,x)=>a+x.qty*x.cost,0);

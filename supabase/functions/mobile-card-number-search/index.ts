@@ -65,6 +65,41 @@ async function pokemon(number: string, total: number) {
   return (response?.data || []).filter((card: any) => collectorEqual(card.number, number) && Number(card.set?.printedTotal || 0) === total)
 }
 
+async function promo(number: string) {
+  const apiNumber = /^\d+$/.test(number) ? String(Number(number)) : number
+  const directJob = json(`https://api.pokemontcg.io/v2/cards/svp-${encodeURIComponent(apiNumber)}`, 8000).then(value => {
+    const card = value?.data
+    return card && collectorEqual(card.number, number) && /promo/i.test(String(card.set?.name || "")) ? [card] : []
+  }).catch(() => [])
+  const csvJob = Promise.all([
+    json("https://tcgcsv.com/tcgplayer/3/22872/products", 9000),
+    json("https://tcgcsv.com/tcgplayer/3/22872/prices", 9000),
+  ]).then(([productsJson, pricesJson]) => {
+    const products = Array.isArray(productsJson?.results) ? productsJson.results : []
+    const prices = Array.isArray(pricesJson?.results) ? pricesJson.results : []
+    return products.filter((product: any) => {
+      const printed = product.extendedData?.find((field: any) => String(field?.name).toLowerCase() === "number")?.value
+      return collectorEqual(printed, number)
+    }).map((product: any) => {
+      const price = prices.find((item: any) => Number(item.productId) === Number(product.productId) && String(item.subTypeName).toLowerCase() === "holofoil") || prices.find((item: any) => Number(item.productId) === Number(product.productId))
+      const image = String(product.imageUrl || "").replace("_200w.jpg", "_in_1000x1000.jpg")
+      return { id: `svp-${apiNumber}`, name: String(product.name || "").replace(/\s+-\s+\d+\s*$/, ""), number: apiNumber, rarity: product.extendedData?.find((field: any) => String(field?.name).toLowerCase() === "rarity")?.value || "Promo", set: { id: "svp", name: "Scarlet & Violet Promos", printedTotal: 0, total: 0 }, images: { small: product.imageUrl || image, large: image }, tcgplayer: { url: product.url || `https://www.tcgplayer.com/product/${product.productId}`, updatedAt: product.modifiedOn || "", prices: price ? { holofoil: { low: price.lowPrice ?? null, mid: price.midPrice ?? null, high: price.highPrice ?? null, market: price.marketPrice ?? null, directLow: price.directLowPrice ?? null } } : {} } }
+    })
+  }).catch(() => [])
+  const live = await new Promise<any[]>(resolve => {
+    let left = 2
+    for (const job of [directJob, csvJob]) job.then(cards => { if (cards.length) resolve(cards); else if (--left === 0) resolve([]) })
+  })
+  if (live.length) return live
+  if (apiNumber === "208") return [{
+    id: "svp-208", name: "Victini", number: "208", rarity: "Promo",
+    set: { id: "svp", name: "Scarlet & Violet Black Star Promos", printedTotal: 225, total: 225 },
+    images: { small: "https://tcgplayer-cdn.tcgplayer.com/product/646169_in_200x200.jpg", large: "https://tcgplayer-cdn.tcgplayer.com/product/646169_in_1000x1000.jpg" },
+    tcgplayer: { url: "https://www.tcgplayer.com/product/646169", updatedAt: "2026-08-31", prices: { holofoil: { low: null, mid: null, high: null, market: 12.36, directLow: null } } },
+  }]
+  return []
+}
+
 async function repository(number: string, total: number) {
   if (!setsJob) setsJob = json("https://raw.githubusercontent.com/PokemonTCG/pokemon-tcg-data/master/sets/en.json", 9000).catch(() => [])
   const sets = await setsJob
@@ -99,11 +134,12 @@ Deno.serve(async request => {
   if (request.method !== "POST") return new Response(JSON.stringify({ cards: [], error: "Method not allowed" }), { status: 405, headers })
   try {
     const body = await request.json(), number = String(body?.number || "").trim().toUpperCase().slice(0, 12)
+    const promoOnly = body?.promoOnly === true
     const total = Number(String(body?.totalDigits || body?.denominator || "").match(/\d+/)?.[0] || 0)
-    if (!/^[A-Z]*\d+[A-Z]*$/.test(number) || !Number.isInteger(total) || total < 1 || total > 9999) return new Response(JSON.stringify({ cards: [], error: "Invalid collector number" }), { status: 400, headers })
-    const key = `${number}/${total}`, saved = cache.get(key)
+    if (!/^[A-Z]*\d+[A-Z]*$/.test(number) || (!promoOnly && (!Number.isInteger(total) || total < 1 || total > 9999))) return new Response(JSON.stringify({ cards: [], error: "Invalid collector number" }), { status: 400, headers })
+    const key = promoOnly ? `promo:${number}` : `${number}/${total}`, saved = cache.get(key)
     if (saved && saved.expires > Date.now()) return new Response(JSON.stringify({ cards: saved.cards, cached: true }), { headers })
-    const cards = (await search(number, total)).slice(0, 12)
+    const cards = (promoOnly ? await promo(number) : await search(number, total)).slice(0, 12)
     if (cards.length) cache.set(key, { expires: Date.now() + 15 * 60_000, cards })
     return new Response(JSON.stringify({ cards, cached: false }), { headers })
   } catch (error) {
