@@ -18,11 +18,7 @@ import sharp from "sharp";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = path.join(ROOT, "pokemon-card-embedding-index.bin");
-const API = "https://api.pokemontcg.io/v2/cards";
-// The API currently returns intermittent 5xx responses for larger projected
-// pages and for an id/images-only projection. Small pages with name included
-// are reliable and still keep the one-time index build lightweight.
-const PAGE_SIZE = 50;
+const VISUAL_INDEX_PARTS = 7;
 const EMBEDDING_DIMENSION = 256;
 const BATCH_SIZE = 24;
 const MINIMUM_COVERAGE = 0.96;
@@ -51,27 +47,18 @@ async function fetchBytes(url, accept, attempts = 4) {
   throw lastError || new Error("Request failed");
 }
 
-async function fetchJson(url) {
-  return JSON.parse((await fetchBytes(url, "application/json")).toString("utf8"));
-}
-
 async function loadCards() {
-  const firstUrl = `${API}?${new URLSearchParams({page: "1", pageSize: String(PAGE_SIZE), select: "id,name,images"})}`;
-  const first = await fetchJson(firstUrl);
-  const total = Number(first.totalCount || first.data?.length || 0);
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const payloads = new Array(pages);
-  payloads[0] = first;
-  let nextPage = 2;
-  await Promise.all(Array.from({length: Math.min(8, Math.max(0, pages - 1))}, async () => {
-    while (nextPage <= pages) {
-      const page = nextPage++;
-      const url = `${API}?${new URLSearchParams({page: String(page), pageSize: String(PAGE_SIZE), select: "id,name,images"})}`;
-      payloads[page - 1] = await fetchJson(url);
-    }
-  }));
-  const cards = payloads.flatMap(payload => payload?.data || []).filter(card => card?.id && card?.images?.small);
-  console.log(`metadata ${cards.length}/${total}`);
+  const encoded = (await Promise.all(Array.from({length: VISUAL_INDEX_PARTS}, (_, index) => fs.readFile(path.join(ROOT, `pokemon-card-visual-index.part${index}.txt`), "utf8")))).join("").replace(/\s+/g, "");
+  const buffer = Buffer.from(encoded, "base64");
+  if (buffer.length < 8 || buffer.subarray(0, 4).toString("ascii") !== "RBX1") throw new Error("Visual catalog is unavailable");
+  const count = buffer.readUInt32LE(4), cards = new Array(count);let offset = 8;
+  for (let index = 0; index < count; index++) {
+    const length = buffer.readUInt8(offset++), id = buffer.subarray(offset, offset + length).toString("utf8");offset += length + 16;
+    const split = id.lastIndexOf("-");if (split < 1) throw new Error(`Invalid card id: ${id}`);
+    const setId = id.slice(0, split), number = id.slice(split + 1);
+    cards[index] = {id, images: {small: `https://images.pokemontcg.io/${encodeURIComponent(setId)}/${encodeURIComponent(number)}.png`}};
+  }
+  console.log(`catalog ${cards.length}/${count}`);
   return cards;
 }
 
