@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.16.0 - decisive scanner and shareable searchable inventory */
+/* VendorTracker v12.17.0 - embedding-powered continuous exact-card scanner */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -1000,7 +1000,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.16.0</span> · Updated Sep 1, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.17.0</span> · Updated Sep 2, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1164,7 +1164,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.16.0";
+const APP_VERSION="v12.17.0";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -1832,7 +1832,7 @@ function scannerFrameDifference(left,right){
 async function openCardScanner(){
   if(inventoryType!=="card")setInventoryType("card");
   const modal=document.getElementById("cardScannerModal"),video=document.getElementById("cardScannerVideo");modal.classList.remove("hidden");document.body.style.overflow="hidden";
-  setScannerStatus("Starting camera…");loadCardVisualIndex().catch(()=>{});
+  setScannerStatus("Starting camera…");Promise.all([loadCardEmbeddingIndex(),loadCardEmbeddingModel()]).catch(()=>loadCardVisualIndex().catch(()=>{}));
   if(!navigator.mediaDevices?.getUserMedia){setScannerStatus("Live camera is not supported here. Use a saved scan below.","bad");return}
   try{
     stopCardScannerStream();
@@ -2153,10 +2153,15 @@ async function readCardScanPhoto(entry){
   try{
     image=await scanImageSource(entry.file);
     entry.message="Matching artwork on this device…";entry.progress=12;renderCardScanQueue();
-    const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
-    const nearest=closestVisualIndexEntries(fingerprints,index,56),indexCount=index.count||index.entries.length;
+    let nearest,indexCount=0;
+    try{
+      const [queries,embeddingIndex,fingerprints,visualIndex]=await Promise.all([cardEmbeddingVectorsForImage(image),loadCardEmbeddingIndex(),Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);
+      const learned=closestEmbeddingIndexEntries(queries,embeddingIndex,64),compatibility=closestVisualIndexEntries(fingerprints,visualIndex,24),seen=new Set();nearest=[...learned,...compatibility].filter(item=>item.id&&!seen.has(item.id)&&seen.add(item.id)).slice(0,72);indexCount=embeddingIndex.count;
+    }catch(error){
+      const [fingerprints,index]=await Promise.all([Promise.resolve().then(()=>cardVisualFingerprints(image)),loadCardVisualIndex()]);nearest=closestVisualIndexEntries(fingerprints,index,72);indexCount=index.count||index.entries.length;
+    }
     entry.message=`Comparing artwork against ${Number(indexCount).toLocaleString()} cards on this device…`;entry.progress=42;renderCardScanQueue();
-    const scanSignatures=cardScanArtworkSignatures(image),stages=[[0,8,68],[8,24,84],[24,56,94]];let matches=[],artwork={verified:false,scored:[]};
+    const scanSignatures=cardScanArtworkSignatures(image),stages=[[0,8,68],[8,24,82],[24,48,91],[48,72,96]];let matches=[],artwork={verified:false,scored:[]};
     for(let stageIndex=0;stageIndex<stages.length;stageIndex++){
       const [start,end,progress]=stages[stageIndex];entry.message=stageIndex?"Checking more exact artwork because the first result was uncertain…":"Checking the closest official cards…";entry.progress=progress;renderCardScanQueue();
       try{matches=uniqueCards([...matches,...await fetchVisualCandidateCards(nearest.slice(start,end))])}catch(error){if(!matches.length)throw error}
