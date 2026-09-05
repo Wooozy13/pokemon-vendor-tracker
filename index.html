@@ -639,7 +639,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
 @media(max-width:380px){.scanEntryFields{grid-template-columns:1fr}}
 
 
-/* VendorTracker v12.17.0 - embedding-powered continuous exact-card scanner */
+/* VendorTracker v12.17.1 - fast mobile collector-number lookup */
 #app{
   background:
     linear-gradient(rgba(6,10,24,.58),rgba(6,10,24,.72)),
@@ -1000,7 +1000,7 @@ body{background:radial-gradient(circle at 12% 4%,rgba(59,103,255,.12),transparen
           </div>
           <div class="detailsBox" id="buildInfoBox">
             <strong>VendorTracker build</strong>
-            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.17.0</span> · Updated Sep 2, 2026</p>
+            <p class="small" style="margin:6px 0 0"><span id="appVersionLabel">v12.17.1</span> · Updated Sep 5, 2026</p>
             <p class="small" style="margin:4px 0 0">If this version appears after a refresh, the newest site update has deployed.</p>
           </div>
           <div class="detailsBox">
@@ -1164,7 +1164,7 @@ const vtAuthStorage={
 };
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:vtAuthStorage,storageKey:VT_AUTH_STORAGE_KEY}});
 const LOCAL_PREFIX="vendortracker_data_v3_";
-const APP_VERSION="v12.17.0";
+const APP_VERSION="v12.17.1";
 const TCG_LOWEST_SOURCE="TCGplayer verified live standard unopened marketplace listing";
 const SEALED_LISTING_CACHE_MS=90*1000;
 const SEALED_LISTING_STALE_MS=3*60*1000;
@@ -3721,7 +3721,21 @@ async function vtPhoneTcgdexCollectorLookup(c){
   }catch(error){vtCollectorIssues.push(error?.message==='PHONE_LOOKUP_TIMEOUT'?'timeout':'service');return[]}
 }
 vtTcgdexCollectorLookup=async function(c){
-  return matchMedia('(max-width:820px)').matches?vtPhoneTcgdexCollectorLookup(c):vtDesktopTcgdexCollectorLookup(c);
+  if(!matchMedia('(max-width:820px)').matches)return vtDesktopTcgdexCollectorLookup(c);
+  // Phones use the same fast catalog request as desktop. Keep the Edge Function
+  // running in parallel as a fallback for mobile networks/browsers that block or
+  // throttle a direct provider request; the first exact result wins.
+  const jobs=[vtDesktopTcgdexCollectorLookup(c),vtPhoneTcgdexCollectorLookup(c)];
+  return new Promise(resolve=>{
+    let remaining=jobs.length,finished=false;
+    jobs.forEach(job=>Promise.resolve(job).then(cards=>{
+      if(finished)return;
+      if(Array.isArray(cards)&&cards.length){finished=true;resolve(cards);return}
+      if(--remaining===0){finished=true;resolve([])}
+    }).catch(()=>{
+      if(!finished&&--remaining===0){finished=true;resolve([])}
+    }));
+  });
 };
 let vtCollectorIssues=[];
 function vtCollectorFailureMessage(c){
